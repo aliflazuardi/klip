@@ -1,0 +1,422 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Klip configuration: every tunable setting lives in this one file.
+#
+# Secrets (API keys) do NOT go here; they go in .env (see .env.example).
+# Per-video choices (voice, speech_rate, style, music mood, visuals) go in the spec JSON.
+# Override this file's location with KLIP_CONFIG=/path/to/klip.yaml.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Voice (TTS) ──────────────────────────────────────────────────────────────
+voices:
+  engine: edge                      # TTS engine (only "edge" for now)
+  ids:                              # logical voice → engine voice id
+    edge:
+      male: id-ID-ArdiNeural
+      female: id-ID-GadisNeural
+  # Rate used when a spec leaves `speech_rate` unset. Gadis reads slower than Ardi.
+  default_rate:
+    male: "+8%"
+    female: "+15%"
+  # Shift applied to word timings (ms) so captions match the audible onset.
+  # edge-tts word offsets run ~115 ms early (measured with scripts/check_sync.py).
+  timing_offset_ms:
+    edge: 100
+  # Words per second at +0% rate, used for duration estimates and script word budgets.
+  # Measured: female 1.97 w/s at +15%, male 2.35 w/s at +8%.
+  base_words_per_second:
+    male: 2.176
+    female: 1.713
+
+# ── Delivery (per-scene prosody) ─────────────────────────────────────────────
+# edge-tts reads everything in one flat tone; varying rate/pitch per scene makes it livelier.
+# Each preset shifts the voice's base rate (added to voices.default_rate / spec speech_rate)
+# and pitch/volume. A scene picks one with "delivery"; otherwise by_template decides.
+# Try one with: uv run klip say "Pernah nggak kamu…?" --delivery energetic
+prosody:
+  enabled: true
+  presets:
+    neutral:   {rate: "+0%", pitch: "+0Hz", volume: "+0%"}
+    energetic: {rate: "+6%", pitch: "+8Hz", volume: "+5%"}    # hooks: quicker, brighter
+    emphatic:  {rate: "-4%", pitch: "+4Hz", volume: "+5%"}    # the key fact/number: slower, firmer
+    warm:      {rate: "-6%", pitch: "-4Hz", volume: "+0%"}    # outro: relaxed, friendly
+    calm:      {rate: "-8%", pitch: "-6Hz", volume: "-5%"}
+  by_template:
+    hook: energetic
+    stat: emphatic
+    myth_fact: emphatic
+    cta: warm
+  default: neutral
+
+# ── Pronunciation lexicon ────────────────────────────────────────────────────
+# Applied to the spoken (TTS) text only; captions keep the original spelling.
+# Word keys match whole words; symbol keys ("%") match anywhere.
+# Test a fix with: uv run klip say "teks kamu" --voice female
+lexicon:
+  WiFi: wai fai
+  vs: versus
+  "%": persen
+  km/jam: kilometer per jam
+  Follow: folo
+  follow: folo
+  TikTok: tik tok
+  online: onlain
+  update: apdet
+
+# ── Scene timeline ───────────────────────────────────────────────────────────
+timeline:
+  gap_ms: 150                       # silence between scenes
+  tail_ms: 1000                     # hold after the last scene
+  min_scene_ms: 1500
+  hook_lead_ms: 60                  # trim the TTS lead-in so the hook's first word starts ~60 ms in
+
+# ── Stock media / b-roll ─────────────────────────────────────────────────────
+assets:
+  # Tried in this order per scene. pexels/pixabay are skipped without their .env key.
+  providers: [local, pexels, pixabay, openverse]
+  local_dir: assets/broll           # your own clips, matched by folder/file names
+  download_tries: 3                 # candidates tried per provider before moving on
+  # Relevance gate: a result's tags must contain this share of the query's words, else it's
+  # skipped (falls back to photos, then the scene's icon). Raise for stricter matching.
+  min_relevance: 0.5
+  # Smallest rendition whose 9:16 center crop covers this much of 1080×1920 (1440p ≈ 0.75).
+  rendition_min_fill: 0.74
+  # Below this, a center crop would be too soft → blurred-background fill instead.
+  cover_min_fill: 0.6
+  api_cache_hours: 24               # Pixabay terms require caching responses 24 h
+  # Claude looks at numbered thumbnail sheets of each scene's candidates before downloading,
+  # keeps the ones that actually show the narration, ranks them, and can rescue a few results
+  # the tag gate dropped. One `claude -p` call per video (your Claude plan, ~30-90 s). Falls back
+  # to tag-based selection if the CLI is missing, not logged in, or the call fails.
+  vision_check:
+    enabled: true
+    candidates_per_scene: 8         # thumbnails per sheet
+    candidates_per_prop: 6          # thumbnails per stage prop (cutout/photo element); best rated is used
+    photo_slots: 3                  # of those, reserved for stock photos (they often match better)
+    min_score: 2                    # Claude rates 0-3 (3 shows the subject, 2 closely related, 1 generic)
+    extra_untagged: 2               # per query: tag-gate rejects Claude may still approve
+    model: null                     # null = llm.claude.model / CLI default; "haiku" is faster/cheaper
+    timeout_s: 300
+
+# ── Cuts: several shots per b-roll scene ─────────────────────────────────────
+# Every shot shows its own clip: a source is used once per video and never looped. Scenes with
+# visual.beats cut on each beat's anchor word (one clip per beat). Without beats, a scene is split
+# into shots of ~target_shot_s on word boundaries (preferably after punctuation), but only into as
+# many shots as it has distinct clips. A spec can cap a scene with visual.max_shots (1 = no cuts).
+cuts:
+  target_shot_s: 2.5
+  min_shot_s: 1.4                   # beats closer together than this are dropped
+  max_shots_per_scene: 4
+  clips_per_scene: 3                # distinct clips fetched per scene without beats
+  cut_zoom: 1.12                    # each new shot punches in from this scale
+  min_speed: 0.6                    # a clip shorter than its shot slows to this, then holds its last frame
+  max_shot_s: 6.0                   # QA reports shots longer than this (they feel static); add beats
+
+# ── Stage scenes (visual.type "stage") ──────────────────────────────────────
+# A collage that builds up on a persistent background (90secondslab style): cut-out photos,
+# icons, labels, numbers and charts pop in on their narration words and stay. Consecutive stage
+# scenes with the same background keep it on screen (no whoosh; the props sweep off instead).
+stage:
+  default_background: desk
+  # Built-in textures (CSS + SVG noise, no downloads). base = colour, grain = noise opacity,
+  # grain_freq = SVG feTurbulence baseFrequency ("x y"; a tiny y gives wood-like streaks),
+  # planks = px between plank seams (0 = none), vignette = edge darkening (0-1).
+  backgrounds:
+    desk:  {base: "#A86F42", grain: 0.38, grain_freq: "0.012 0.32", planks: 270, vignette: 0.45}
+    paper: {base: "#F4EEE2", grain: 0.10, grain_freq: "0.9 0.9", planks: 0, vignette: 0.18}
+    kraft: {base: "#C9A273", grain: 0.20, grain_freq: "0.7 0.7", planks: 0, vignette: 0.30}
+    board: {base: "#25343A", grain: 0.16, grain_freq: "0.8 0.8", planks: 0, vignette: 0.40}
+  bg_drift_px: 40                   # the background pans this far across a run of stage scenes
+  zoom: 1.04                        # the props layer slowly pushes in to this scale per scene
+  # Layout: the stage area sits between the title strip and the captions (caption.top 1180).
+  # Slot centres (x, y) on the 1080x1920 canvas: t/m/b row + l/c/r column.
+  slots:
+    tl: [290, 560]
+    tc: [510, 560]
+    tr: [730, 560]
+    ml: [290, 790]
+    mc: [510, 790]
+    mr: [730, 790]
+    bl: [290, 1010]
+    bc: [510, 1010]
+    br: [730, 1010]
+  # Automatic slots by how many elements share the stage (highlights don't take a slot).
+  layouts:
+    1: [mc]
+    2: [tl, br]
+    3: [tl, tr, bc]
+    4: [tl, tr, bl, br]
+    5: [tl, tr, mc, bl, br]
+    6: [tl, tc, tr, bl, bc, br]
+  # Default size by how many elements share the stage: 1 → l, 2 → m, 3+ → s.
+  sizes:
+    s: [300, 260]                   # bounding box (w, h) px for cutout/photo/bar/stack
+    m: [420, 360]
+    l: [640, 560]
+  icon_px: {s: 170, m: 220, l: 300} # icon sticker disc diameter
+  number_px: {s: 110, m: 150, l: 210}   # number font size
+  label_px: {s: 40, m: 50, l: 62}   # label font size
+  tilt_deg: 6                       # props are rotated up to ± this (deterministic per element)
+  lead_s: 0.06                      # an element lands this long before its word
+  min_gap_s: 0.25                   # entries closer than this are pushed apart
+  exit_s: 0.25                      # props sweep off this long before a cleared stage / stage→stage cut
+  lint_min_gap_s: 0.5               # validate warns when two anchors are closer than this
+  lint_max_gap_s: 3.0               # ... and when nothing new appears for longer than this
+  stack_count: 4                    # stack elements without `count`
+  title:                            # the scene's on_screen_text as a paper strip at the top
+    top: 330
+    font_size: 58
+    hook_font_size: 72
+    bg: "#FFFFFF"
+    color: "#15151C"
+    tilt_deg: -1.5
+  label: {bg: "#FFFFFF", color: "#15151C"}
+  highlight: {color: "#FFE14D", width: 10, pad: 18}
+  icon: {bg: "#FFFFFF", color: "#15151C"}
+  number: {neutral: "#15151C", up: "#1FA45B", down: "#E5484D", stroke: "#FFFFFF"}   # by `tone`; white sticker outline
+  bar: {colors: ["#3B82F6", "#F59E0B", "#10B981", "#EF4444"], bg: "#FFFFFF", text: "#15151C"}
+  cutout:
+    # Background removal for kind=cutout: apple = macOS Vision subject lift (a Swift helper built
+    # once into the cache; needs Xcode command-line tools), rembg = optional Python package
+    # (`uv pip install "rembg[cpu]"`; kept out of the lock because it pins Pillow back),
+    # auto = apple, then rembg. If neither works, or the mask looks wrong, the element is shown
+    # as a photo card instead (with a warning).
+    backend: auto
+    min_coverage: 0.04              # subject must cover this share of the photo...
+    max_coverage: 0.92              # ...and no more (else it's a background, not a subject)
+    outline_px: 12                  # white sticker outline around the subject
+    max_px: 900                     # longest side of the prepared image
+    query_suffix: isolated          # tried first ("tempeh isolated"), then the plain query
+
+# ── Background music ─────────────────────────────────────────────────────────
+music:
+  dir: assets/music                 # tracks in <dir>/<mood>/; spec music.mood picks the folder
+  under_voice_db: 16                # music loudness relative to the voice, before ducking
+  duck_threshold: 0.02              # sidechain compressor keyed by the voice
+  duck_ratio: 8                     # net result ≈ -22 dB under speech
+  fade_in_s: 0.8
+  fade_out_s: 1.5
+
+# ── Sound effects ────────────────────────────────────────────────────────────
+# Placed automatically on visual moments, mixed under the voice. Defaults are synthesized by
+# scripts/make_sfx.py; drop your own files with the same names (.wav/.mp3/.m4a/.ogg) into `dir`.
+# A spec can turn them off with "sfx": false.
+sfx:
+  dir: assets/sfx
+  # Gain applied to each file (files are peak-normalized to -1 dBFS; the voice sits ~-20 LUFS).
+  gain_db:
+    whoosh: -20
+    pop: -20
+    ding: -19
+    riser: -24
+    hit: -17
+  # Which effect plays at which moment; null turns a moment off.
+  events:
+    hook_start: hit           # frame 0 impact (pattern interrupt)
+    scene_cut: whoosh         # every scene change
+    list_badge: pop           # "1/3" badge appears
+    myth_riser: riser         # builds tension, ends on the fact reveal
+    fact_reveal: hit
+    stat_land: ding           # the counter reaches its number
+    compare_vs: pop           # VS badge
+    cta_icon: pop
+    cta_ask: pop              # the cta action chip ("Simpan", "Komen di bawah") appears
+    save_nudge: ding          # mid-video "simpan dulu" pill on list videos
+    caption_page: null        # a pop on every caption page (busy; off by default)
+    stage_pop: pop            # a stage element (cutout, icon, label, chart...) pops in
+    stage_number: ding        # a stage number lands
+    stage_highlight: null     # a yellow highlight box draws in
+
+# ── Final mix loudness ───────────────────────────────────────────────────────
+loudness:
+  target_lufs: -14.0
+  true_peak_db: -1.5
+  lra: 11.0
+
+# ── Rendering (HyperFrames) ──────────────────────────────────────────────────
+render:
+  fps: 30
+  quality: looks                    # draft | looks | delivery
+  workers: auto                     # parallel Chrome workers (~256 MB RAM each)
+  crf: 19                           # final H.264 encode quality (lower = better/larger)
+
+# ── QA thresholds ────────────────────────────────────────────────────────────
+qa:
+  duration_tolerance: 0.15          # ±15% of target_duration_s
+  max_duration_s: 60
+  loudness_range: [-15.5, -12.5]    # LUFS integrated
+  max_true_peak_db: -1.0
+  min_scene_voice_db: -45           # mean volume per scene's voice segment
+  max_still_s: 1.0                  # black or frozen video longer than this fails
+
+# ── Performance report (klip report) ─────────────────────────────────────────
+# You copy numbers from TikTok/Instagram/YouTube analytics into stats_file (one row per posted
+# video per platform; see stats.example.csv). `klip report` joins them with projects/<slug>/ and
+# shows which choices (hook type, CTA, length, cut pace…) go with higher completion and watch time.
+report:
+  stats_file: stats.csv             # relative to the repo root (or an absolute path)
+  output: projects/report.md        # markdown summary written on each run
+  platform: tiktok                  # rows analysed by default (platforms measure differently); "all" = every row
+  min_group: 3                      # groups with fewer videos are flagged "too few to trust"
+  duration_bins_s: [35, 45]         # length buckets: <35 s, 35–45 s, ≥45 s
+  shot_bins_s: [2.0, 2.5, 3.0]      # average-shot-length buckets (cut pace)
+  # Hook type, guessed from the hook's narration: first type whose regex matches (case-insensitive,
+  # checked in this order) wins, else "other". Types follow the writing guide in the /klip skill.
+  hook_types:
+    contradiction: ['salah besar', '\bsalah\b', '\bmitos\b', 'belum tentu', 'nggak selalu', 'tidak selalu', 'ternyata (nggak|bukan|tidak)', '\? *(bukan|keliru)']
+    number: ['^\W*(ada\s+)?(\d+|dua|tiga|empat|lima|enam|tujuh)\s']
+    cost: ['^kalau kamu', 'pantesan', 'jangan sampai', '\brugi\b']
+    question: ['\?']
+
+# ── Standalone script writing (klip new / klip script) ───────────────────────
+# Not needed when you use Claude Code (/klip); there, Claude writes the script.
+llm:
+  # auto: Claude Code CLI if installed and logged in, else an OpenAI-compatible endpoint
+  # (LLM_BASE_URL/LLM_MODEL/LLM_API_KEY in .env, e.g. Ollama at http://localhost:11434/v1).
+  provider: auto                    # auto | claude | openai
+  max_retries: 2                    # re-ask with the validation errors, then give up
+  claude:
+    model: null                     # null = Claude Code's default; e.g. "sonnet" or "opus"
+    allow_web: true                 # let Claude use WebSearch/WebFetch to source facts
+    timeout_s: 600
+  openai:
+    temperature: 0.7
+    timeout_s: 300
+
+# ── Visual styles ────────────────────────────────────────────────────────────
+# A spec picks one with "style": "<name>". Other styles inherit everything from
+# `default` and only list what they change (see `bold` below). Brand packs in
+# brands/<name>/brand.yaml add more styles (see brands/example/).
+styles:
+  default:
+    font_family: "Plus Jakarta Sans"
+    text_color: "#FFFFFF"
+    accent_color: "#FFD43B"         # active caption word, highlights
+    emphasis_color: "#5EEAD4"       # spec `emphasis` words
+    stroke_color: "#0B0B12"
+    transition: punch               # punch (zoom-in jump cut) | fade
+    media_dim: 0.28                 # darkening over b-roll (0–1) for readability
+    shade_color: "#000000"          # tint of that darkening and of the myth/fact and compare cards
+    myth_color: "#F43F5E"
+    fact_color: "#22C55E"
+    # Branding strip at the top of the safe zone: progress bar (left) + watermark (right).
+    # Kept above y 250, where headlines/cards start, and below TikTok's top tabs.
+    progress_bar:
+      enabled: true                 # a spec can override with "progress_bar": true/false (A/B test)
+      top: 210                      # y of the bar's top edge
+      height: 8
+      color: null                   # null = accent_color
+      track_opacity: 0.22           # unfilled part: text_color at this opacity
+      scene_ticks: true             # small notches where scenes change ("chapters")
+    watermark:
+      file: null                    # image path from the repo root; null = no logo
+      text: null                    # e.g. "@yourhandle", drawn left of the logo
+      size: 56                      # px (square); the bar stops short of it
+      top: 186
+      right: 120                    # px from the canvas's right edge (safe zone ends at x 960)
+      opacity: 0.85
+      hide_on: [cta]                # templates where it's hidden
+    series_pill:                    # needs spec "series"
+      scenes: hook                  # hook (first scene only) | all (every scene except watermark.hide_on)
+      left: 60
+      top: 262
+      font_size: 34
+      font_weight: 700
+      bg: null                      # null = accent_color
+      color: null                   # null = stroke_color
+      labels: {}                    # series key -> on-screen label; unlisted keys show in capitals
+    end_card:                       # cta scene as a brand end card (logo, wordmark, tagline); null = off
+      logo: null                    # images, repo-relative; the logo sits on a disc of disc_color
+      wordmark: null
+      tagline: null
+      disc_color: null              # null = no disc
+    # Action chip on the cta scene, picked by the cta scene's "cta_type" (no cta_type = no chip).
+    # Icons are Lucide names. A "comment" cta shows its on_screen_text (the question) as the headline.
+    cta:
+      types:
+        follow:  {icon: user-plus, label: "Follow"}
+        save:    {icon: bookmark, label: "Simpan"}
+        comment: {icon: message-circle, label: "Komen di bawah"}
+        share:   {icon: send, label: "Kirim ke teman"}
+      chip_font_size: 46
+      chip_at_s: 0.5                # seconds into the cta scene the chip pops in
+      question_font_size: 84        # comment headline (questions run 2-3 lines; the signoff is 1)
+      # Brand end card with a comment question: logo disc and wordmark shrink to make room.
+      compact_disc: 300             # px (normal 460)
+      compact_word: 520             # wordmark width, px (normal 700)
+    # "Simpan dulu biar nggak lupa" pill on list videos, shown when list item `at_item` starts
+    # (first run of list_item scenes only). A spec can override with "save_nudge": true/false.
+    save_nudge:
+      enabled: true
+      text: "Simpan dulu biar nggak lupa"
+      icon: bookmark
+      at_item: 2
+      delay_s: 0.6                  # after the item starts (its 1/3 badge pops first)
+      duration_s: 2.6               # on screen; shortened to fit the scene, skipped if under min_s
+      min_s: 1.2
+      top: 476                      # y; sits between the list number badge and the headline
+      font_size: 38
+      bg_opacity: 0.78              # shade_color behind the text
+    # Designed cover.png (post stage): series pill, title (last line = keyword), subtitle,
+    # logo + wordmark, over a darkened still of the hook's b-roll (else the first palette gradient).
+    # Profile grids crop 9:16 covers
+    # to the centre 3:4 (y 240–1680), so everything here stays inside that band.
+    # Brand parts reuse series_pill.labels, end_card.logo/wordmark/disc_color and watermark.text.
+    cover:
+      enabled: true                 # false = a plain frame grab from the hook, as before
+      pill_top: 380
+      pill_font_size: 46
+      text_top: 500                 # title + subtitle are centred vertically in text_top..text_bottom
+      text_bottom: 1320
+      width: 960                    # text block width, centred (x 60–1020)
+      title_size: 130               # px; shrunk (down to title_min_size) to fit title_max_lines
+      title_min_size: 84
+      title_max_lines: 2            # for `title`; explicit `lines` are never wrapped
+      keyword_size: 170             # last line: bigger, accent colour; shrunk to fit one line
+      keyword_min_size: 90
+      keyword_uppercase: true
+      # Average glyph width (em) used to fit text without measuring it in the browser
+      # (Plus Jakarta Sans 800, measured on the reference cover; raise if lines overflow).
+      char_em: 0.55                 # mixed case
+      caps_em: 0.72                 # capitals
+      subtitle_size: 52
+      subtitle_opacity: 0.75
+      footer_y: 1540                # vertical centre of the logo + wordmark row
+      logo_size: 88                 # disc diameter (end_card.disc_color), logo inside at ~85 %
+      wordmark_height: 70
+      media_dim: 0.62               # shade_color over the b-roll still (heavier than in the video)
+      glow_opacity: 0.2             # accent_color glow rising from the bottom edge; 0 = off
+      still_at_s: 0.6               # where in the hook's first clip the background still is taken
+    caption:
+      # TikTok safe zone (approximate; tune after a test upload): x 60–960, y 220–1450.
+      top: 1180
+      height: 270
+      font_size: 80
+      font_weight: 800
+      stroke_px: 10
+      max_words: 4                  # words per caption page
+      max_page_ms: 1200
+    headline:
+      font_size: 96
+      font_weight: 800
+      # Hook headline scale at frame 0, settling to 1 (the punch-in). The 900 px text block must
+      # stay on the 1080 px canvas: keep it ≤ 1.2 (1.25 clipped long hooks at frame 0).
+      hook_punch: 1.12
+    palette:                        # gradient backgrounds, cycled per scene
+      - ["#1E1B4B", "#7C3AED"]
+      - ["#0F172A", "#0EA5E9"]
+      - ["#3B0764", "#DB2777"]
+      - ["#052E2B", "#10B981"]
+      - ["#1C1917", "#F97316"]
+  bold:
+    accent_color: "#FF4D6D"
+    emphasis_color: "#FFD43B"
+    media_dim: 0.35
+    caption:
+      font_size: 88
+
+# ── Brand packs ──────────────────────────────────────────────────────────────
+# Each folder brands/<name>/ with a brand.yaml adds a style named <name> (logo, colours,
+# series labels, end card). Image paths in brand.yaml are relative to its folder.
+# brands/* is gitignored except brands/example, so your own brand stays private.
+brands:
+  dir: brands                       # relative to the repo root (or absolute)

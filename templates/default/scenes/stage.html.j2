@@ -1,0 +1,21 @@
+{% set st = s.stage %}
+    <div class="stage-bg"><div class="stage-pan{{ ' bg-' ~ st.bg if st.builtin }}"{% if st.image %} style="background: url('{{ st.image.src }}') center / cover;"{% endif %}>{% if st.builtin %}<div class="st-grain st-grain-{{ st.bg }}"></div>{% endif %}</div></div>
+    <div class="st-props">
+    {% for e in st.elements %}
+      <div id="{{ e.id }}" class="st-el st-{{ e.kind }}" style="left: {{ (e.x - e.w / 2) | round(1) }}px; top: {{ (e.y - e.h / 2) | round(1) }}px; width: {{ e.w }}px; height: {{ e.h }}px; z-index: {{ 100 + e.i if e.kind == 'highlight' else e.i + 1 }};">
+      {% if e.kind == "cutout" %}<img src="{{ e.src }}" alt="" />
+      {% elif e.kind == "photo" %}<div class="st-card"><img src="{{ e.src }}" alt="" /></div>
+      {% elif e.kind == "icon" %}<div class="st-disc">{{ e.svg | safe }}</div>
+      {% elif e.kind == "label" %}<div class="st-tag" style="font-size: {{ e.font }}px;">{{ e.text }}</div>
+      {% elif e.kind == "number" %}<div class="st-num" style="font-size: {{ e.font }}px; color: {{ e.color }};">{{ e.text }}</div>
+      {% elif e.kind == "bar" %}{% set plot = e.h - 136 %}<div class="st-chart">{% for b in e.bars %}<div class="st-barcol"><div class="st-bartext">{{ b.text or "" }}</div><div class="st-bar" style="height: {{ (plot * b.pct / 100) | round(1) }}px; background: {{ b.color }};"></div><div class="st-barlabel">{{ b.label }}</div></div>{% endfor %}</div>
+      {% elif e.kind == "stack" %}{% for k in range(e.n) %}<div class="st-coin" style="width: {{ e.d }}px; height: {{ e.d }}px; margin-left: -{{ e.d / 2 }}px; bottom: {{ (k * e.d * 0.42) | round(1) }}px;">{{ e.svg | safe }}</div>{% endfor %}
+      {% elif e.kind == "highlight" %}<div class="st-hl"></div>
+      {% endif %}
+      {% if e.label_font %}<div class="st-subrow" style="font-size: {{ e.label_font }}px;"><div class="st-tag">{{ e.label }}</div></div>{% endif %}
+      </div>
+    {% endfor %}
+    </div>
+    {% if st.title or st.list_no %}
+    <div class="st-title-row"><div class="st-title" style="font-size: {{ stage.cfg.title.hook_font_size if st.hook else stage.cfg.title.font_size }}px;">{% if st.list_no %}<span class="st-no">{{ st.list_no[0] }}/{{ st.list_no[1] }}</span>{% endif %}{% for h in st.title %}<span class="hw{{ ' emph' if h.emph }}">{{ h.text }}</span>{{ ' ' if not loop.last }}{% endfor %}</div></div>
+    {% endif %}

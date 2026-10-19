@@ -1,0 +1,12 @@
+# klip batch examples/batch.yaml  (add --scripts-only to review the specs before rendering)
+defaults:
+  voice: female
+  duration: 45
+items:
+  - "Kenapa kita cegukan?"
+  - topic: "Kenapa bawang bikin mata perih?"
+    voice: male
+  - topic: "Kenapa kucing suka mendengkur?"
+  - topic: "Fakta unik tentang madu yang jarang diketahui"
+    voice: male
+  - spec: tests/fixtures/broken-duration.json   # deliberately fails QA: shows per-item reporting

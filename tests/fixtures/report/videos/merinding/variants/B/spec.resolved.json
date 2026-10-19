@@ -1,0 +1,33 @@
+{
+ "slug": "merinding",
+ "style": "default",
+ "series": null,
+ "progress_bar": null,
+ "music": {
+  "mood": null,
+  "track": null
+ },
+ "scenes": [
+  {
+   "id": "s1",
+   "template": "hook",
+   "narration": "Merinding cuma kedinginan? Salah besar."
+  },
+  {
+   "id": "s2",
+   "template": "explain",
+   "narration": "isi"
+  },
+  {
+   "id": "s3",
+   "template": "explain",
+   "narration": "isi"
+  },
+  {
+   "id": "s4",
+   "template": "cta",
+   "narration": "follow ya",
+   "cta_type": "follow"
+  }
+ ]
+}

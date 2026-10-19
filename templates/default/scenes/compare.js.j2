@@ -1,0 +1,4 @@
+{% if s.headline %}tl.fromTo("#sc-{{ s.id }} .headline .hw", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.3, stagger: 0.05, ease: "power3.out" }, {{ s.start }});{% endif %}
+tl.fromTo("#sc-{{ s.id }} .cmp-col.left", { x: -160, opacity: 0 }, { x: 0, opacity: 1, duration: 0.45, ease: "power3.out" }, {{ (s.start + 0.15) | round(3) }});
+tl.fromTo("#sc-{{ s.id }} .cmp-col.right", { x: 160, opacity: 0 }, { x: 0, opacity: 1, duration: 0.45, ease: "power3.out" }, {{ (s.start + 0.4) | round(3) }});
+tl.fromTo("#sc-{{ s.id }} .vs", { scale: 0, rotation: -90 }, { scale: 1, rotation: 0, duration: 0.4, ease: "back.out(2.5)" }, {{ (s.start + 0.7) | round(3) }});

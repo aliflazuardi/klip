@@ -1,0 +1,174 @@
+{
+  "version": 1,
+  "slug": "contoh-stage",
+  "voice": "male",
+  "speech_rate": "+10%",
+  "target_duration_s": 20,
+  "style": "example",
+  "series": "why",
+  "music": {
+    "mood": "light"
+  },
+  "scenes": [
+    {
+      "id": "s1",
+      "template": "hook",
+      "narration": "Kamu nggak main saham, tapi harga tempe bisa ikut naik?",
+      "on_screen_text": "Saham turun, tempe naik?",
+      "emphasis": [
+        "tempe naik"
+      ],
+      "visual": {
+        "type": "stage",
+        "background": "desk",
+        "elements": [
+          {
+            "at": "saham",
+            "kind": "icon",
+            "name": "trending-down",
+            "label": "IHSG"
+          },
+          {
+            "at": "tempe",
+            "kind": "cutout",
+            "query": "tempeh",
+            "label": "Tempe"
+          },
+          {
+            "at": "naik",
+            "kind": "number",
+            "text": "Rp↑",
+            "tone": "up"
+          }
+        ]
+      }
+    },
+    {
+      "id": "s2",
+      "template": "explain",
+      "narration": "Pekan ini IHSG anjlok sebelas persen dalam sehari, terburuk dalam dua puluh delapan tahun. Pemicunya, MSCI mengusulkan menurunkan status pasar kita.",
+      "on_screen_text": "IHSG anjlok, MSCI usul turunkan status",
+      "emphasis": [
+        "anjlok"
+      ],
+      "visual": {
+        "type": "stage",
+        "background": "desk",
+        "elements": [
+          {
+            "at": "IHSG",
+            "kind": "cutout",
+            "query": "stressed businessman",
+            "label": "Investor"
+          },
+          {
+            "at": "sebelas",
+            "kind": "number",
+            "text": "-11%",
+            "tone": "down"
+          },
+          {
+            "at": "terburuk",
+            "kind": "bar",
+            "bars": [
+              {
+                "label": "Biasa",
+                "value": 1.5,
+                "text": "±1%"
+              },
+              {
+                "label": "16 Okt",
+                "value": 11,
+                "text": "-11%"
+              }
+            ]
+          },
+          {
+            "at": "MSCI",
+            "kind": "icon",
+            "name": "landmark",
+            "label": "MSCI",
+            "clear": true
+          },
+          {
+            "at": "menurunkan",
+            "kind": "label",
+            "text": "Status turun?"
+          },
+          {
+            "at": "pasar",
+            "kind": "highlight",
+            "target": 5
+          }
+        ]
+      }
+    },
+    {
+      "id": "s3",
+      "template": "explain",
+      "narration": "Rupiah melemah, jadi barang impor mahal: kedelai bahan tempe, pakan ayam, dan BBM.",
+      "on_screen_text": "Rupiah lemah, impor mahal",
+      "visual": {
+        "type": "stage",
+        "background": "desk",
+        "elements": [
+          {
+            "at": "Rupiah",
+            "kind": "stack",
+            "name": "coins",
+            "count": 5
+          },
+          {
+            "at": "melemah",
+            "kind": "number",
+            "text": "Rp18.025",
+            "tone": "down"
+          },
+          {
+            "at": "kedelai",
+            "kind": "cutout",
+            "query": "soybeans bowl",
+            "label": "Kedelai",
+            "clear": true
+          },
+          {
+            "at": "pakan",
+            "kind": "photo",
+            "query": "chicken feed"
+          },
+          {
+            "at": "BBM",
+            "kind": "icon",
+            "name": "fuel",
+            "label": "BBM"
+          }
+        ]
+      }
+    },
+    {
+      "id": "s4",
+      "template": "cta",
+      "cta_type": "follow",
+      "narration": "Follow buat fakta-fakta lainnya.",
+      "on_screen_text": "Follow buat fakta lainnya!"
+    }
+  ],
+  "post": {
+    "caption": "Test render: stage mode.",
+    "hashtags": []
+  },
+  "facts": [
+    {
+      "claim": "IHSG anjlok lebih dari 11% pada Jumat 16 Oktober 2026, penurunan harian terbesar dalam 28 tahun",
+      "source": "see specs/saham-turun-tempe-naik-male-3.json"
+    },
+    {
+      "claim": "MSCI mengusulkan penurunan klasifikasi pasar Indonesia",
+      "source": "see specs/saham-turun-tempe-naik-male-3.json"
+    },
+    {
+      "claim": "Kurs rupiah sekitar Rp18.025 per dolar AS pada 16 Oktober 2026",
+      "source": "see specs/saham-turun-tempe-naik-male-3.json"
+    }
+  ]
+}

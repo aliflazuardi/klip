@@ -1,0 +1,25 @@
+{
+ "total_ms": 38000,
+ "scenes": [
+  {
+   "id": "s1",
+   "start_ms": 0.0,
+   "duration_ms": 9500.0
+  },
+  {
+   "id": "s2",
+   "start_ms": 9500.0,
+   "duration_ms": 9500.0
+  },
+  {
+   "id": "s3",
+   "start_ms": 19000.0,
+   "duration_ms": 9500.0
+  },
+  {
+   "id": "s4",
+   "start_ms": 28500.0,
+   "duration_ms": 9500.0
+  }
+ ]
+}

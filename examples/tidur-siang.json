@@ -1,0 +1,99 @@
+{
+  "version": 1,
+  "slug": "tidur-siang-ideal",
+  "voice": "female",
+  "target_duration_s": 45,
+  "music": { "mood": "calm" },
+  "scenes": [
+    {
+      "id": "s1",
+      "template": "hook",
+      "narration": "Tidur siang bikin kamu makin malas? Belum tentu!",
+      "on_screen_text": "Tidur siang = malas?",
+      "visual": { "type": "stock_video", "query": "woman sleeping on couch", "name": "moon" },
+      "emphasis": ["malas?"]
+    },
+    {
+      "id": "s2",
+      "template": "stat",
+      "narration": "Kata para ahli, durasi tidur siang yang ideal cuma sekitar 20 menit.",
+      "visual": { "type": "stock_video", "query": "doctor talking", "name": "alarm-clock",
+                  "beats": [{ "at": "durasi", "query": "alarm clock" }] },
+      "stat": { "value": 20, "suffix": " menit", "label": "durasi ideal tidur siang" },
+      "emphasis": ["ideal"]
+    },
+    {
+      "id": "s3",
+      "template": "myth_fact",
+      "narration": "Banyak yang kira makin lama tidur siang, makin segar. Faktanya, lebih dari 30 menit malah bisa bikin pusing.",
+      "visual": { "type": "stock_video", "query": "woman sleeping bed afternoon", "name": "bed",
+                  "beats": [{ "at": "segar.", "query": "man waking up refreshed stretching" },
+                            { "at": "pusing.", "query": "man rubbing eyes headache" }] },
+      "myth": "Makin lama tidur siang, makin segar",
+      "fact": "Lebih dari 30 menit bisa bikin pusing",
+      "reveal_at": "Faktanya,"
+    },
+    {
+      "id": "s4",
+      "template": "list_item",
+      "narration": "Satu, tidur siang sebelum jam tiga sore.",
+      "on_screen_text": "Tidur sebelum jam 3 sore",
+      "visual": { "type": "stock_video", "query": "afternoon sunlight window", "name": "sun" },
+      "emphasis": ["jam 3 sore"]
+    },
+    {
+      "id": "s5",
+      "template": "list_item",
+      "narration": "Dua, pasang alarm supaya nggak kebablasan.",
+      "on_screen_text": "Pasang alarm 20 menit",
+      "visual": { "type": "stock_video", "query": "alarm clock ringing", "name": "alarm-clock" },
+      "emphasis": ["alarm"]
+    },
+    {
+      "id": "s6",
+      "template": "list_item",
+      "narration": "Tiga, cari tempat yang sejuk, tenang, dan gelap.",
+      "on_screen_text": "Sejuk, tenang, gelap",
+      "visual": { "type": "stock_video", "query": "dark quiet bedroom", "name": "moon" },
+      "emphasis": ["sejuk,", "tenang,", "gelap"]
+    },
+    {
+      "id": "s7",
+      "template": "compare",
+      "narration": "Jadi ingat, dua puluh menit bikin segar. Lebih dari setengah jam, malah bikin teler.",
+      "on_screen_text": "Power nap vs tidur lama",
+      "visual": { "type": "solid" },
+      "compare": {
+        "left": { "label": "20 menit", "text": "Bangun segar", "icon": "battery-full" },
+        "right": { "label": "> 30 menit", "text": "Bangun pusing", "icon": "battery-low" }
+      }
+    },
+    {
+      "id": "s8",
+      "template": "cta",
+      "narration": "Simpan video ini, dan follow buat tips sehat lainnya!",
+      "tts_override": "Simpan video ini, dan folo buat tips sehat lainnya!",
+      "on_screen_text": "Simpan & follow!",
+      "visual": { "type": "icon", "name": "bookmark" },
+      "emphasis": ["Simpan", "follow!"]
+    }
+  ],
+  "post": {
+    "caption": "Tidur siang yang benar itu cuma 20 menit, lho! 😴",
+    "hashtags": ["#edukasi", "#tipssehat", "#tidursiang", "#belajardiTikTok"]
+  },
+  "facts": [
+    {
+      "claim": "Durasi tidur siang yang disarankan untuk orang dewasa sekitar 20 menit, tidak lebih dari 30 menit",
+      "source": "Sleep Foundation — https://www.sleepfoundation.org/sleep-hygiene/napping"
+    },
+    {
+      "claim": "Tidur siang lebih dari 30 menit bisa masuk tidur dalam dan menyebabkan pusing/grogi saat bangun",
+      "source": "Sleep Foundation — https://www.sleepfoundation.org/sleep-hygiene/napping"
+    },
+    {
+      "claim": "Tidur siang sebaiknya sebelum jam 3 sore, di tempat yang sejuk, tenang, dan gelap",
+      "source": "Sleep Foundation — https://www.sleepfoundation.org/sleep-hygiene/napping"
+    }
+  ]
+}

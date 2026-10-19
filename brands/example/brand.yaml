@@ -1,0 +1,27 @@
+# Example brand pack. Copy this folder to brands/<your-brand>/ and edit it; then use
+# "style": "<your-brand>" in a spec (or --style <your-brand>). Your copy is gitignored.
+#
+# `style` is merged over styles.default in klip.yaml, so list only what you change.
+# Any key from styles.default works here. Image paths are relative to this folder.
+name: example
+style:
+  text_color: "#FFFFFF"
+  accent_color: "#38BDF8"         # active caption word, numbers, series pill
+  emphasis_color: "#38BDF8"
+  stroke_color: "#0F172A"
+  shade_color: "#0F172A"
+  palette:                        # gradient backgrounds, cycled per scene
+    - ["#0F172A", "#1E293B"]
+    - ["#1E293B", "#0F172A"]
+  watermark:                      # small logo at the top right (hidden on the cta scene)
+    file: assets/watermark.svg
+    text: null                    # e.g. "@yourhandle"
+  series_pill:                    # spec "series": "<key>" shows a pill on the hook
+    labels:
+      why: "WHY?"
+      myth-fact: "MYTH / FACT"
+  end_card:                       # the cta scene becomes an end card
+    logo: assets/logo.svg
+    disc_color: "#1E293B"         # disc behind the logo; null = none
+    wordmark: assets/wordmark.svg
+    tagline: stay curious

@@ -1,0 +1,33 @@
+{
+ "slug": "tidur-siang",
+ "style": "example",
+ "series": "kenapa",
+ "progress_bar": null,
+ "music": {
+  "mood": "curious",
+  "track": null
+ },
+ "scenes": [
+  {
+   "id": "s1",
+   "template": "hook",
+   "narration": "Tidur siang bikin malas? Belum tentu!"
+  },
+  {
+   "id": "s2",
+   "template": "myth_fact",
+   "narration": "isi"
+  },
+  {
+   "id": "s3",
+   "template": "explain",
+   "narration": "isi"
+  },
+  {
+   "id": "s4",
+   "template": "cta",
+   "narration": "follow ya",
+   "cta_type": "comment"
+  }
+ ]
+}

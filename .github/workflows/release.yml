@@ -1,0 +1,43 @@
+name: release
+
+# Push a tag like v0.2.0 (matching [project].version in pyproject.toml) to publish a GitHub Release.
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: renderer/package-lock.json
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Install renderer deps
+        run: npm ci
+        working-directory: renderer
+      - name: Tag matches pyproject version
+        run: |
+          version=$(uv run python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          test "v$version" = "$GITHUB_REF_NAME" || { echo "tag $GITHUB_REF_NAME != pyproject v$version"; exit 1; }
+      - name: Tests
+        run: uv run pytest -q
+      - name: Build sdist + wheel
+        run: uv build
+      - name: Release notes from CHANGELOG.md
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          awk -v v="$v" '$0 ~ "^## \\[" v "\\]" {on=1; next} /^## \[/ {on=0} on' CHANGELOG.md > notes.md
+          test -s notes.md || { echo "no CHANGELOG.md section for $v"; exit 1; }
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --title "$GITHUB_REF_NAME" --notes-file notes.md

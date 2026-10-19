@@ -1,0 +1,28 @@
+{
+ "slug": "air-dingin",
+ "style": "example",
+ "series": "kenapa",
+ "progress_bar": null,
+ "music": {
+  "mood": "curious",
+  "track": null
+ },
+ "scenes": [
+  {
+   "id": "s1",
+   "template": "hook",
+   "narration": "Minum air dingin bikin gemuk? Salah besar."
+  },
+  {
+   "id": "s2",
+   "template": "myth_fact",
+   "narration": "isi"
+  },
+  {
+   "id": "s3",
+   "template": "cta",
+   "narration": "follow ya",
+   "cta_type": "save"
+  }
+ ]
+}

@@ -1,0 +1,46 @@
+{% set st = s.stage %}
+{% set c = stage.cfg %}
+// stage: the background stays across a run of stage scenes (it pans slowly), props build up on it
+{% if not st.continues %}
+tl.fromTo("#sc-{{ s.id }} .stage-bg", { scale: {{ 1.12 if style.transition == "punch" else 1 }} }, { scale: 1, duration: 0.35, ease: "power2.out" }, {{ s.start }});
+{% endif %}
+tl.fromTo("#sc-{{ s.id }} .stage-pan", { x: {{ st.bg_from }} }, { x: {{ st.bg_to }}, duration: {{ s.dur }}, ease: "none", immediateRender: false }, {{ s.start }});
+tl.fromTo("#sc-{{ s.id }} .st-props", { scale: 1 }, { scale: {{ c.zoom }}, duration: {{ s.dur }}, ease: "none", immediateRender: false }, {{ s.start }});
+{% if st.title or st.list_no %}
+gsap.set("#sc-{{ s.id }} .st-title", { rotation: {{ c.title.tilt_deg }} });
+{% if s.idx == 0 %}
+tl.fromTo("#sc-{{ s.id }} .st-title", { scale: {{ style.headline.hook_punch }} }, { scale: 1, duration: 0.3, ease: "back.out(2.2)" }, {{ s.start }});
+{% else %}
+tl.fromTo("#sc-{{ s.id }} .st-title", { y: -60, opacity: 0 }, { y: 0, opacity: 1, duration: 0.3, ease: "power3.out" }, {{ s.start }});
+{% endif %}
+{% endif %}
+{% for e in st.elements %}
+{% set sel = "#" ~ e.id %}
+gsap.set("{{ sel }}", { rotation: {{ e.rot }} });
+{% if e.kind in ("cutout", "photo") %}
+{% if e.col == "l" or e.col == "r" %}
+tl.fromTo("{{ sel }}", { x: {{ -760 if e.col == "l" else 760 }} }, { x: 0, duration: 0.42, ease: "power3.out" }, {{ e.start }});
+{% else %}
+tl.fromTo("{{ sel }}", { scale: 0.2, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.4, ease: "back.out(1.7)" }, {{ e.start }});
+{% endif %}
+{% elif e.kind == "icon" %}
+tl.fromTo("{{ sel }}", { scale: 0, rotation: {{ e.rot - 25 }} }, { scale: 1, rotation: {{ e.rot }}, duration: 0.4, ease: "back.out(2.2)" }, {{ e.start }});
+{% elif e.kind == "label" %}
+tl.fromTo("{{ sel }}", { scale: 1.7, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.22, ease: "power4.out" }, {{ e.start }});
+{% elif e.kind == "number" %}
+tl.fromTo("{{ sel }}", { scale: 0, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.45, ease: "back.out(2.6)" }, {{ e.start }});
+{% elif e.kind == "bar" %}
+tl.fromTo("{{ sel }}", { scale: 0.6, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.3, ease: "back.out(1.8)" }, {{ e.start }});
+tl.fromTo("{{ sel }} .st-bar", { scaleY: 0 }, { scaleY: 1, duration: 0.45, stagger: 0.12, ease: "power2.out" }, {{ (e.start + 0.15) | round(3) }});
+{% elif e.kind == "stack" %}
+tl.fromTo("{{ sel }} .st-coin", { y: -260, opacity: 0 }, { y: 0, opacity: 1, duration: 0.3, stagger: 0.09, ease: "back.out(1.6)" }, {{ e.start }});
+{% elif e.kind == "highlight" %}
+tl.fromTo("{{ sel }} .st-hl", { clipPath: "inset(0% 100% 0% 0%)" }, { clipPath: "inset(0% 0% 0% 0%)", duration: 0.35, ease: "power2.inOut" }, {{ e.start }});
+{% endif %}
+{% if e.label_font %}
+tl.fromTo("{{ sel }} .st-subrow .st-tag", { scale: 1.6, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.2, ease: "power4.out" }, {{ (e.start + 0.18) | round(3) }});
+{% endif %}
+{% if e.exit is not none %}
+tl.to("{{ sel }}", { opacity: 0, scale: 0.85, y: 40, duration: {{ c.exit_s }}, ease: "power2.in" }, {{ e.exit }});
+{% endif %}
+{% endfor %}

@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+dist/
+
+# Node
+renderer/node_modules/
+
+# Generated output
+projects/
+
+# Secrets and personal config
+.env
+klip.local.yaml
+CLAUDE.local.md
+.claude/settings.local.json
+
+# Your specs (examples/ holds the shared ones)
+specs/*
+!specs/.gitkeep
+
+# Brand packs: yours stay private, only the example is shared
+brands/*
+!brands/example/
+
+# Brand skills linked into .claude/skills (only the klip skill is shared)
+.claude/skills/*
+!.claude/skills/klip/
+
+# Private development notes (plans, decisions, to-do)
+.dev/
+
+# Music you add locally (licenses vary; keep out of the repo unless you're sure)
+assets/music/**/*.mp3
+assets/music/**/*.wav
+assets/music/**/*.m4a
+
+assets/broll/**/*
+!assets/broll/README.md
+
+.DS_Store
+
+# Your analytics numbers for `klip report` (stats.example.csv is the template)
+stats.csv

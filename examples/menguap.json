@@ -1,0 +1,124 @@
+{
+  "version": 1,
+  "slug": "kenapa-kita-menguap",
+  "language": "id-ID",
+  "voice": "female",
+  "target_duration_s": 40,
+  "style": "default",
+  "music": {
+    "mood": "calm",
+    "track": null
+  },
+  "scenes": [
+    {
+      "id": "s1",
+      "template": "hook",
+      "narration": "Pernah nggak kamu ikut menguap cuma gara-gara lihat orang lain menguap?",
+      "on_screen_text": "Menguap itu MENULAR?",
+      "visual": {
+        "type": "stock_video",
+        "query": "woman yawning",
+        "name": "eye"
+      },
+      "emphasis": [
+        "menular",
+        "menguap"
+      ]
+    },
+    {
+      "id": "s2",
+      "template": "explain",
+      "narration": "Tenang, itu normal banget. Namanya menguap menular, dan hampir semua orang pernah mengalaminya.",
+      "on_screen_text": "Namanya: menguap menular",
+      "visual": {
+        "type": "stock_video",
+        "query": "friends talking together",
+        "name": "users"
+      },
+      "emphasis": [
+        "menguap menular"
+      ]
+    },
+    {
+      "id": "s3",
+      "template": "explain",
+      "narration": "Salah satu teori bilang, menguap membantu mendinginkan otak. Kita menarik napas panjang, dan aliran darah ke kepala ikut berubah.",
+      "on_screen_text": "Teori 1: mendinginkan otak",
+      "visual": {
+        "type": "stock_video",
+        "query": "brain neurons",
+        "name": "brain"
+      },
+      "emphasis": [
+        "mendinginkan otak"
+      ]
+    },
+    {
+      "id": "s4",
+      "template": "explain",
+      "narration": "Teori lain bilang menguap menular berhubungan dengan empati. Kita lebih gampang ketularan dari keluarga dan teman dekat.",
+      "on_screen_text": "Teori 2: empati",
+      "visual": {
+        "type": "stock_video",
+        "query": "family hugging",
+        "name": "heart-handshake"
+      },
+      "emphasis": [
+        "empati",
+        "keluarga",
+        "teman dekat"
+      ]
+    },
+    {
+      "id": "s5",
+      "template": "explain",
+      "narration": "Bahkan cuma membaca soal menguap pun bisa bikin kamu menguap. Hayo, kamu udah menguap belum?",
+      "on_screen_text": "Baca soal menguap aja bisa menular",
+      "visual": {
+        "type": "stock_video",
+        "query": "person reading book",
+        "name": "book-open"
+      },
+      "emphasis": [
+        "menguap belum?"
+      ]
+    },
+    {
+      "id": "s6",
+      "template": "cta",
+      "narration": "Follow buat fakta sehari-hari lainnya!",
+      "tts_override": "Folo buat fakta sehari-hari lainnya!",
+      "on_screen_text": "Follow untuk fakta lainnya",
+      "visual": {
+        "type": "icon",
+        "name": "user-plus"
+      },
+      "emphasis": [
+        "Follow"
+      ]
+    }
+  ],
+  "post": {
+    "caption": "Ternyata menguap itu bisa menular, lho! Kamu ketularan nggak? 🥱",
+    "hashtags": [
+      "#faktaunik",
+      "#edukasi",
+      "#belajardiTikTok",
+      "#menguap"
+    ]
+  },
+  "facts": [
+    {
+      "claim": "Hipotesis termoregulasi: menguap dapat membantu mendinginkan otak",
+      "source": "Gallup & Gallup (2007), Evolutionary Psychology 5(1) — https://doi.org/10.1177/147470490700500109"
+    },
+    {
+      "claim": "Penularan menguap paling kuat di antara kerabat, lalu teman, lalu kenalan",
+      "source": "Norscia & Palagi (2011), PLoS ONE — https://doi.org/10.1371/journal.pone.0028472"
+    },
+    {
+      "claim": "Membaca atau memikirkan tentang menguap dapat memicu menguap",
+      "source": "Provine (1986), Ethology 72(2) — https://doi.org/10.1111/j.1439-0310.1986.tb00611.x"
+    }
+  ]
+}

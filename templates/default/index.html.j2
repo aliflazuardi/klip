@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="id" data-resolution="portrait">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=1080, height=1920" />
+<title>{{ slug }}</title>
+<script src="gsap.min.js"></script>
+<style>
+{% for weight, file in font_files.items() %}
+@font-face { font-family: "{{ style.font_family }}"; font-weight: {{ weight }}; src: url("fonts/{{ file }}") format("woff2"); }
+{% endfor %}
+:root {
+  --text: {{ style.text_color }};
+  --accent: {{ style.accent_color }};
+  --emph: {{ style.emphasis_color }};
+  --stroke: {{ style.stroke_color }};
+  --shade: {{ style.shade_color }};
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; }
+#root { position: relative; width: 1080px; height: 1920px; overflow: hidden;
+        font-family: "{{ style.font_family }}", system-ui, sans-serif; color: var(--text); }
+
+/* B-roll layer (root-level clips so the runtime controls playback), under the scene overlays */
+.media { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; object-fit: cover; z-index: 0; }
+
+/* Scenes */
+.scene { position: absolute; inset: 0; overflow: hidden; z-index: 1; }
+/* Wrapper for a scene's text/cards: drifts slowly so no scene is ever a still frame. */
+.scene .content { position: absolute; inset: 0; }
+.scene .bg { position: absolute; inset: 0; background: linear-gradient(160deg, var(--c1) 0%, var(--c2) 100%); }
+.scene .blob { position: absolute; border-radius: 50%; filter: blur(90px); opacity: .45; }
+.scene .b1 { width: 760px; height: 760px; left: -220px; top: 120px; background: var(--c2); }
+.scene .b2 { width: 640px; height: 640px; right: -200px; top: 980px; background: var(--c1); opacity: .6; }
+.scene .grain { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 35%, rgba(255,255,255,.10), rgba(0,0,0,.35) 75%); }
+/* Over b-roll: drop the gradient card, darken for readability (heavier behind headline + captions) */
+.scene.has-media .bg { background:
+    linear-gradient(180deg, {{ style.shade_color | rgba(0.65) }} 0%, {{ style.shade_color | rgba(0) }} 30%, {{ style.shade_color | rgba(0) }} 52%, {{ style.shade_color | rgba(0.70) }} 72%, {{ style.shade_color | rgba(0.55) }} 100%),
+    {{ style.shade_color | rgba(style.media_dim) }}; }
+.scene.has-media .blob, .scene.has-media .grain { display: none; }
+
+/* Safe zone: x 60–960, y 220–1450 */
+.safe { position: absolute; left: 60px; width: 900px; }
+.headline { font-size: {{ style.headline.font_size }}px; font-weight: {{ style.headline.font_weight }};
+            line-height: 1.08; letter-spacing: -0.02em; text-align: center;
+            text-shadow: 0 8px 32px rgba(0,0,0,.45); }
+.headline .hw { display: inline-block; }
+.headline .hw.emph { color: var(--accent); }
+.iconwrap { position: absolute; left: 50%; display: flex; align-items: center; justify-content: center;
+            border-radius: 50%; background: rgba(255,255,255,.12); border: 3px solid rgba(255,255,255,.25); }
+.iconwrap svg { width: 58%; height: 58%; stroke: var(--text); stroke-width: 1.6; }
+
+/* list_item */
+.numrow { position: absolute; left: 60px; width: 900px; display: flex; justify-content: center; }
+.numpill { display: inline-flex; align-items: baseline; gap: 6px; padding: 6px 54px 14px; border-radius: 999px;
+           background: var(--accent); color: var(--stroke); box-shadow: 0 16px 48px rgba(0,0,0,.35); }
+.numpill .n { font-size: 170px; font-weight: 800; line-height: 1; }
+.numpill .t { font-size: 72px; font-weight: 800; opacity: .65; }
+
+/* myth_fact */
+.mf { position: absolute; left: 60px; width: 900px; padding: 34px 40px 40px; border-radius: 36px;
+      background: {{ style.shade_color | rgba(0.62) }}; border-left: 14px solid var(--mfc); box-shadow: 0 18px 50px rgba(0,0,0,.35); }
+.mf.myth { --mfc: {{ style.myth_color }}; }
+.mf.fact { --mfc: {{ style.fact_color }}; }
+.mf-tag { display: inline-flex; align-items: center; gap: 14px; padding: 8px 26px 8px 14px; border-radius: 999px;
+          background: var(--mfc); font-size: 44px; font-weight: 800; letter-spacing: .06em; }
+.mf-tag svg { width: 46px; height: 46px; stroke: #fff; stroke-width: 3.2; }
+.mf-text { display: block; margin-top: 22px; font-size: 64px; font-weight: 800; line-height: 1.15; }
+/* strike-through drawn per line: background on an inline span, cloned onto every line box */
+.mf-strike { background-image: linear-gradient({{ style.myth_color }}, {{ style.myth_color }}); background-repeat: no-repeat;
+             background-position: 0 58%; background-size: 0% 10px;
+             -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+
+/* stat */
+.statrow { position: absolute; left: 60px; width: 900px; display: flex; flex-wrap: wrap; justify-content: center;
+           align-items: baseline; color: var(--accent); font-weight: 800; letter-spacing: -0.03em;
+           text-shadow: 0 12px 40px rgba(0,0,0,.45); font-variant-numeric: tabular-nums; }
+.statrow .pre, .statrow .suf { font-size: 110px; }
+.statrow .suf.spaced { margin-left: 24px; }
+
+/* compare */
+.cmp { position: absolute; left: 60px; width: 900px; display: flex; gap: 40px; }
+.cmp-col { flex: 1; min-height: 560px; padding: 52px 28px 40px; border-radius: 36px; text-align: center;
+           background: {{ style.shade_color | rgba(0.58) }}; border-top: 12px solid var(--cc); box-shadow: 0 18px 50px rgba(0,0,0,.35);
+           display: flex; flex-direction: column; align-items: center; gap: 22px; }
+.cmp-col.left { --cc: var(--emph); }
+.cmp-col.right { --cc: var(--accent); }
+.cmp-ic svg { width: 130px; height: 130px; stroke: var(--cc); stroke-width: 1.7; }
+.cmp-label { font-size: 62px; font-weight: 800; line-height: 1.08; color: var(--cc); }
+.cmp-text { font-size: 44px; font-weight: 600; line-height: 1.2; opacity: .92; }
+/* VS sits on the columns' top edge, centered in the gap, clear of the column text */
+.vs { position: absolute; left: 470px; width: 140px; height: 140px; border-radius: 50%; background: #fff;
+      color: var(--stroke); display: flex; align-items: center; justify-content: center; z-index: 2;
+      font-size: 50px; font-weight: 800; box-shadow: 0 12px 36px rgba(0,0,0,.4); }
+
+/* cta: headline + action chip ("Simpan", "Komen di bawah") stacked */
+.cta-stack { position: absolute; left: 60px; width: 900px; display: flex; flex-direction: column; align-items: center; gap: 30px; }
+.cta-stack .headline { width: 900px; }
+.cta-chip { display: inline-flex; align-items: center; gap: 18px; padding: 16px 44px 16px 32px; border-radius: 999px;
+            background: var(--accent); color: var(--stroke); font-weight: 800; line-height: 1.2;
+            box-shadow: 0 14px 40px {{ style.shade_color | rgba(0.4) }}; }
+.cta-chip svg { width: 1.2em; height: 1.2em; stroke: var(--stroke); stroke-width: 2.6; }
+
+{% if stage %}
+{% set sc = stage.cfg %}
+/* Stage scenes: props build up on a persistent background (klip.yaml stage) */
+.scene.stage .stage-bg { position: absolute; inset: 0; overflow: hidden; }
+.stage-pan { position: absolute; inset: -{{ sc.bg_drift_px + 20 }}px; }
+.st-grain { position: absolute; inset: 0; }
+{% for b in stage.bgs %}
+.bg-{{ b.key }} { {{ b.css }} }
+.st-grain-{{ b.key }} { {{ b.grain }} }
+{% endfor %}
+.st-props { position: absolute; inset: 0; transform-origin: 50% 42%; }
+.st-el { position: absolute; }
+.st-cutout img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 18px 20px rgba(0,0,0,.38)); }
+.st-card { width: 100%; height: 100%; padding: 14px 14px 54px; background: #fff; border-radius: 6px; box-shadow: 0 20px 40px rgba(0,0,0,.35); }
+.st-card img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.st-disc { width: 100%; height: 100%; border-radius: 50%; background: {{ sc.icon.bg }}; display: flex; align-items: center; justify-content: center; box-shadow: 0 16px 30px rgba(0,0,0,.35); }
+.st-disc svg { width: 58%; height: 58%; stroke: {{ sc.icon.color }}; stroke-width: 2; }
+.st-label { display: flex; align-items: center; justify-content: center; }
+.st-tag { display: inline-block; padding: .16em .6em .22em; border-radius: 10px; background: {{ sc.label.bg }}; color: {{ sc.label.color }};
+          font-weight: 800; line-height: 1.15; white-space: nowrap; box-shadow: 0 10px 22px rgba(0,0,0,.3); }
+.st-subrow { position: absolute; left: -200px; right: -200px; bottom: -.75em; display: flex; justify-content: center; }
+.st-num { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-weight: 800; line-height: 1;
+          letter-spacing: -0.03em; white-space: nowrap; -webkit-text-stroke: .11em {{ sc.number.stroke }}; paint-order: stroke fill;
+          filter: drop-shadow(0 12px 16px rgba(0,0,0,.35)); }
+.st-chart { width: 100%; height: 100%; display: flex; gap: 18px; padding: 22px 22px 14px; border-radius: 18px; background: {{ sc.bar.bg }};
+            box-shadow: 0 18px 36px rgba(0,0,0,.35); }
+.st-barcol { flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; }
+.st-bar { width: 100%; border-radius: 10px 10px 0 0; transform-origin: 50% 100%; }
+.st-bartext { font-size: 34px; font-weight: 800; color: {{ sc.bar.text }}; margin-bottom: 6px; white-space: nowrap; }
+.st-barlabel { font-size: 30px; font-weight: 700; color: {{ sc.bar.text }}; margin-top: 8px; white-space: nowrap; }
+.st-coin { position: absolute; left: 50%; border-radius: 50%; background: {{ sc.icon.bg }}; display: flex; align-items: center; justify-content: center;
+           border: 4px solid rgba(0,0,0,.10); box-shadow: 0 8px 14px rgba(0,0,0,.3); }
+.st-coin svg { width: 60%; height: 60%; stroke: {{ sc.icon.color }}; stroke-width: 2; }
+.st-hl { width: 100%; height: 100%; border: {{ sc.highlight.width }}px solid {{ sc.highlight.color }}; border-radius: 16px;
+         box-shadow: 0 6px 16px rgba(0,0,0,.25); }
+.st-title-row { position: absolute; left: 60px; width: 900px; top: {{ sc.title.top }}px; display: flex; justify-content: center; z-index: 50; }
+.st-title { max-width: 900px; padding: 12px 30px 16px; border-radius: 8px; background: {{ sc.title.bg }}; color: {{ sc.title.color }};
+            font-weight: 800; line-height: 1.1; letter-spacing: -0.01em; text-align: center; box-shadow: 0 14px 30px rgba(0,0,0,.35); }
+.st-title .hw.emph { background: linear-gradient(transparent 56%, {{ sc.highlight.color }} 56%, {{ sc.highlight.color }} 92%, transparent 92%); }
+.st-no { display: inline-block; margin-right: .35em; padding: 0 .4em; border-radius: 999px; background: var(--accent); color: var(--stroke); }
+{% endif %}
+
+/* Captions */
+.cap { position: absolute; left: 60px; width: 900px; top: {{ style.caption.top }}px; height: {{ style.caption.height }}px;
+       display: flex; flex-wrap: wrap; align-content: center; justify-content: center; gap: 0 22px;
+       font-size: {{ style.caption.font_size }}px; font-weight: {{ style.caption.font_weight }};
+       line-height: 1.12; text-align: center; z-index: 10;
+       -webkit-text-stroke: {{ style.caption.stroke_px }}px var(--stroke); paint-order: stroke fill; }
+.cap .w { display: inline-block; }
+.cap .w.emph { color: var(--emph); }
+.cap .w.on { color: var(--accent); }
+
+/* Branding strip (top of the safe zone): progress bar, watermark, series pill */
+{% set b = brand %}
+{% if b.progress %}
+.progress { position: absolute; left: {{ b.progress.left }}px; top: {{ b.progress.top }}px; width: {{ b.progress.width }}px;
+            height: {{ b.progress.height }}px; border-radius: 999px; background: {{ b.progress.track }}; overflow: hidden; z-index: 11; }
+.progress .fill { position: absolute; inset: 0; background: {{ b.progress.color }}; border-radius: 999px;
+                  transform-origin: 0 50%; transform: scaleX(0); }
+.progress .tick { position: absolute; top: 0; width: 4px; height: 100%; margin-left: -2px; background: var(--stroke); opacity: .55; }
+{% endif %}
+{% if b.watermark %}
+.wm { position: absolute; top: {{ b.watermark.top }}px; right: {{ b.watermark.right }}px; height: {{ b.watermark.size }}px;
+      display: flex; align-items: center; gap: 14px; opacity: {{ b.watermark.opacity }}; z-index: 11; }
+.wm img { width: {{ b.watermark.size }}px; height: {{ b.watermark.size }}px; }
+.wm span { font-size: 30px; font-weight: 700; -webkit-text-stroke: 6px var(--stroke); paint-order: stroke fill; }
+{% endif %}
+{% if b.series %}
+.pill { position: absolute; left: {{ b.series.left }}px; top: {{ b.series.top }}px; padding: 10px 22px; border-radius: 999px;
+        background: {{ b.series.bg }}; color: {{ b.series.color }}; font-size: {{ b.series.font_size }}px;
+        font-weight: {{ b.series.font_weight }}; letter-spacing: .04em; line-height: 1.2; z-index: 11;
+        transform-origin: 0 50%; box-shadow: 0 8px 24px {{ style.shade_color | rgba(0.35) }}; }
+{% endif %}
+{% if b.save_nudge %}
+.nudge { position: absolute; left: 60px; width: 900px; top: {{ b.save_nudge.top }}px; display: flex; justify-content: center; z-index: 11; }
+.nudge-in { display: inline-flex; align-items: center; gap: 14px; padding: 10px 30px 10px 22px; border-radius: 999px;
+            background: {{ b.save_nudge.bg }}; border: 3px solid var(--accent); font-size: {{ b.save_nudge.font_size }}px;
+            font-weight: 800; line-height: 1.2; box-shadow: 0 10px 30px {{ style.shade_color | rgba(0.35) }}; }
+.nudge-in svg { width: 1.15em; height: 1.15em; stroke: var(--accent); stroke-width: 2.6; }
+{% endif %}
+{% if b.end_card %}
+.ec-disc { position: absolute; left: 310px; top: 260px; width: 460px; height: 460px; border-radius: 50%;
+           display: flex; align-items: center; justify-content: center; }
+.ec-logo { width: 380px; }
+.ec-word { position: absolute; left: 50%; top: 760px; width: 700px; margin-left: -350px; }
+.ec-tag { position: absolute; left: 60px; width: 900px; top: 1070px; text-align: center; font-size: 46px; font-weight: 700; color: var(--accent); }
+{% endif %}
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="main" data-start="0" data-duration="{{ total }}" data-width="1080" data-height="1920">
+{% for s in scenes %}{% for m in s.shots %}
+  {% if m.kind == "video" %}
+  <video id="{{ m.id }}" class="media clip" src="{{ m.src }}" muted playsinline data-start="{{ m.start }}" data-duration="{{ m.dur }}" data-track-index="2"></video>
+  {% else %}
+  <img id="{{ m.id }}" class="media clip" src="{{ m.src }}" alt="" data-start="{{ m.start }}" data-duration="{{ m.dur }}" data-track-index="2" />
+  {% endif %}
+{% endfor %}{% endfor %}
+{% for s in scenes %}
+  <section id="sc-{{ s.id }}" class="scene clip{{ ' has-media' if s.media }}{{ ' stage' if s.stage }}" data-start="{{ s.start }}" data-duration="{{ s.dur }}" data-track-index="0"
+           style="--c1: {{ s.c1 }}; --c2: {{ s.c2 }};">
+    {% if s.stage %}
+    {% include "scenes/stage.html.j2" %}
+    {% else %}
+    <div class="bg"></div><div class="blob b1"></div><div class="blob b2"></div><div class="grain"></div>
+    <div class="content">
+    {% include "scenes/" ~ s.template ~ ".html.j2" %}
+    </div>
+    {% endif %}
+  </section>
+{% endfor %}
+{% if brand.progress %}
+  <div id="progress" class="progress clip" data-start="0" data-duration="{{ total }}" data-track-index="5">
+    <div class="fill"></div>{% for x in brand.progress.ticks %}<div class="tick" style="left: {{ x }}px;"></div>{% endfor %}
+  </div>
+{% endif %}
+{% if brand.watermark %}{% for sp in brand.watermark.spans %}
+  <div id="wm-{{ sp.k }}" class="wm clip" data-start="{{ sp.start }}" data-duration="{{ sp.dur }}" data-track-index="3">
+    {% if brand.watermark.text %}<span>{{ brand.watermark.text }}</span>{% endif %}{% if brand.watermark.img %}<img src="{{ brand.watermark.img.src }}" alt="" />{% endif %}
+  </div>
+{% endfor %}{% endif %}
+{% if brand.series %}{% for sp in brand.series.spans %}
+  <div id="pill-{{ sp.k }}" class="pill clip" data-start="{{ sp.start }}" data-duration="{{ sp.dur }}" data-track-index="4">{{ brand.series.label }}</div>
+{% endfor %}{% endif %}
+{% if brand.save_nudge %}
+  <div id="nudge" class="nudge clip" data-start="{{ brand.save_nudge.start }}" data-duration="{{ brand.save_nudge.dur }}" data-track-index="6">
+    <div class="nudge-in">{{ brand.save_nudge.icon | safe }}<span>{{ brand.save_nudge.text }}</span></div>
+  </div>
+{% endif %}
+{% for p in pages %}
+  <div id="{{ p.id }}" class="cap clip" data-start="{{ p.start }}" data-duration="{{ p.dur }}" data-track-index="1">
+    {% for w in p.words %}<span id="{{ w.id }}" class="{{ w.cls }}">{{ w.text }}</span>{% endfor %}
+  </div>
+{% endfor %}
+</div>
+<script>
+const tl = gsap.timeline({ paused: true });
+{% for s in scenes %}
+// ---- scene {{ s.id }} ({{ s.template }}{{ ', stage' if s.stage }})
+{% if s.stage %}
+{% include "scenes/stage.js.j2" %}
+{% else %}
+{% if style.transition == "punch" %}
+tl.fromTo("#sc-{{ s.id }} .bg", { scale: 1.12 }, { scale: 1, duration: 0.35, ease: "power2.out" }, {{ s.start }});
+{% endif %}
+{% set punch = style.transition == "punch" %}
+{% for m in s.shots %}
+{# first shot: scene entrance (stronger on the hook); later shots: a quick punch-in on the cut #}
+{% set from_scale = ((1.25 if s.idx == 0 else 1.15) if m.k == 0 else cut_zoom) if punch else 1.0 %}
+{% set settle = 0.4 if m.k == 0 else 0.25 %}
+tl.fromTo("#{{ m.id }}", { scale: {{ from_scale }}, opacity: {{ 1 if punch or s.idx == 0 or m.k > 0 else 0 }} }, { scale: 1, opacity: 1, duration: {{ settle }}, ease: "power2.out" }, {{ m.start }});
+tl.to("#{{ m.id }}", { scale: {{ 1.10 if m.kind == "photo" else 1.05 }}, x: {{ -30 if (s.idx + m.k) % 2 else 30 }}, duration: {{ [m.dur - settle, 0.1] | max | round(3) }}, ease: "none" }, {{ (m.start + settle) | round(3) }});
+{% endfor %}
+// ambient drift: blurred blobs alone change too little per frame and read as a freeze
+tl.fromTo("#sc-{{ s.id }} .content", { y: 0 }, { y: -24, duration: {{ s.dur }}, ease: "sine.inOut", immediateRender: false }, {{ s.start }});
+tl.fromTo("#sc-{{ s.id }} .b1", { x: 0, y: 0 }, { x: 180, y: 140, duration: {{ s.dur }}, ease: "none" }, {{ s.start }});
+tl.fromTo("#sc-{{ s.id }} .b2", { x: 0, y: 0 }, { x: -160, y: -120, duration: {{ s.dur }}, ease: "none" }, {{ s.start }});
+{% include "scenes/" ~ s.template ~ ".js.j2" %}
+{% endif %}
+{% endfor %}
+// ---- branding: progress fills linearly over the whole video; the pill punches in with its scene
+{% if brand.progress %}
+tl.fromTo("#progress .fill", { scaleX: 0 }, { scaleX: 1, duration: {{ total }}, ease: "none" }, 0);
+{% endif %}
+{% if brand.series %}{% for sp in brand.series.spans %}
+tl.fromTo("#pill-{{ sp.k }}", { scale: 1.2 }, { scale: 1, duration: 0.3, ease: "back.out(2.2)" }, {{ sp.start }});
+{% endfor %}{% endif %}
+{% if brand.save_nudge %}
+{% set n = brand.save_nudge %}
+tl.fromTo("#nudge .nudge-in", { scale: 0.6, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.3, ease: "back.out(2.4)" }, {{ n.start }});
+tl.fromTo("#nudge svg", { rotation: 0 }, { rotation: -14, duration: 0.15, yoyo: true, repeat: 3, ease: "sine.inOut", immediateRender: false }, {{ (n.start + 0.35) | round(3) }});
+tl.to("#nudge .nudge-in", { opacity: 0, y: -12, duration: 0.25, ease: "power1.in" }, {{ (n.start + n.dur - 0.25) | round(3) }});
+{% endif %}
+// ---- captions: pop-in per page, active-word highlight
+{% for p in pages %}
+{% if p.start > 0 %}
+tl.fromTo("#{{ p.id }}", { scale: 0.86, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.12, ease: "back.out(2)" }, {{ p.start }});
+{% else %}
+tl.fromTo("#{{ p.id }}", { scale: 1.12 }, { scale: 1, duration: 0.2, ease: "back.out(2)" }, 0);
+{% endif %}
+{% for w in p.words %}
+tl.set("#{{ w.id }}", { className: "{{ w.cls }} on" }, {{ w.on }});
+tl.set("#{{ w.id }}", { className: "{{ w.cls }}" }, {{ w.off }});
+{% endfor %}
+{% endfor %}
+window.__timelines = window.__timelines || {};
+window.__timelines["main"] = tl;
+</script>
+</body>
+</html>

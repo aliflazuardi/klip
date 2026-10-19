@@ -1,0 +1,13 @@
+tl.fromTo("#sc-{{ s.id }} .statrow", { scale: 0.6, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.4, ease: "back.out(2)" }, {{ s.start }});
+(() => {
+  const el = document.getElementById("num-{{ s.id }}");
+  const counter = { v: 0 };
+  const fmt = (v) => {
+    const [whole, frac] = Math.abs(v).toFixed({{ s.t.decimals }}).split(".");
+    return (v < 0 ? "-" : "") + whole.replace(/\B(?=(\d{3})+(?!\d))/g, ".") + (frac ? "," + frac : "");
+  };
+  tl.fromTo(counter, { v: 0 }, { v: {{ s.t.value }}, duration: 1.3, ease: "power2.out",
+    onUpdate: () => { el.textContent = fmt(counter.v); } }, {{ (s.start + 0.15) | round(3) }});
+})();
+{% if s.t.label %}tl.fromTo("#sc-{{ s.id }} .headline .hw", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.3, stagger: 0.05, ease: "power3.out" }, {{ (s.start + 0.6) | round(3) }});{% endif %}
+tl.fromTo("#sc-{{ s.id }} .statrow", { y: 0 }, { y: -24, duration: {{ s.dur }}, ease: "sine.inOut", immediateRender: false }, {{ s.start }});

@@ -1,0 +1,33 @@
+{
+ "slug": "cabai-busuk",
+ "style": "example",
+ "series": "cara-kerja",
+ "progress_bar": null,
+ "music": {
+  "mood": "curious",
+  "track": null
+ },
+ "scenes": [
+  {
+   "id": "s1",
+   "template": "hook",
+   "narration": "Kalau kamu nyimpan cabai begini, pantesan cepat busuk."
+  },
+  {
+   "id": "s2",
+   "template": "explain",
+   "narration": "isi"
+  },
+  {
+   "id": "s3",
+   "template": "explain",
+   "narration": "isi"
+  },
+  {
+   "id": "s4",
+   "template": "cta",
+   "narration": "follow ya",
+   "cta_type": "follow"
+  }
+ ]
+}

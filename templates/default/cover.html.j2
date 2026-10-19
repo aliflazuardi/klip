@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="id" data-resolution="portrait">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=1080, height=1920" />
+<title>{{ slug }} cover</title>
+<script src="gsap.min.js"></script>
+<style>
+{% for weight, file in font_files.items() %}
+@font-face { font-family: "{{ style.font_family }}"; font-weight: {{ weight }}; src: url("fonts/{{ file }}") format("woff2"); }
+{% endfor %}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 1080px; height: 1920px; overflow: hidden; background: {{ c1 }}; }
+#root { position: relative; width: 1080px; height: 1920px; overflow: hidden;
+        font-family: "{{ style.font_family }}", system-ui, sans-serif; color: {{ style.text_color }}; }
+.bg { position: absolute; inset: 0; background: linear-gradient(180deg, {{ c1 }} 0%, {{ c2 }} 100%); }
+.bg img { position: absolute; inset: 0; width: 1080px; height: 1920px; object-fit: cover; }
+/* over b-roll: an even shade, heavier at the top and bottom edges */
+.shade { position: absolute; inset: 0; background:
+    linear-gradient(180deg, {{ style.shade_color | rgba(0.55) }} 0%, {{ style.shade_color | rgba(0) }} 25%, {{ style.shade_color | rgba(0) }} 70%, {{ style.shade_color | rgba(0.6) }} 100%),
+    {{ style.shade_color | rgba(cv.media_dim) }}; }
+.glow { position: absolute; left: -360px; top: 1020px; width: 1800px; height: 1800px; border-radius: 50%;
+        background: radial-gradient(closest-side, {{ style.accent_color | rgba(cv.glow_opacity) }}, {{ style.accent_color | rgba(0) }}); }
+.pill-row { position: absolute; left: 0; width: 1080px; top: {{ cv.pill_top }}px; display: flex; justify-content: center; }
+.pill { padding: 10px 30px 12px; border-radius: 999px; background: {{ pill.bg if pill else 'none' }};
+        color: {{ pill.color if pill else 'inherit' }}; font-size: {{ cv.pill_font_size }}px; font-weight: 800;
+        letter-spacing: .04em; line-height: 1.15; box-shadow: 0 10px 30px {{ style.shade_color | rgba(0.35) }}; }
+.text { position: absolute; left: {{ (1080 - cv.width) // 2 }}px; width: {{ cv.width }}px; top: {{ cv.text_top }}px;
+        height: {{ cv.text_bottom - cv.text_top }}px; display: flex; flex-direction: column; justify-content: center;
+        align-items: center; text-align: center; text-shadow: 0 8px 32px rgba(0,0,0,.4); }
+.title { font-size: {{ title_size }}px; font-weight: 800; line-height: 1.06; letter-spacing: -0.02em; text-wrap: balance; }
+.title .ln { display: block; white-space: nowrap; }
+.keyword { font-size: {{ keyword_size }}px; font-weight: 800; line-height: 1.04; letter-spacing: -0.01em;
+           color: {{ style.accent_color }}; }
+.subtitle { margin-top: 56px; font-size: {{ cv.subtitle_size }}px; font-weight: 700; line-height: 1.2;
+            opacity: {{ cv.subtitle_opacity }}; }
+.footer { position: absolute; left: 0; width: 1080px; top: {{ cv.footer_y - 60 }}px; height: 120px;
+          display: flex; align-items: center; justify-content: center; gap: 28px; }
+.disc { width: {{ cv.logo_size }}px; height: {{ cv.logo_size }}px; border-radius: 50%; display: flex;
+        align-items: center; justify-content: center; }
+.disc img { width: 85%; }
+.wordmark { height: {{ cv.wordmark_height }}px; }
+.handle { font-size: 44px; font-weight: 800; }
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="main" data-start="0" data-duration="1" data-width="1080" data-height="1920">
+  <div class="bg">{% if media %}<img src="bg.jpg" alt="" /><div class="shade"></div>{% endif %}</div>
+  {% if cv.glow_opacity > 0 %}<div class="glow"></div>{% endif %}
+  {% if pill %}<div class="pill-row"><div class="pill">{{ pill.label }}</div></div>{% endif %}
+  <div class="text">
+    {% if lead %}
+    <div class="title">{% for ln in lead %}<span class="ln">{{ ln }}</span>{% endfor %}</div>
+    {% elif title %}
+    <div class="title">{{ title }}</div>
+    {% endif %}
+    <div class="keyword">{{ keyword }}</div>
+    {% if subtitle %}<div class="subtitle">{{ subtitle }}</div>{% endif %}
+  </div>
+  {% if logo or wordmark or handle %}
+  <div class="footer">
+    {% if logo %}<div class="disc"{% if disc %} style="background: {{ disc }};"{% endif %}><img src="{{ logo.src }}" alt="" /></div>{% endif %}
+    {% if wordmark %}<img class="wordmark" src="{{ wordmark.src }}" alt="" />{% endif %}
+    {% if handle %}<span class="handle">{{ handle }}</span>{% endif %}
+  </div>
+  {% endif %}
+</div>
+<script>
+// a still: an empty timeline so the HyperFrames runtime can seek to 0
+window.__timelines = { main: gsap.timeline({ paused: true }) };
+</script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+{
+ "slug": "pagi-ngantuk",
+ "style": "example",
+ "series": "kenapa",
+ "progress_bar": false,
+ "music": {
+  "mood": "curious",
+  "track": null
+ },
+ "scenes": [
+  {
+   "id": "s1",
+   "template": "hook",
+   "narration": "3 kebiasaan pagi yang diam-diam bikin kamu ngantuk."
+  },
+  {
+   "id": "s2",
+   "template": "list_item",
+   "narration": "isi"
+  },
+  {
+   "id": "s3",
+   "template": "list_item",
+   "narration": "isi"
+  },
+  {
+   "id": "s4",
+   "template": "list_item",
+   "narration": "isi"
+  },
+  {
+   "id": "s5",
+   "template": "cta",
+   "narration": "follow ya",
+   "cta_type": "save"
+  }
+ ]
+}

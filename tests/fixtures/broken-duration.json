@@ -1,0 +1,13 @@
+{
+  "slug": "broken-duration",
+  "voice": "male",
+  "target_duration_s": 12,
+  "music": { "mood": null },
+  "scenes": [
+    { "id": "s1", "template": "hook", "narration": "Spec ini sengaja dibuat terlalu panjang untuk targetnya.",
+      "on_screen_text": "Uji QA" },
+    { "id": "s2", "template": "stat", "narration": "Targetnya dua belas detik, tapi narasinya jauh lebih panjang dari itu, jadi QA harus gagal dengan pesan yang jelas.",
+      "stat": { "value": 12, "suffix": " detik", "label": "target durasi" } },
+    { "id": "s3", "template": "cta", "narration": "Kalau QA lolos, berarti ada yang salah!", "on_screen_text": "Harus gagal" }
+  ]
+}

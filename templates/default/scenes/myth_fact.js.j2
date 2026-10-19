@@ -1,0 +1,4 @@
+tl.fromTo("#sc-{{ s.id }} .myth", { x: -90, opacity: 0 }, { x: 0, opacity: 1, duration: 0.4, ease: "power3.out" }, {{ (s.start + 0.1) | round(3) }});
+tl.fromTo("#sc-{{ s.id }} .mf-strike", { backgroundSize: "0% 10px" }, { backgroundSize: "100% 10px", duration: 0.35, ease: "power2.inOut" }, {{ s.t.reveal }});
+tl.to("#sc-{{ s.id }} .myth", { opacity: 0.55, duration: 0.3 }, {{ s.t.reveal }});
+tl.fromTo("#sc-{{ s.id }} .fact", { y: 70, opacity: 0, scale: 0.92 }, { y: 0, opacity: 1, scale: 1, duration: 0.45, ease: "back.out(1.8)" }, {{ (s.t.reveal + 0.15) | round(3) }});

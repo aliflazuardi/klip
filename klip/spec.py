@@ -1,0 +1,317 @@
+"""Scene spec: the contract between script writing and rendering.
+
+The spec file *is* the video: re-rendering the same spec gives the same output.
+Run `klip schema` to export the JSON Schema to schema/spec.schema.json.
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+TemplateName = Literal["hook", "explain", "list_item", "myth_fact", "stat", "compare", "cta"]
+VisualType = Literal["stock_video", "stock_photo", "ai_image", "icon", "solid", "local", "stage"]
+StageKind = Literal["cutout", "photo", "icon", "label", "number", "bar", "stack", "highlight"]
+StagePos = Literal["tl", "tc", "tr", "ml", "mc", "mr", "bl", "bc", "br"]
+VoiceName = Literal["male", "female"]
+Delivery = Literal["neutral", "energetic", "emphatic", "warm", "calm"]
+CtaType = Literal["follow", "save", "comment", "share"]
+
+# Templates and visual types the current build can render. Others are accepted by
+# the schema (so specs stay forward-compatible) but fall back with a warning.
+IMPLEMENTED_TEMPLATES = {"hook", "explain", "list_item", "myth_fact", "stat", "compare", "cta"}
+IMPLEMENTED_VISUALS = {"icon", "solid", "stock_video", "stock_photo", "local", "stage"}
+STAGE_TEMPLATES = {"hook", "explain", "list_item"}   # templates whose layout leaves room for a stage
+
+
+class _Strict(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+class Beat(_Strict):
+    """A new shot inside a stock scene, cut in on a narration word with its own clip."""
+    at: str = Field(min_length=1, description="Narration word (or phrase; its first word counts) where this "
+                                              "shot starts: the cut lands as the voice says it.")
+    query: str = Field(min_length=1, description="English keywords for this shot's stock clip.")
+
+
+class StageBar(_Strict):
+    label: str = Field(min_length=1, description="Bar label under the bar, e.g. '2023'.")
+    value: float = Field(ge=0, description="Bar height (bars are scaled to the largest).")
+    text: str | None = Field(None, description="Value shown on top of the bar, e.g. 'Rp12rb'; unset = no text.")
+
+
+# what each stage element kind needs (one of a tuple is enough)
+_STAGE_NEEDS = {"cutout": (("query", "path"),), "photo": (("query", "path"),), "icon": (("name",),),
+                "label": (("text",),), "number": (("text",),), "bar": (("bars",),), "stack": (("name",),),
+                "highlight": (("target",),)}
+
+
+class StageElement(_Strict):
+    """A prop that builds up on a stage scene: it pops in as the voice says `at` and stays."""
+    at: str = Field(min_length=1, description="Narration word (or phrase; its first word counts) where this "
+                                              "element pops in. Elements are matched in narration order.")
+    kind: StageKind = Field(description="cutout = stock photo with its background removed (a sticker); "
+                                        "photo = photo card; icon = Lucide icon on a sticker disc; label = paper "
+                                        "tag; number = big number; bar = bar chart; stack = a pile of `count` "
+                                        "icons; highlight = yellow box around an earlier element.")
+    query: str | None = Field(None, description="cutout/photo: English keywords for the stock photo, naming one "
+                                                "object or person (e.g. 'tempeh block', 'businessman shrugging').")
+    path: str | None = Field(None, description="cutout/photo: your own image instead of `query` (a transparent "
+                                               "PNG is used as-is).")
+    name: str | None = Field(None, description="icon/stack: Lucide icon name, e.g. 'coins'.")
+    text: str | None = Field(None, description="label: the tag text (1-4 words); number: the number as shown, "
+                                               "e.g. '-7%' or 'Rp12.000'.")
+    label: str | None = Field(None, description="cutout/photo/icon: a short tag stuck under the element.")
+    tone: Literal["up", "down", "neutral"] = Field("neutral", description="number: colour (up = green, down = red).")
+    bars: list[StageBar] = Field(default_factory=list, max_length=4, description="bar: 2-4 bars, left to right.")
+    count: int | None = Field(None, ge=2, le=8, description="stack: how many icons pile up (default 4).")
+    target: int | None = Field(None, ge=1, description="highlight: number (1-based) of the earlier element in "
+                                                       "this scene to box.")
+    pos: StagePos | None = Field(None, description="Slot on the stage: t/m/b (top/middle/bottom) + l/c/r. "
+                                                   "Unset = automatic layout.")
+    size: Literal["s", "m", "l"] | None = Field(None, description="Unset = by how many elements share the stage.")
+    clear: bool = Field(False, description="Clear the stage (earlier elements leave) before this one enters.")
+
+    @model_validator(mode="after")
+    def _kind_fields(self) -> StageElement:
+        for opts in _STAGE_NEEDS[self.kind]:
+            if not any(getattr(self, f) for f in opts):
+                raise ValueError(f"stage element kind={self.kind!r} requires {' or '.join(opts)}")
+        if self.kind == "bar" and len(self.bars) < 2:
+            raise ValueError("a bar element needs 2-4 bars")
+        if self.label and self.kind not in ("cutout", "photo", "icon"):
+            raise ValueError("`label` is for cutout/photo/icon elements (use kind=label for a lone tag)")
+        return self
+
+
+class Visual(_Strict):
+    type: VisualType = "solid"
+    query: str | None = Field(None, description="English keywords for stock search (the scene's first shot).")
+    beats: list[Beat] = Field(default_factory=list, max_length=5,
+                              description="Later shots of this scene, in narration order, each cut in on a word "
+                                          "with its own clip. Preferred over `queries`.")
+    queries: list[str] = Field(default_factory=list, max_length=3,
+                               description="Legacy: extra English queries for later shots, cut on a timer. "
+                                           "Use `beats` instead.")
+    max_shots: int | None = Field(None, ge=1, le=6, description="Cap the cuts in this scene; 1 = a single shot.")
+    name: str | None = Field(None, description="Lucide icon name, e.g. 'brain'.")
+    bg: Literal["solid", "gradient"] = "gradient"
+    path: str | None = Field(None, description="Local clip/photo path (type=local).")
+    prompt: str | None = Field(None, description="Image prompt (type=ai_image).")
+    background: str | None = Field(None, description="type=stage: 'desk', 'paper', 'kraft', 'board' (see klip.yaml "
+                                                     "stage.backgrounds) or a repo-relative image path. "
+                                                     "Unset = stage.default_background.")
+    elements: list[StageElement] = Field(default_factory=list, max_length=12,
+                                         description="type=stage: props that build up on the background, each "
+                                                     "popping in on its narration word, in narration order.")
+
+    @model_validator(mode="after")
+    def _required_fields(self) -> Visual:
+        need = {"icon": "name", "stock_video": "query", "stock_photo": "query",
+                "local": "path", "ai_image": "prompt"}.get(self.type)
+        if need and not getattr(self, need):
+            raise ValueError(f"visual.type={self.type!r} requires visual.{need}")
+        if self.beats and self.queries:
+            raise ValueError("use either visual.beats or visual.queries, not both")
+        if self.beats and self.type not in ("stock_video", "stock_photo"):
+            raise ValueError("visual.beats is only for stock_video / stock_photo scenes")
+        if self.type == "stage":
+            if not self.elements:
+                raise ValueError("visual.type='stage' requires visual.elements")
+            self._check_stage()
+        elif self.elements or self.background:
+            raise ValueError("visual.elements / visual.background are only for visual.type='stage'")
+        return self
+
+    def _check_stage(self) -> None:
+        page_start, on_stage = 0, 0
+        for i, e in enumerate(self.elements):
+            if e.clear:
+                page_start, on_stage = i, 0
+            if e.kind == "highlight":
+                t = e.target - 1
+                if not page_start <= t < i:
+                    raise ValueError(f"elements[{i}] highlight target {e.target} must be an earlier element "
+                                     f"still on the stage (after the last clear)")
+                if self.elements[t].kind == "highlight":
+                    raise ValueError(f"elements[{i}] highlight target {e.target} is itself a highlight")
+                continue
+            on_stage += 1
+            if on_stage > 6:
+                raise ValueError(f"elements[{i}]: at most 6 elements on the stage at once; set clear: true "
+                                 f"on one to start a fresh stage")
+
+
+class Stat(_Strict):
+    value: float = Field(description="Number the counter animates to, e.g. 34 or 1.5.")
+    prefix: str = Field("", description="Shown before the number, e.g. 'Rp'.")
+    suffix: str = Field("", description="Shown after the number, e.g. '%' or ' menit'.")
+    decimals: int = Field(0, ge=0, le=2)
+    label: str | None = Field(None, description="Line under the number; defaults to on_screen_text.")
+
+
+class Side(_Strict):
+    label: str = Field(description="Column title, e.g. 'Power nap'.")
+    text: str | None = Field(None, description="One short line under the title.")
+    icon: str | None = Field(None, description="Lucide icon name.")
+
+
+class Compare(_Strict):
+    left: Side
+    right: Side
+
+
+class Scene(_Strict):
+    id: str = Field(pattern=r"^[A-Za-z0-9_-]+$")
+    template: TemplateName
+    narration: str = Field(min_length=1, description="Spoken text; also what captions display.")
+    tts_override: str | None = Field(None, description="Optional spoken version, e.g. 'wai fai' for 'WiFi'.")
+    on_screen_text: str | None = None
+    visual: Visual = Field(default_factory=Visual)
+    emphasis: list[str] = Field(default_factory=list, description="Words/phrases to color with the emphasis color.")
+    delivery: Delivery | None = Field(None, description="Voice style for this scene (rate/pitch preset in "
+                                                        "klip.yaml prosody); unset = by template.")
+    # Template-specific data
+    list_index: int | None = Field(None, ge=1, description="list_item: number shown; auto-numbered if unset.")
+    list_total: int | None = Field(None, ge=1, description="list_item: total shown ('1/3'); auto if unset.")
+    myth: str | None = Field(None, description="myth_fact: the myth (short).")
+    fact: str | None = Field(None, description="myth_fact: the fact (short).")
+    reveal_at: str | None = Field(None, description="myth_fact: narration word at which the fact card appears "
+                                                    "(default: ~45% into the scene).")
+    stat: Stat | None = None
+    compare: Compare | None = None
+    cta_type: CtaType | None = Field(None, description="cta: what the outro asks for; shows an action chip "
+                                                       "(icon + label). 'comment' = on_screen_text is a "
+                                                       "two-sided question shown as the headline.")
+
+    @model_validator(mode="after")
+    def _template_data(self) -> Scene:
+        need = {"myth_fact": ("myth", "fact"), "stat": ("stat",), "compare": ("compare",)}.get(self.template, ())
+        missing = [f for f in need if getattr(self, f) is None]
+        if missing:
+            raise ValueError(f"template {self.template!r} requires: {', '.join(missing)}")
+        if self.cta_type and self.template != "cta":
+            raise ValueError("cta_type is only for the 'cta' template")
+        return self
+
+
+class HookVariant(_Strict):
+    """An alternative first scene for A/B testing; unset fields keep the main hook's."""
+    narration: str = Field(min_length=1)
+    on_screen_text: str | None = None
+    tts_override: str | None = None
+    visual: Visual | None = None
+    emphasis: list[str] = Field(default_factory=list)
+
+
+class Music(_Strict):
+    mood: str | None = Field("calm", description="Picks a track from assets/music/<mood>/; null = no music.")
+    track: str | None = Field(None, description="Explicit track path (overrides mood).")
+
+
+class Post(_Strict):
+    caption: str = ""
+    hashtags: list[str] = Field(default_factory=list)
+
+
+class Cover(_Strict):
+    lines: list[str] = Field(default_factory=list, max_length=3,
+                             description="Title as 2-3 explicit lines; the last line is the keyword "
+                                         "(bigger, accent colour). Use this or title + keyword.")
+    title: str | None = Field(None, description="Title lead-in (3-5 words, wraps to max 2 lines), "
+                                                "e.g. 'Kenapa Kita Ikut Ikutan'.")
+    keyword: str | None = Field(None, description="The payoff word(s) shown big as the last line, e.g. 'Menguap?'.")
+    subtitle: str | None = Field(None, description="One short sentence under the title, e.g. "
+                                                   "'Ternyata bukan karena bosan'.")
+
+    @model_validator(mode="after")
+    def _one_title_form(self) -> Cover:
+        if self.lines and (self.title or self.keyword):
+            raise ValueError("cover: give either `lines` or `title`/`keyword`, not both")
+        if len(self.lines) == 1:
+            raise ValueError("cover.lines needs 2-3 lines (the last one is the keyword); "
+                             "for one line use `keyword`")
+        return self
+
+
+class Fact(_Strict):
+    claim: str
+    source: str
+
+
+class Spec(_Strict):
+    version: Literal[1] = 1
+    slug: str = Field(pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+    language: str = "id-ID"
+    voice: VoiceName = "female"
+    speech_rate: str | None = Field(None, pattern=r"^[+-]\d{1,3}%$",
+                                    description="e.g. '+8%'. Unset = per-voice default in klip.yaml.")
+    target_duration_s: int = Field(45, ge=10, le=60)
+    style: str = "default"
+    series: str | None = Field(None, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$",
+                               description="Series key, e.g. 'kenapa'; shown as a pill (label from the style's "
+                                           "series_pill.labels, else the key in capitals).")
+    episode: int | None = Field(None, ge=1, description="Episode number shown on the series pill ('#12').")
+    progress_bar: bool | None = Field(None, description="Thin progress bar at the top; unset = the style's setting. "
+                                                        "Set false/true to A/B test it.")
+    save_nudge: bool | None = Field(None, description="'Simpan dulu' pill when the 2nd list_item starts; "
+                                                      "unset = the style's save_nudge.enabled.")
+    music: Music = Field(default_factory=Music)
+    scenes: list[Scene] = Field(min_length=1, max_length=12)
+    post: Post = Field(default_factory=Post)
+    cover: Cover | None = Field(None, description="Designed cover.png (profile grid thumbnail); unset = built "
+                                                  "from the hook's on_screen_text (emphasised end = keyword).")
+    facts: list[Fact] = Field(default_factory=list)
+    sfx: bool = Field(True, description="Sound effects on cuts, reveals, badges (see klip.yaml sfx).")
+    hook_variants: list[HookVariant] = Field(
+        default_factory=list, max_length=4,
+        description="Alternative hooks (scene 1) for A/B testing; `klip render --variants` renders each.")
+
+    @model_validator(mode="after")
+    def _unique_scene_ids(self) -> Spec:
+        ids = [s.id for s in self.scenes]
+        dupes = {i for i in ids if ids.count(i) > 1}
+        if dupes:
+            raise ValueError(f"duplicate scene ids: {sorted(dupes)}")
+        return self
+
+    @model_validator(mode="after")
+    def _variants_need_hook(self) -> Spec:
+        if self.hook_variants and self.scenes[0].template != "hook":
+            raise ValueError("hook_variants requires the first scene to use the 'hook' template")
+        return self
+
+    def with_hook_variant(self, i: int) -> Spec:
+        """This spec with scene 1 replaced by hook_variants[i] (variants themselves dropped)."""
+        v = self.hook_variants[i]
+        hook = self.scenes[0].model_copy(update={
+            "narration": v.narration, "tts_override": v.tts_override,
+            "on_screen_text": v.on_screen_text if v.on_screen_text is not None else self.scenes[0].on_screen_text,
+            "visual": v.visual or self.scenes[0].visual, "emphasis": v.emphasis})
+        return self.model_copy(update={"scenes": [hook, *self.scenes[1:]], "hook_variants": []})
+
+    @property
+    def word_count(self) -> int:
+        return sum(len(s.narration.split()) for s in self.scenes)
+
+
+def load_spec(path: str | Path) -> Spec:
+    return Spec.model_validate_json(Path(path).read_text(encoding="utf-8"))
+
+
+def export_schema() -> dict:
+    schema = Spec.model_json_schema()
+    schema["$schema"] = "https://json-schema.org/draft/2020-12/schema"
+    schema["title"] = "Klip scene spec"
+    return schema
+
+
+def write_schema(path: str | Path) -> Path:
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(export_schema(), indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    return path

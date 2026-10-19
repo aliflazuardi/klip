@@ -1,0 +1,1 @@
+{% if s.headline %}<span>{% for h in s.headline %}<span class="hw{{ ' emph' if h.emph }}">{{ h.text }}</span>{{ ' ' if not loop.last }}{% endfor %}</span>{% endif %}

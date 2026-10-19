@@ -1,0 +1,15 @@
+tl.fromTo("#sc-{{ s.id }}", { opacity: 0 }, { opacity: 1, duration: 0.2, ease: "none" }, {{ s.start }});
+tl.fromTo("#sc-{{ s.id }} .headline .hw", { opacity: 0, y: 50 }, { opacity: 1, y: 0, duration: 0.35, stagger: 0.06, ease: "back.out(2)" }, {{ s.start + 0.1 }});
+{% set badge = ".ec-disc" if brand.end_card and brand.end_card.logo else (".iconwrap" if s.icon and not brand.end_card else None) %}
+{# the element that keeps pulsing: the action chip when there is one, else the logo disc / icon #}
+{% set pulse = ".cta-chip" if s.t.chip else badge %}
+{% set pulse_at = (s.start + s.t.chip_at) if s.t.chip else s.start %}
+{% if brand.end_card %}
+{% if brand.end_card.wordmark %}tl.fromTo("#sc-{{ s.id }} .ec-word", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.35, ease: "power2.out" }, {{ s.start + 0.15 }});{% endif %}
+{% if brand.end_card.tagline and not s.t.chip %}tl.fromTo("#sc-{{ s.id }} .ec-tag", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "none" }, {{ s.start + 0.45 }});{% endif %}
+{% endif %}
+{% if s.t.chip and badge %}tl.fromTo("#sc-{{ s.id }} {{ badge }}", { scale: 0 }, { scale: 1, duration: 0.45, ease: "back.out(2.5)" }, {{ s.start }});
+{% endif %}
+{% if pulse %}tl.fromTo("#sc-{{ s.id }} {{ pulse }}", { scale: 0 }, { scale: 1, duration: 0.45, ease: "back.out(2.5)" }, {{ pulse_at | round(3) }});
+{% for k in range(((s.start + s.dur - pulse_at - 0.6) / 0.8) | int) %}tl.fromTo("#sc-{{ s.id }} {{ pulse }}", { scale: 1 }, { scale: {{ 1.04 if brand.end_card and not s.t.chip else (1.07 if s.t.chip else 1.1) }}, duration: 0.4, yoyo: true, repeat: 1, ease: "sine.inOut", immediateRender: false }, {{ (pulse_at + 0.6 + k * 0.8) | round(3) }});
+{% endfor %}{% endif %}

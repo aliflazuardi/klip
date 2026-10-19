@@ -1,0 +1,12 @@
+    {% set top = 450 if s.headline else 330 %}
+    {% if s.headline %}<div class="safe headline" style="top: 250px; font-size: 80px;">{% include "scenes/_headline.html.j2" %}</div>{% endif %}
+    <div class="cmp" style="top: {{ top }}px;">
+      {% for side, key in [(s.t.left, "left"), (s.t.right, "right")] %}
+      <div class="cmp-col {{ key }}">
+        {% if side.icon %}<div class="cmp-ic">{{ side.icon | safe }}</div>{% endif %}
+        <div class="cmp-label">{{ side.label }}</div>
+        {% if side.text %}<div class="cmp-text">{{ side.text }}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    <div class="vs" style="top: {{ top - 70 }}px;">VS</div>

@@ -1,0 +1,2 @@
+    {% if s.icon %}<div class="iconwrap" style="width:220px;height:220px;top:300px;margin-left:-110px;">{{ s.icon | safe }}</div>{% endif %}
+    <div class="safe headline" style="top: {{ 580 if s.icon else 480 }}px; font-size: 128px;">{% include "scenes/_headline.html.j2" %}</div>

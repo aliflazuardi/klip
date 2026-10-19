@@ -1,0 +1,32 @@
+{% set c = s.t %}
+{% if brand.end_card %}
+{% set ec = brand.end_card %}
+{% if c.chip %}
+{# with an action chip: headline + chip stacked above the captions; a question shrinks the logo block #}
+{% set disc = c.compact_disc if c.question else 460 %}
+{% set word = c.compact_word if c.question else 700 %}
+{% set disc_top = 250 if c.question else 260 %}
+    {% if ec.logo %}<div class="ec-disc" style="left: {{ 540 - disc // 2 }}px; top: {{ disc_top }}px; width: {{ disc }}px; height: {{ disc }}px;{% if ec.disc %} background: {{ ec.disc }};{% endif %}"><img class="ec-logo" style="width: {{ (disc * 0.826) | int }}px;" src="{{ ec.logo.src }}" alt="" /></div>{% endif %}
+    {% if ec.wordmark %}<img class="ec-word" style="top: {{ disc_top + disc + (35 if c.question else 40) }}px; width: {{ word }}px; margin-left: -{{ word // 2 }}px;" src="{{ ec.wordmark.src }}" alt="" />{% endif %}
+    <div class="cta-stack" style="bottom: 770px;">
+      <div class="headline" style="font-size: {{ c.question_size if c.question else 76 }}px;">{% include "scenes/_headline.html.j2" %}</div>
+      {% include "scenes/_cta_chip.html.j2" %}
+    </div>
+{% else %}
+    {% if ec.logo %}<div class="ec-disc"{% if ec.disc %} style="background: {{ ec.disc }};"{% endif %}><img class="ec-logo" src="{{ ec.logo.src }}" alt="" /></div>{% endif %}
+    {% if ec.wordmark %}<img class="ec-word" src="{{ ec.wordmark.src }}" alt="" />{% endif %}
+    <div class="safe headline" style="top: {{ 960 if ec.wordmark else 780 }}px; font-size: 76px;">{% include "scenes/_headline.html.j2" %}</div>
+    {% if ec.tagline %}<div class="ec-tag">{{ ec.tagline }}</div>{% endif %}
+{% endif %}
+{% else %}
+{% if c.chip %}
+    {% if s.icon %}<div class="iconwrap" style="width:300px;height:300px;top:380px;margin-left:-150px;background:var(--accent);border-color:rgba(255,255,255,.6);">{{ s.icon | safe }}</div>{% endif %}
+    <div class="cta-stack" style="top: {{ 740 if s.icon else 560 }}px;">
+      <div class="headline" style="font-size: {{ c.question_size if c.question else 104 }}px;">{% include "scenes/_headline.html.j2" %}</div>
+      {% include "scenes/_cta_chip.html.j2" %}
+    </div>
+{% else %}
+    {% if s.icon %}<div class="iconwrap" style="width:300px;height:300px;top:420px;margin-left:-150px;background:var(--accent);border-color:rgba(255,255,255,.6);">{{ s.icon | safe }}</div>{% endif %}
+    <div class="safe headline" style="top: {{ 800 if s.icon else 560 }}px; font-size: 104px;">{% include "scenes/_headline.html.j2" %}</div>
+{% endif %}
+{% endif %}

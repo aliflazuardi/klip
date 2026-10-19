@@ -1,0 +1,1049 @@
+{
+  "$defs": {
+    "Beat": {
+      "additionalProperties": false,
+      "description": "A new shot inside a stock scene, cut in on a narration word with its own clip.",
+      "properties": {
+        "at": {
+          "description": "Narration word (or phrase; its first word counts) where this shot starts: the cut lands as the voice says it.",
+          "minLength": 1,
+          "title": "At",
+          "type": "string"
+        },
+        "query": {
+          "description": "English keywords for this shot's stock clip.",
+          "minLength": 1,
+          "title": "Query",
+          "type": "string"
+        }
+      },
+      "required": [
+        "at",
+        "query"
+      ],
+      "title": "Beat",
+      "type": "object"
+    },
+    "Compare": {
+      "additionalProperties": false,
+      "properties": {
+        "left": {
+          "$ref": "#/$defs/Side"
+        },
+        "right": {
+          "$ref": "#/$defs/Side"
+        }
+      },
+      "required": [
+        "left",
+        "right"
+      ],
+      "title": "Compare",
+      "type": "object"
+    },
+    "Cover": {
+      "additionalProperties": false,
+      "properties": {
+        "lines": {
+          "description": "Title as 2-3 explicit lines; the last line is the keyword (bigger, accent colour). Use this or title + keyword.",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 3,
+          "title": "Lines",
+          "type": "array"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Title lead-in (3-5 words, wraps to max 2 lines), e.g. 'Kenapa Kita Ikut Ikutan'.",
+          "title": "Title"
+        },
+        "keyword": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The payoff word(s) shown big as the last line, e.g. 'Menguap?'.",
+          "title": "Keyword"
+        },
+        "subtitle": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "One short sentence under the title, e.g. 'Ternyata bukan karena bosan'.",
+          "title": "Subtitle"
+        }
+      },
+      "title": "Cover",
+      "type": "object"
+    },
+    "Fact": {
+      "additionalProperties": false,
+      "properties": {
+        "claim": {
+          "title": "Claim",
+          "type": "string"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "claim",
+        "source"
+      ],
+      "title": "Fact",
+      "type": "object"
+    },
+    "HookVariant": {
+      "additionalProperties": false,
+      "description": "An alternative first scene for A/B testing; unset fields keep the main hook's.",
+      "properties": {
+        "narration": {
+          "minLength": 1,
+          "title": "Narration",
+          "type": "string"
+        },
+        "on_screen_text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "On Screen Text"
+        },
+        "tts_override": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tts Override"
+        },
+        "visual": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Visual"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "emphasis": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Emphasis",
+          "type": "array"
+        }
+      },
+      "required": [
+        "narration"
+      ],
+      "title": "HookVariant",
+      "type": "object"
+    },
+    "Music": {
+      "additionalProperties": false,
+      "properties": {
+        "mood": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "calm",
+          "description": "Picks a track from assets/music/<mood>/; null = no music.",
+          "title": "Mood"
+        },
+        "track": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Explicit track path (overrides mood).",
+          "title": "Track"
+        }
+      },
+      "title": "Music",
+      "type": "object"
+    },
+    "Post": {
+      "additionalProperties": false,
+      "properties": {
+        "caption": {
+          "default": "",
+          "title": "Caption",
+          "type": "string"
+        },
+        "hashtags": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Hashtags",
+          "type": "array"
+        }
+      },
+      "title": "Post",
+      "type": "object"
+    },
+    "Scene": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "title": "Id",
+          "type": "string"
+        },
+        "template": {
+          "enum": [
+            "hook",
+            "explain",
+            "list_item",
+            "myth_fact",
+            "stat",
+            "compare",
+            "cta"
+          ],
+          "title": "Template",
+          "type": "string"
+        },
+        "narration": {
+          "description": "Spoken text; also what captions display.",
+          "minLength": 1,
+          "title": "Narration",
+          "type": "string"
+        },
+        "tts_override": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional spoken version, e.g. 'wai fai' for 'WiFi'.",
+          "title": "Tts Override"
+        },
+        "on_screen_text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "On Screen Text"
+        },
+        "visual": {
+          "$ref": "#/$defs/Visual"
+        },
+        "emphasis": {
+          "description": "Words/phrases to color with the emphasis color.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Emphasis",
+          "type": "array"
+        },
+        "delivery": {
+          "anyOf": [
+            {
+              "enum": [
+                "neutral",
+                "energetic",
+                "emphatic",
+                "warm",
+                "calm"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Voice style for this scene (rate/pitch preset in klip.yaml prosody); unset = by template.",
+          "title": "Delivery"
+        },
+        "list_index": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "list_item: number shown; auto-numbered if unset.",
+          "title": "List Index"
+        },
+        "list_total": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "list_item: total shown ('1/3'); auto if unset.",
+          "title": "List Total"
+        },
+        "myth": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "myth_fact: the myth (short).",
+          "title": "Myth"
+        },
+        "fact": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "myth_fact: the fact (short).",
+          "title": "Fact"
+        },
+        "reveal_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "myth_fact: narration word at which the fact card appears (default: ~45% into the scene).",
+          "title": "Reveal At"
+        },
+        "stat": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Stat"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "compare": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Compare"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "cta_type": {
+          "anyOf": [
+            {
+              "enum": [
+                "follow",
+                "save",
+                "comment",
+                "share"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "cta: what the outro asks for; shows an action chip (icon + label). 'comment' = on_screen_text is a two-sided question shown as the headline.",
+          "title": "Cta Type"
+        }
+      },
+      "required": [
+        "id",
+        "template",
+        "narration"
+      ],
+      "title": "Scene",
+      "type": "object"
+    },
+    "Side": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "description": "Column title, e.g. 'Power nap'.",
+          "title": "Label",
+          "type": "string"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "One short line under the title.",
+          "title": "Text"
+        },
+        "icon": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Lucide icon name.",
+          "title": "Icon"
+        }
+      },
+      "required": [
+        "label"
+      ],
+      "title": "Side",
+      "type": "object"
+    },
+    "StageBar": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "description": "Bar label under the bar, e.g. '2023'.",
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "value": {
+          "description": "Bar height (bars are scaled to the largest).",
+          "minimum": 0,
+          "title": "Value",
+          "type": "number"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Value shown on top of the bar, e.g. 'Rp12rb'; unset = no text.",
+          "title": "Text"
+        }
+      },
+      "required": [
+        "label",
+        "value"
+      ],
+      "title": "StageBar",
+      "type": "object"
+    },
+    "StageElement": {
+      "additionalProperties": false,
+      "description": "A prop that builds up on a stage scene: it pops in as the voice says `at` and stays.",
+      "properties": {
+        "at": {
+          "description": "Narration word (or phrase; its first word counts) where this element pops in. Elements are matched in narration order.",
+          "minLength": 1,
+          "title": "At",
+          "type": "string"
+        },
+        "kind": {
+          "description": "cutout = stock photo with its background removed (a sticker); photo = photo card; icon = Lucide icon on a sticker disc; label = paper tag; number = big number; bar = bar chart; stack = a pile of `count` icons; highlight = yellow box around an earlier element.",
+          "enum": [
+            "cutout",
+            "photo",
+            "icon",
+            "label",
+            "number",
+            "bar",
+            "stack",
+            "highlight"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "query": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "cutout/photo: English keywords for the stock photo, naming one object or person (e.g. 'tempeh block', 'businessman shrugging').",
+          "title": "Query"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "cutout/photo: your own image instead of `query` (a transparent PNG is used as-is).",
+          "title": "Path"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "icon/stack: Lucide icon name, e.g. 'coins'.",
+          "title": "Name"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "label: the tag text (1-4 words); number: the number as shown, e.g. '-7%' or 'Rp12.000'.",
+          "title": "Text"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "cutout/photo/icon: a short tag stuck under the element.",
+          "title": "Label"
+        },
+        "tone": {
+          "default": "neutral",
+          "description": "number: colour (up = green, down = red).",
+          "enum": [
+            "up",
+            "down",
+            "neutral"
+          ],
+          "title": "Tone",
+          "type": "string"
+        },
+        "bars": {
+          "description": "bar: 2-4 bars, left to right.",
+          "items": {
+            "$ref": "#/$defs/StageBar"
+          },
+          "maxItems": 4,
+          "title": "Bars",
+          "type": "array"
+        },
+        "count": {
+          "anyOf": [
+            {
+              "maximum": 8,
+              "minimum": 2,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "stack: how many icons pile up (default 4).",
+          "title": "Count"
+        },
+        "target": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "highlight: number (1-based) of the earlier element in this scene to box.",
+          "title": "Target"
+        },
+        "pos": {
+          "anyOf": [
+            {
+              "enum": [
+                "tl",
+                "tc",
+                "tr",
+                "ml",
+                "mc",
+                "mr",
+                "bl",
+                "bc",
+                "br"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Slot on the stage: t/m/b (top/middle/bottom) + l/c/r. Unset = automatic layout.",
+          "title": "Pos"
+        },
+        "size": {
+          "anyOf": [
+            {
+              "enum": [
+                "s",
+                "m",
+                "l"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Unset = by how many elements share the stage.",
+          "title": "Size"
+        },
+        "clear": {
+          "default": false,
+          "description": "Clear the stage (earlier elements leave) before this one enters.",
+          "title": "Clear",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "at",
+        "kind"
+      ],
+      "title": "StageElement",
+      "type": "object"
+    },
+    "Stat": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "description": "Number the counter animates to, e.g. 34 or 1.5.",
+          "title": "Value",
+          "type": "number"
+        },
+        "prefix": {
+          "default": "",
+          "description": "Shown before the number, e.g. 'Rp'.",
+          "title": "Prefix",
+          "type": "string"
+        },
+        "suffix": {
+          "default": "",
+          "description": "Shown after the number, e.g. '%' or ' menit'.",
+          "title": "Suffix",
+          "type": "string"
+        },
+        "decimals": {
+          "default": 0,
+          "maximum": 2,
+          "minimum": 0,
+          "title": "Decimals",
+          "type": "integer"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Line under the number; defaults to on_screen_text.",
+          "title": "Label"
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "Stat",
+      "type": "object"
+    },
+    "Visual": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "default": "solid",
+          "enum": [
+            "stock_video",
+            "stock_photo",
+            "ai_image",
+            "icon",
+            "solid",
+            "local",
+            "stage"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "query": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "English keywords for stock search (the scene's first shot).",
+          "title": "Query"
+        },
+        "beats": {
+          "description": "Later shots of this scene, in narration order, each cut in on a word with its own clip. Preferred over `queries`.",
+          "items": {
+            "$ref": "#/$defs/Beat"
+          },
+          "maxItems": 5,
+          "title": "Beats",
+          "type": "array"
+        },
+        "queries": {
+          "description": "Legacy: extra English queries for later shots, cut on a timer. Use `beats` instead.",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 3,
+          "title": "Queries",
+          "type": "array"
+        },
+        "max_shots": {
+          "anyOf": [
+            {
+              "maximum": 6,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Cap the cuts in this scene; 1 = a single shot.",
+          "title": "Max Shots"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Lucide icon name, e.g. 'brain'.",
+          "title": "Name"
+        },
+        "bg": {
+          "default": "gradient",
+          "enum": [
+            "solid",
+            "gradient"
+          ],
+          "title": "Bg",
+          "type": "string"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Local clip/photo path (type=local).",
+          "title": "Path"
+        },
+        "prompt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Image prompt (type=ai_image).",
+          "title": "Prompt"
+        },
+        "background": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "type=stage: 'desk', 'paper', 'kraft', 'board' (see klip.yaml stage.backgrounds) or a repo-relative image path. Unset = stage.default_background.",
+          "title": "Background"
+        },
+        "elements": {
+          "description": "type=stage: props that build up on the background, each popping in on its narration word, in narration order.",
+          "items": {
+            "$ref": "#/$defs/StageElement"
+          },
+          "maxItems": 12,
+          "title": "Elements",
+          "type": "array"
+        }
+      },
+      "title": "Visual",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": 1,
+      "default": 1,
+      "title": "Version",
+      "type": "integer"
+    },
+    "slug": {
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "title": "Slug",
+      "type": "string"
+    },
+    "language": {
+      "default": "id-ID",
+      "title": "Language",
+      "type": "string"
+    },
+    "voice": {
+      "default": "female",
+      "enum": [
+        "male",
+        "female"
+      ],
+      "title": "Voice",
+      "type": "string"
+    },
+    "speech_rate": {
+      "anyOf": [
+        {
+          "pattern": "^[+-]\\d{1,3}%$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "e.g. '+8%'. Unset = per-voice default in klip.yaml.",
+      "title": "Speech Rate"
+    },
+    "target_duration_s": {
+      "default": 45,
+      "maximum": 60,
+      "minimum": 10,
+      "title": "Target Duration S",
+      "type": "integer"
+    },
+    "style": {
+      "default": "default",
+      "title": "Style",
+      "type": "string"
+    },
+    "series": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Series key, e.g. 'kenapa'; shown as a pill (label from the style's series_pill.labels, else the key in capitals).",
+      "title": "Series"
+    },
+    "episode": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Episode number shown on the series pill ('#12').",
+      "title": "Episode"
+    },
+    "progress_bar": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Thin progress bar at the top; unset = the style's setting. Set false/true to A/B test it.",
+      "title": "Progress Bar"
+    },
+    "save_nudge": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "'Simpan dulu' pill when the 2nd list_item starts; unset = the style's save_nudge.enabled.",
+      "title": "Save Nudge"
+    },
+    "music": {
+      "$ref": "#/$defs/Music"
+    },
+    "scenes": {
+      "items": {
+        "$ref": "#/$defs/Scene"
+      },
+      "maxItems": 12,
+      "minItems": 1,
+      "title": "Scenes",
+      "type": "array"
+    },
+    "post": {
+      "$ref": "#/$defs/Post"
+    },
+    "cover": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Cover"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Designed cover.png (profile grid thumbnail); unset = built from the hook's on_screen_text (emphasised end = keyword)."
+    },
+    "facts": {
+      "items": {
+        "$ref": "#/$defs/Fact"
+      },
+      "title": "Facts",
+      "type": "array"
+    },
+    "sfx": {
+      "default": true,
+      "description": "Sound effects on cuts, reveals, badges (see klip.yaml sfx).",
+      "title": "Sfx",
+      "type": "boolean"
+    },
+    "hook_variants": {
+      "description": "Alternative hooks (scene 1) for A/B testing; `klip render --variants` renders each.",
+      "items": {
+        "$ref": "#/$defs/HookVariant"
+      },
+      "maxItems": 4,
+      "title": "Hook Variants",
+      "type": "array"
+    }
+  },
+  "required": [
+    "slug",
+    "scenes"
+  ],
+  "title": "Klip scene spec",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}
