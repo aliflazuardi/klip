@@ -6,6 +6,8 @@ All notable changes to Klip are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-20
+
 ### Fixed
 
 - Stage scenes: props spread over the free area under the title strip (`stage.rows` /
@@ -50,6 +52,7 @@ First public release.
 - `klip.local.yaml` for personal overrides, deep-merged over `klip.yaml`.
 - `klip --version`.
 
-[Unreleased]: https://github.com/aliflazuardi/klip/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/aliflazuardi/klip/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/aliflazuardi/klip/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/aliflazuardi/klip/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/aliflazuardi/klip/releases/tag/v0.1.0
