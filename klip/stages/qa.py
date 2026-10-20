@@ -15,7 +15,7 @@ from klip.captions import tokenize
 from klip.spec import Spec
 
 DURATION_TOLERANCE = config.get("qa.duration_tolerance", 0.15)
-MAX_DURATION_S = float(config.get("qa.max_duration_s", 60))
+MAX_DURATION_S = float(config.get("qa.max_duration_s", 120))
 LOUDNESS_RANGE = tuple(config.get("qa.loudness_range", [-15.5, -12.5]))
 MAX_TRUE_PEAK = config.get("qa.max_true_peak_db", -1.0)
 MIN_SCENE_VOICE_DB = config.get("qa.min_scene_voice_db", -45.0)

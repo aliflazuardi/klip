@@ -193,7 +193,7 @@ smaller than `report.min_group` (3) are marked ⚠. Only TikTok rows by default
 ## QA
 
 After every render, `qa.json` checks: 1080×1920 / 30 fps / H.264+AAC; duration within ±15%
-of `target_duration_s` and ≤ 60 s; no black or frozen video > 1 s; loudness -14 LUFS ±1.5
+of `target_duration_s` and ≤ `qa.max_duration_s` (120 s); no black or frozen video > 1 s; loudness -14 LUFS ±1.5
 and true peak ≤ -1 dBTP; voice in every scene; every word has a caption timing and no page
 has more than 4 words; credits for every stock asset. Run it alone with `klip run qa <spec>`.
 `tests/fixtures/broken-duration.json` is a spec that's meant to fail.

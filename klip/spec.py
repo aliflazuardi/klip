@@ -250,7 +250,7 @@ class Spec(_Strict):
     voice: VoiceName = "female"
     speech_rate: str | None = Field(None, pattern=r"^[+-]\d{1,3}%$",
                                     description="e.g. '+8%'. Unset = per-voice default in klip.yaml.")
-    target_duration_s: int = Field(45, ge=10, le=60)
+    target_duration_s: int = Field(45, ge=10, le=120)
     style: str = "default"
     series: str | None = Field(None, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$",
                                description="Series key, e.g. 'kenapa'; shown as a pill (label from the style's "

@@ -131,7 +131,7 @@ def _write_script(topic: str, voice: str, duration: int, style: str, provider: s
 
 
 TopicArg = typer.Argument(..., help="Topic in Indonesian, e.g. \"Kenapa langit biru?\"")
-DurationOpt = typer.Option(45, "--duration", "-d", min=10, max=60, help="Target seconds")
+DurationOpt = typer.Option(45, "--duration", "-d", min=10, max=120, help="Target seconds")
 StyleOpt = typer.Option("default", "--style", help="Style name from klip.yaml")
 ProviderOpt = typer.Option(None, "--provider", help="auto | claude | openai (default: klip.yaml llm.provider)")
 

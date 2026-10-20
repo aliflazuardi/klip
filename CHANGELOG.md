@@ -6,6 +6,15 @@ All notable changes to Klip are listed here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Maximum video length raised from 60 s to 120 s (`qa.max_duration_s`, `target_duration_s` up to 120) for long-form experiments.
+
+### Fixed
+
+- Render no longer crashes in the assets stage ("too many values to unpack") when logging the picked stock clips.
+- `compare` scenes: a two-line headline no longer runs under the VS badge and the columns; they now move down to fit the headline.
+
 ## [0.1.0] - 2026-10-19
 
 First public release.

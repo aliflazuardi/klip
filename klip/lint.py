@@ -104,7 +104,7 @@ def lint(spec: Spec) -> list[Issue]:
     est = estimate_duration_s(spec)
     tol = config.get("qa.duration_tolerance", 0.15)
     lo, hi = spec.target_duration_s * (1 - tol), spec.target_duration_s * (1 + tol)
-    max_s = config.get("qa.max_duration_s", 60)
+    max_s = config.get("qa.max_duration_s", 120)
     if est > max_s:
         err("spec", f"estimated {est:.0f}s exceeds the {max_s}s maximum; cut narration")
     elif not lo <= est <= hi:

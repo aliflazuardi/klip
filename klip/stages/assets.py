@@ -447,7 +447,7 @@ def fetch(spec: Spec, project_dir: Path, providers: list[MediaProvider] | None =
                       "vision_rescued": bool(getattr(c, "vision_only", False))} for c, path, q, b in picked]
             scenes[scene.id] = {"kind": clips[0]["kind"], "src": clips[0]["src"], "credit": clips[0]["credit"],
                                 "clips": clips}
-            log.info("assets: %s ← %s", scene.id, ", ".join(f"{c.provider} {c.kind} {c.id}" for c, _, _ in picked))
+            log.info("assets: %s ← %s", scene.id, ", ".join(f"{c.provider} {c.kind} {c.id}" for c, *_ in picked))
         else:
             fallback = "icon" if v.name else "solid"
             warnings.append(f"{scene.id}: no media found for {query_for(scene)!r}; using {fallback}")
