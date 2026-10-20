@@ -117,6 +117,9 @@ cuts:
 # scenes with the same background keep it on screen (no whoosh; the props sweep off instead).
 stage:
   default_background: desk
+  # Spec "look": "stage" (klip new --stage) asks for the stage look on most of the video: at least
+  # this share of the scenes that can hold a stage (hook, explain, list_item) must use it.
+  look_min_share: 0.7
   # Built-in textures (CSS + SVG noise, no downloads). base = colour, grain = noise opacity,
   # grain_freq = SVG feTurbulence baseFrequency ("x y"; a tiny y gives wood-like streaks),
   # planks = px between plank seams (0 = none), vignette = edge darkening (0-1).

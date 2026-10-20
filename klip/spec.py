@@ -17,6 +17,7 @@ VisualType = Literal["stock_video", "stock_photo", "ai_image", "icon", "solid", 
 StageKind = Literal["cutout", "photo", "icon", "label", "number", "bar", "stack", "highlight"]
 StagePos = Literal["tl", "tc", "tr", "ml", "mc", "mr", "bl", "bc", "br"]
 VoiceName = Literal["male", "female"]
+LookName = Literal["mixed", "stage"]
 Delivery = Literal["neutral", "energetic", "emphatic", "warm", "calm"]
 CtaType = Literal["follow", "save", "comment", "share"]
 
@@ -256,6 +257,9 @@ class Spec(_Strict):
                                description="Series key, e.g. 'kenapa'; shown as a pill (label from the style's "
                                            "series_pill.labels, else the key in capitals).")
     episode: int | None = Field(None, ge=1, description="Episode number shown on the series pill ('#12').")
+    look: LookName = Field("mixed", description="'stage' = illustrated explainer look: most hook/explain/"
+                                                 "list_item scenes use visual.type 'stage' (share in klip.yaml "
+                                                 "stage.look_min_share). 'mixed' = pick per scene.")
     progress_bar: bool | None = Field(None, description="Thin progress bar at the top; unset = the style's setting. "
                                                         "Set false/true to A/B test it.")
     save_nudge: bool | None = Field(None, description="'Simpan dulu' pill when the 2nd list_item starts; "

@@ -6,6 +6,13 @@ All notable changes to Klip are listed here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- One switch for the illustrated stage look: spec `"look": "stage"`, `--stage` on `klip new` /
+  `klip script`, `stage: true` in batch files, and the MCP / `/klip` skill know it. The writer uses
+  stage scenes for most of the video; `klip validate` checks the share (`stage.look_min_share`).
+  `klip report` groups by look.
+
 ### Changed
 
 - Maximum video length raised from 60 s to 120 s (`qa.max_duration_s`, `target_duration_s` up to 120) for long-form experiments.

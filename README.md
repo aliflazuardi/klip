@@ -118,6 +118,7 @@ uv run klip batch examples/batch.yaml                           # many videos in
 
 `klip new` uses the Claude CLI by default, or any OpenAI-compatible endpoint (Ollama, LM Studio,
 OpenRouter…) with `llm.provider: openai` and `LLM_BASE_URL` / `LLM_MODEL` in `.env`.
+Add `--stage` for the illustrated [stage look](docs/USAGE.md#the-stage-look-illustrated-explainer) on most scenes.
 
 Other commands: `validate`, `say` (hear a line through the TTS + lexicon), `run <stage>`,
 `voices`, `styles`, `report`, `schema`, `doctor`, `--version`. See `uv run klip --help`.

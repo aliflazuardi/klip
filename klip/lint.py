@@ -94,12 +94,26 @@ def _lint_stage(spec: Spec, s: Scene, tokens: list[str], err, warn) -> None:
                       f"({', '.join(config.get('stage.backgrounds'))}) nor an image file")
 
 
+def _lint_look(spec: Spec, err) -> None:
+    """look "stage": most scenes that can hold a stage must use one."""
+    if spec.look != "stage":
+        return
+    able = [s for s in spec.scenes if s.template in STAGE_TEMPLATES]
+    staged = [s for s in able if s.visual.type == "stage"]
+    need = config.get("stage.look_min_share")
+    if able and len(staged) < need * len(able):
+        others = ", ".join(s.id for s in able if s.visual.type != "stage")
+        err("spec", f'look "stage": {len(staged)}/{len(able)} hook/explain/list_item scenes use visual.type '
+                    f'"stage" (need ≥ {need:.0%}); convert some of {others}, or set "look": "mixed"')
+
+
 def lint(spec: Spec) -> list[Issue]:
     from klip.pipeline import estimate_duration_s
 
     issues: list[Issue] = []
     err = lambda where, msg: issues.append(Issue("error", where, msg))      # noqa: E731
     warn = lambda where, msg: issues.append(Issue("warning", where, msg))   # noqa: E731
+    _lint_look(spec, err)
 
     est = estimate_duration_s(spec)
     tol = config.get("qa.duration_tolerance", 0.15)

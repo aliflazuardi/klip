@@ -1,7 +1,7 @@
 """`klip batch topics.yaml`: many videos in one go; one failure never stops the rest.
 
 topics.yaml:
-    defaults: {voice: female, duration: 45, style: default}   # also progress_bar: true/false
+    defaults: {voice: female, duration: 45, style: default}   # also progress_bar: true/false, stage: true
     items:
       - "Kenapa kita cegukan?"                       # topic, defaults apply
       - {topic: "Kenapa bawang bikin nangis?", voice: male, duration: 40}
@@ -39,6 +39,7 @@ class Item:
     style: str = "default"
     hooks: int = 1
     progress_bar: bool | None = None      # None = the spec's / style's setting
+    stage: bool = False                   # spec look "stage" (illustrated look on most scenes)
 
 
 @dataclass
@@ -73,7 +74,8 @@ def load(path: Path) -> list[Item]:
                           duration=int(raw.get("duration", d.get("duration", 45))),
                           style=raw.get("style", d.get("style", "default")),
                           hooks=int(raw.get("hooks", d.get("hooks", 1))),
-                          progress_bar=raw.get("progress_bar", d.get("progress_bar"))))
+                          progress_bar=raw.get("progress_bar", d.get("progress_bar")),
+                          stage=bool(raw.get("stage", d.get("stage", False)))))
     return items
 
 
@@ -92,7 +94,8 @@ def run(path: Path, scripts_only: bool = False,
                 if on_item:
                     on_item(n, len(items), item, "writing script")
                 res = script.generate(item.topic, item.voice or "female", item.duration, item.style,
-                                      script.get_provider(), hooks=item.hooks)
+                                      script.get_provider(), hooks=item.hooks,
+                                      look="stage" if item.stage else "mixed")
                 gen = res.spec if item.progress_bar is None else \
                     res.spec.model_copy(update={"progress_bar": item.progress_bar})
                 spec_path = script.save(gen)
