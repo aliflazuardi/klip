@@ -1,7 +1,13 @@
-"""Stage 2 — Voice: per-scene TTS, word timings, timeline, voice.wav.
+"""Stage 2 — Voice: TTS, word timings, timeline, voice.wav.
+
+Two ways to record (klip.yaml voices.take):
+  scene  one TTS call per scene (per-scene delivery presets; intonation restarts at each scene)
+  whole  the whole script in one call, then cut into scenes at the pauses between them: one
+         continuous read, as a narrator would. Engines without word timings (Gemini) are aligned
+         with klip/align.py.
 
 Writes into the project dir:
-  audio/<scene>.mp3   per-scene audio (copied from cache)
+  audio/<scene>.mp3|wav  per-scene audio
   words.json          [{text, startMs, endMs, sceneId}] absolute times, display tokens
   timeline.json       scene start/duration in the final video
   voice.wav           all scene audio placed on the timeline
@@ -32,17 +38,28 @@ MIN_SCENE_MS = config.get("timeline.min_scene_ms", 1500)
 HOOK_LEAD_MS = config.get("timeline.hook_lead_ms", 60)  # first word starts this soon after frame 0
 
 
+ENGINES = ("edge", "elevenlabs", "gemini")
+
+
 def get_engine(name: str) -> TTSEngine:
     if name == "edge":
         return EdgeTTS()
-    raise ValueError(f"unknown TTS engine {name!r}")
+    if name == "elevenlabs":
+        from klip.engines.tts.elevenlabs import ElevenLabsTTS
+        return ElevenLabsTTS()
+    if name == "gemini":
+        from klip.engines.tts.gemini import GeminiTTS
+        return GeminiTTS()
+    raise ValueError(f"unknown TTS engine {name!r} (one of {', '.join(ENGINES)})")
 
 
 def _cache_key(engine: str, voice_id: str, rate: str, text: str,
-               pitch: str = "+0Hz", volume: str = "+0%") -> str:
+               pitch: str = "+0Hz", volume: str = "+0%", tag: str | None = None) -> str:
     parts = [1, engine, voice_id, rate, text]
     if (pitch, volume) != ("+0Hz", "+0%"):   # neutral keeps its old key, so existing caches stay valid
         parts += [pitch, volume]
+    if tag:                                  # engine settings (model, style prompt...)
+        parts.append(tag)
     payload = json.dumps(parts, ensure_ascii=False)
     return hashlib.sha256(payload.encode()).hexdigest()[:20]
 
@@ -51,13 +68,16 @@ def synthesize_cached(engine: TTSEngine, text: str, voice_id: str, rate: str,
                       pitch: str = "+0Hz", volume: str = "+0%") -> tuple[Path, list[Word]]:
     cache = CACHE_DIR / "tts"
     cache.mkdir(parents=True, exist_ok=True)
-    key = _cache_key(engine.name, voice_id, rate, text, pitch, volume)
-    mp3, meta = cache / f"{key}.mp3", cache / f"{key}.json"
-    if mp3.exists() and meta.exists():
-        return mp3, [Word.from_dict(d) for d in json.loads(meta.read_text())]
-    words = engine.synthesize(text, voice_id, rate, mp3, pitch=pitch, volume=volume)
+    key = _cache_key(engine.name, voice_id, rate, text, pitch, volume, getattr(engine, "cache_tag", None))
+    audio, meta = cache / f"{key}{getattr(engine, 'ext', '.mp3')}", cache / f"{key}.json"
+    if audio.exists() and meta.exists():
+        return audio, [Word.from_dict(d) for d in json.loads(meta.read_text())]
+    words = engine.synthesize(text, voice_id, rate, audio, pitch=pitch, volume=volume)
+    if not words:                            # no timings from the engine: align the audio
+        from klip.align import align_audio
+        words = align_audio(audio, text)
     meta.write_text(json.dumps([w.to_dict() for w in words], ensure_ascii=False))
-    return mp3, words
+    return audio, words
 
 
 def merge_breaths(pauses: list[tuple[float, float]], max_blip_ms: float = 140) -> list[tuple[float, float]]:
@@ -94,27 +114,17 @@ def snap_to_speech(words: list[Word], pauses: list[tuple[float, float]]) -> list
     return out
 
 
-def run(spec: Spec, project_dir: Path, engine: TTSEngine | None = None) -> dict:
-    engine_name = config.get("voices.engine", "edge")
-    engine = engine or get_engine(engine_name)
-    voice_id = config.voice_id(spec.voice, engine.name)
-    lex = config.lexicon()
-    rate = spec.speech_rate or config.default_rate(spec.voice)
-    offset = float(config.get("voices.timing_offset_ms", {}).get(engine.name, 0))
-
-    audio_dir = project_dir / "audio"
-    audio_dir.mkdir(parents=True, exist_ok=True)
-
-    scenes, all_words = [], []
-    cursor = 0.0
+def _scene_takes(spec: Spec, engine: TTSEngine, voice_id: str, rate: str, lex: dict, offset: float,
+                 audio_dir: Path) -> list[dict]:
+    """One TTS call per scene: [{scene, audio (Path), words (spoken, ms in the clip), pro}]."""
+    takes = []
     for i, scene in enumerate(spec.scenes):
         spoken = apply_lexicon(scene.tts_override or scene.narration, lex)
         pro = prosody.for_scene(scene, rate)
         src, spoken_words = synthesize_cached(engine, spoken, voice_id, pro.rate, pro.pitch, pro.volume)
-        dst = audio_dir / f"{scene.id}.mp3"
+        dst = audio_dir / f"{scene.id}{src.suffix}"
         shutil.copyfile(src, dst)
         audio_ms = ffmpeg.duration_ms(dst)
-
         spoken_words = [Word(w.text, min(w.start_ms + offset, audio_ms), min(w.end_ms + offset, audio_ms))
                         for w in spoken_words]
         if i == 0 and spoken_words:
@@ -124,16 +134,81 @@ def run(spec: Spec, project_dir: Path, engine: TTSEngine | None = None) -> dict:
                 dst.unlink()
                 dst = audio_dir / f"{scene.id}.wav"
                 ffmpeg.run(["-ss", f"{cut / 1000:.3f}", "-i", str(src), "-c:a", "pcm_s16le", str(dst)])
-                audio_ms = ffmpeg.duration_ms(dst)
                 spoken_words = [Word(w.text, max(w.start_ms - cut, 0), max(w.end_ms - cut, 0)) for w in spoken_words]
-        spoken_words = snap_to_speech(spoken_words, silences(dst))
+        takes.append({"scene": scene, "audio": dst, "words": spoken_words, "pro": pro})
+    return takes
+
+
+def scene_cuts(spans: list[tuple[float, float]], pauses: list[tuple[float, float]], total_ms: float,
+               lead_ms: float) -> list[float]:
+    """Cut points (ms) splitting one take into scenes: before scene 0 (lead_ms before its first word),
+    then in the middle of the pause between each scene's last word and the next one's first, then
+    the end. spans = (first word start, last word end) per scene."""
+    cuts = [max(spans[0][0] - lead_ms, 0.0)]
+    for (_, end), (start, _) in zip(spans, spans[1:]):
+        gap = [(max(a, end), min(b, start)) for a, b in pauses if a < start and b > end]
+        a, b = max(gap, key=lambda g: g[1] - g[0]) if gap else (end, max(start, end))
+        cuts.append(round((a + b) / 2, 1))
+    cuts.append(total_ms)
+    return cuts
+
+
+def _whole_take(spec: Spec, engine: TTSEngine, voice_id: str, rate: str, lex: dict, offset: float,
+                audio_dir: Path) -> list[dict]:
+    """The whole script in one TTS call, cut into scene clips at the pauses between scenes."""
+    texts = [apply_lexicon(s.tts_override or s.narration, lex).strip() for s in spec.scenes]
+    src, words = synthesize_cached(engine, " ".join(texts), voice_id, rate)
+    total = ffmpeg.duration_ms(src)
+    words = [Word(w.text, min(w.start_ms + offset, total), min(w.end_ms + offset, total)) for w in words]
+    owner = [i for i, t in enumerate(texts) for _ in tokenize(t)]
+    timed = align([tok for t in texts for tok in tokenize(t)], words)
+    spans = []
+    for i in range(len(texts)):
+        mine = [w for w, o in zip(timed, owner) if o == i]
+        if not mine:
+            raise ValueError(f"{spec.scenes[i].id}: no spoken words found in the take")
+        spans.append((mine[0].start_ms, mine[-1].end_ms))
+    cuts = scene_cuts(spans, silences(src), total, HOOK_LEAD_MS)
+    takes = []
+    for i, scene in enumerate(spec.scenes):
+        a, b = cuts[i], cuts[i + 1]
+        dst = audio_dir / f"{scene.id}.wav"
+        ffmpeg.run(["-ss", f"{a / 1000:.3f}", "-to", f"{b / 1000:.3f}", "-i", str(src), "-c:a", "pcm_s16le", str(dst)])
+        mine = [Word(w.text, max(w.start_ms - a, 0), max(w.end_ms - a, 0)) for w, o in zip(timed, owner) if o == i]
+        takes.append({"scene": scene, "audio": dst, "words": mine, "pro": prosody.for_scene(scene, rate)})
+    return takes
+
+
+def run(spec: Spec, project_dir: Path, engine: TTSEngine | None = None) -> dict:
+    engine_name = config.get("voices.engine", "edge")
+    engine = engine or get_engine(engine_name)
+    voice_id = config.voice_id(spec.voice, engine.name)
+    lex = config.lexicon()
+    rate = spec.speech_rate or config.default_rate(spec.voice)
+    offset = float(config.get("voices.timing_offset_ms", {}).get(engine.name, 0))
+    whole = config.get("voices.take") == "whole"
+
+    audio_dir = project_dir / "audio"
+    if audio_dir.exists():
+        shutil.rmtree(audio_dir)
+    audio_dir.mkdir(parents=True)
+    takes = (_whole_take if whole else _scene_takes)(spec, engine, voice_id, rate, lex, offset, audio_dir)
+
+    scenes, all_words = [], []
+    cursor = 0.0
+    for i, tk in enumerate(takes):
+        scene, dst, pro = tk["scene"], tk["audio"], tk["pro"]
+        audio_ms = ffmpeg.duration_ms(dst)
+        spoken_words = snap_to_speech(tk["words"], silences(dst))
         words = align(tokenize(scene.narration), spoken_words)
-        is_last = i == len(spec.scenes) - 1
-        duration = max(audio_ms + (TAIL_MS if is_last else GAP_MS), MIN_SCENE_MS)
+        is_last = i == len(takes) - 1
+        # a whole take already has its natural pauses between scenes
+        duration = max(audio_ms + (TAIL_MS if is_last else 0 if whole else GAP_MS), MIN_SCENE_MS)
         scenes.append({
             "id": scene.id, "start_ms": round(cursor, 1), "duration_ms": round(duration, 1),
             "audio_ms": round(audio_ms, 1), "audio": str(dst.relative_to(project_dir)),
-            "delivery": pro.delivery, "rate": pro.rate, "pitch": pro.pitch,
+            "delivery": None if whole else pro.delivery, "rate": rate if whole else pro.rate,
+            "pitch": None if whole else pro.pitch,
         })
         for w in words:
             all_words.append({
@@ -146,13 +221,14 @@ def run(spec: Spec, project_dir: Path, engine: TTSEngine | None = None) -> dict:
 
     timeline = {
         "total_ms": round(cursor, 1), "voice": spec.voice, "voice_id": voice_id,
-        "engine": engine.name, "speech_rate": rate, "scenes": scenes,
+        "engine": engine.name, "take": "whole" if whole else "scene", "speech_rate": rate, "scenes": scenes,
         "words_per_second": round(spec.word_count / (sum(s["audio_ms"] for s in scenes) / 1000), 3),
     }
     _mix(project_dir, scenes, cursor)
     (project_dir / "timeline.json").write_text(json.dumps(timeline, indent=2, ensure_ascii=False))
     (project_dir / "words.json").write_text(json.dumps(all_words, indent=2, ensure_ascii=False))
-    log.info("voice: %d scenes, %.1fs total, %.2f words/s", len(scenes), cursor / 1000, timeline["words_per_second"])
+    log.info("voice: %s (%s take), %d scenes, %.1fs total, %.2f words/s", engine.name, timeline["take"],
+             len(scenes), cursor / 1000, timeline["words_per_second"])
     return timeline
 
 

@@ -16,7 +16,7 @@ from rich.logging import RichHandler
 from rich.table import Table
 
 from klip import __version__, config, env, pipeline
-from klip.paths import RENDERER_DIR, SCHEMA_PATH
+from klip.paths import PROJECTS_DIR, RENDERER_DIR, SCHEMA_PATH
 from klip.spec import load_spec, write_schema
 
 app = typer.Typer(help="Klip — prompt → TikTok video pipeline.", no_args_is_help=True, add_completion=False)
@@ -182,7 +182,7 @@ def say(text: str = typer.Argument(..., help="Text to speak, e.g. a tricky word"
                             rate or config.default_rate(voice))
     engine = get_engine(config.get("voices.engine", "edge"))
     src, _ = synthesize_cached(engine, spoken, config.voice_id(voice, engine.name), pro.rate, pro.pitch, pro.volume)
-    out = PROJECTS_DIR / "_say" / f"say-{voice}.mp3"
+    out = PROJECTS_DIR / "_say" / f"say-{voice}{src.suffix}"
     out.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(src, out)
     console.print(f"spoken: “{spoken}”" + ("" if spoken == text else "  [dim](lexicon applied)[/dim]"))
@@ -193,6 +193,51 @@ def say(text: str = typer.Argument(..., help="Text to speak, e.g. a tricky word"
 
 
 VariantsOpt = typer.Option(False, "--variants", help="Also render every hook variant (A/B test) into variants/<letter>/")
+
+
+@app.command("ab-voice")
+def ab_voice(spec_path: Path,
+             variant: list[str] = typer.Option(["edge:scene", "edge:whole", "elevenlabs:whole", "gemini:whole"],
+                                               "--variant", help="engine:take (take = scene | whole); repeat"),
+             voice: Optional[str] = VoiceOpt,
+             full: bool = typer.Option(False, "--render", help="Render a full video per variant, not just the voice")) -> None:
+    """Read one script with several TTS engines / takes, to compare by ear (voice.wav per variant)."""
+    from klip.stages import voice as voice_stage
+    spec, project_dir = _load_or_exit(spec_path, voice, None)
+    need = {"elevenlabs": "ELEVENLABS_API_KEY", "gemini": "GEMINI_API_KEY"}
+    t = Table(title=f"voice A/B: {spec.slug}", show_lines=True)
+    for col in ("variant", "length", "words/s", "file"):
+        t.add_column(col, overflow="fold")
+    for v in variant:
+        engine, _, take = v.partition(":")
+        take = take or "whole"
+        if engine not in voice_stage.ENGINES or take not in ("scene", "whole"):
+            console.print(f"[red]bad variant {v!r}[/] (engine: {', '.join(voice_stage.ENGINES)}; take: scene | whole)")
+            raise typer.Exit(2)
+        if engine in need and not env.get(need[engine]):
+            t.add_row(v, "", "", f"[yellow]skipped: set {need[engine]} in .env[/]")
+            continue
+        config.override("voices.engine", engine)
+        config.override("voices.take", take)
+        name = f"{engine}-{take}"
+        try:
+            if full:
+                with console.status(f"{name}: rendering…"):
+                    out = PROJECTS_DIR / f"{spec.slug}-{name}"
+                    _, vdir = _load_or_exit(spec_path, voice, out)
+                    res = pipeline.run_all(spec, vdir)
+                tl, file = res["voice"], res["post"]["final"]
+            else:
+                vdir = project_dir / "ab-voice" / name
+                vdir.mkdir(parents=True, exist_ok=True)
+                with console.status(f"{name}: voice…"):
+                    tl = voice_stage.run(spec, vdir)
+                file = project_dir / "ab-voice" / f"{name}.wav"
+                shutil.copyfile(vdir / "voice.wav", file)
+            t.add_row(v, f"{tl['total_ms'] / 1000:.1f}s", f"{tl['words_per_second']:.2f}", str(file))
+        except Exception as e:  # one engine failing shouldn't lose the others
+            t.add_row(v, "", "", f"[red]{type(e).__name__}: {e}[/]")
+    console.print(t)
 
 
 @app.command()
@@ -441,8 +486,16 @@ def doctor() -> None:
     from klip.stages.assets import default_providers
     names = [p.name for p in default_providers() if p.enabled()]
     console.print(f"[green]✓[/] media providers: {', '.join(names)}")
-    for key in ("PIXABAY_API_KEY", "PEXELS_API_KEY"):
+    for key in ("PIXABAY_API_KEY", "PEXELS_API_KEY", "ELEVENLABS_API_KEY", "GEMINI_API_KEY"):
         console.print(f"{'[green]✓' if env.get(key) else '[dim]-'}[/] {key}{'' if env.get(key) else ' (optional, not set)'}")
+    engine = config.get("voices.engine", "edge")
+    need = {"elevenlabs": "ELEVENLABS_API_KEY", "gemini": "GEMINI_API_KEY"}.get(engine)
+    if need:
+        check(f"voices.engine {engine}", bool(env.get(need)), "" if env.get(need) else f"set {need} in .env")
+    if engine == "gemini":
+        import importlib.util
+        has = importlib.util.find_spec("faster_whisper") is not None
+        check("aligner (faster-whisper)", has, "" if has else "run: uv sync --extra align")
     raise typer.Exit(0 if ok else 1)
 
 

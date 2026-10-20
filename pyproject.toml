@@ -26,6 +26,11 @@ Changelog = "https://github.com/aliflazuardi/klip/blob/main/CHANGELOG.md"
 klip = "klip.cli:app"
 klip-mcp = "klip.mcp_server:main"
 
+[project.optional-dependencies]
+align = [
+    "faster-whisper>=1.1",
+]
+
 [dependency-groups]
 dev = ["pytest>=8"]
 

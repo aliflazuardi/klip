@@ -67,6 +67,8 @@ To use a tagged release instead of `main`: `git checkout v0.1.0` (see [Releases]
 | [Claude Code](https://docs.claude.com/en/docs/claude-code) | `/klip` skill, script writing, vision check | install, then `claude` → `/login` |
 | `PEXELS_API_KEY`, `PIXABAY_API_KEY` | more and better stock video | free keys, put them in `.env` |
 | `assets/broll/` | your own clips, searched first | [how to name them](assets/broll/README.md) |
+| `ELEVENLABS_API_KEY` | most natural voice (paid; 10k chars/month free) | `.env`, then `voices.engine: elevenlabs` |
+| `GEMINI_API_KEY` + `uv sync --extra align` | natural, style-prompted voice | `.env`, then `voices.engine: gemini` |
 | `assets/music/<mood>/` | background music | royalty-free tracks, check each licence |
 
 If `node` on your PATH is older than 22, Klip finds an nvm-installed 22 on its own, or set

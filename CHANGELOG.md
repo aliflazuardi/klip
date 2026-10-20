@@ -8,6 +8,17 @@ All notable changes to Klip are listed here. The format follows
 
 ### Added
 
+- Natural voices: `voices.engine: elevenlabs` (ELEVENLABS_API_KEY; word timings from the API) and
+  `voices.engine: gemini` (GEMINI_API_KEY; Gemini 3.8 Flash TTS with a style prompt in
+  `gemini_tts.style`).
+- `voices.take: whole` reads the whole script in one TTS call and cuts it into scenes at the
+  pauses, so intonation doesn't restart at every scene.
+- Forced alignment for engines without word timings (`klip/align.py`, faster-whisper word
+  timestamps mapped onto the script; optional: `uv sync --extra align`). Measured against
+  edge-tts's own timings: median start error 23 ms after `align.offset_ms`.
+- `klip ab-voice <spec>` reads one script with several engine/take variants (voice.wav each, or
+  full videos with `--render`) to compare by ear.
+
 - Real-world stage elements: `chart` (a line chart that draws on, from a Yahoo Finance `ticker`,
   a `csv` or inline `points`, with shaded `bands`), `unit` (a waffle of squares), `person` (a real
   person's card from Wikipedia via `who`), `logo` (an organisation's logo via Wikidata), `news`

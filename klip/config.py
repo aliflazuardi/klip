@@ -37,6 +37,15 @@ def load() -> dict:
     return _merge(data, _read(local)) if local.is_file() else data
 
 
+def override(path: str, value: Any) -> None:
+    """Set a dotted key for this process only (e.g. an A/B run trying another TTS engine)."""
+    node = load()
+    *parents, last = path.split(".")
+    for key in parents:
+        node = node.setdefault(key, {})
+    node[last] = value
+
+
 def get(path: str, default: Any = None) -> Any:
     """Dotted lookup, e.g. get("qa.max_still_s")."""
     node: Any = load()

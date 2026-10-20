@@ -8,11 +8,24 @@
 
 # ── Voice (TTS) ──────────────────────────────────────────────────────────────
 voices:
-  engine: edge                      # TTS engine (only "edge" for now)
+  # TTS engine: edge (free, Microsoft Edge voices) | elevenlabs (ELEVENLABS_API_KEY, paid, most
+  # natural, returns word timings) | gemini (GEMINI_API_KEY, natural, style-prompted; word timings
+  # come from the aligner: `uv sync --extra align`). Compare them: uv run klip ab-voice <spec>
+  engine: edge
+  # scene = one TTS call per scene (per-scene delivery presets, but intonation restarts each
+  # scene); whole = the whole script in one call, cut into scenes at the pauses: one continuous,
+  # natural read (delivery presets don't apply; ElevenLabs/Gemini carry the energy themselves).
+  take: scene
   ids:                              # logical voice → engine voice id
     edge:
       male: id-ID-ArdiNeural
       female: id-ID-GadisNeural
+    elevenlabs:                     # premade multilingual voices; swap in Indonesian voices from
+      male: JBFqnCBsd6RMkjVDRZzb    # the ElevenLabs voice library (George)
+      female: EXAVITQu4vr4xnSDxMaL  # (Sarah)
+    gemini:                         # prebuilt voices: Puck (upbeat), Charon (informative), Kore
+      male: Puck                    # (firm), Aoede (breezy), Sulafat (warm), Achird (friendly)...
+      female: Aoede
   # Rate used when a spec leaves `speech_rate` unset. Gadis reads slower than Ardi.
   default_rate:
     male: "+8%"
@@ -21,11 +34,41 @@ voices:
   # edge-tts word offsets run ~115 ms early (measured with scripts/check_sync.py).
   timing_offset_ms:
     edge: 100
+    elevenlabs: 0
+    gemini: 0
   # Words per second at +0% rate, used for duration estimates and script word budgets.
   # Measured: female 1.97 w/s at +15%, male 2.35 w/s at +8%.
   base_words_per_second:
     male: 2.176
     female: 1.713
+
+# ElevenLabs engine (voices.engine: elevenlabs). Voice settings: lower stability = livelier.
+elevenlabs:
+  model: eleven_multilingual_v2     # or eleven_v3 (more expressive)
+  language_code: null               # e.g. "id" to force Indonesian (ignored by multilingual_v2)
+  stability: 0.4
+  similarity_boost: 0.75
+  style: 0.2                        # style exaggeration (0 = off)
+  speed_range: [0.8, 1.2]           # the voice's rate (+8% → 1.08) is clamped to this
+
+# Gemini TTS engine (voices.engine: gemini). `style` steers delivery (pace, mood, accent); the
+# text itself is read verbatim.
+gemini_tts:
+  model: gemini-3.8-flash-tts
+  style: >-
+    Narator video edukasi pendek berbahasa Indonesia untuk TikTok: santai, hangat, penasaran,
+    seperti ngobrol dengan teman, tempo agak cepat, logat Jakarta yang netral.
+
+# Forced alignment for engines without word timings (Gemini): faster-whisper word timestamps,
+# mapped onto the script. Optional: `uv sync --extra align` (downloads the model on first use).
+align:
+  model: small                      # tiny | base | small | medium (bigger = slower, steadier)
+  device: cpu
+  compute_type: int8
+  language: id
+  # Whisper word starts run early: measured -90 ms mean against edge-tts's own timings on the
+  # judol script (238 words; median error 82 ms). Added to every aligned word.
+  offset_ms: 85
 
 # ── Delivery (per-scene prosody) ─────────────────────────────────────────────
 # edge-tts reads everything in one flat tone; varying rate/pitch per scene makes it livelier.
