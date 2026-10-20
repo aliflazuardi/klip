@@ -79,7 +79,9 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; 
 .statrow .suf.spaced { margin-left: 24px; }
 
 /* compare */
-.cmp { position: absolute; left: 60px; width: 900px; display: flex; gap: 40px; }
+.cmp-stack { position: absolute; left: 60px; width: 900px; display: flex; flex-direction: column; gap: 110px; }
+.cmp { position: relative; width: 900px; display: flex; gap: 40px; margin-top: 70px; }
+.cmp-stack .headline + .cmp { margin-top: 0; }
 .cmp-col { flex: 1; min-height: 560px; padding: 52px 28px 40px; border-radius: 36px; text-align: center;
            background: {{ style.shade_color | rgba(0.58) }}; border-top: 12px solid var(--cc); box-shadow: 0 18px 50px rgba(0,0,0,.35);
            display: flex; flex-direction: column; align-items: center; gap: 22px; }
@@ -89,7 +91,7 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; 
 .cmp-label { font-size: 62px; font-weight: 800; line-height: 1.08; color: var(--cc); }
 .cmp-text { font-size: 44px; font-weight: 600; line-height: 1.2; opacity: .92; }
 /* VS sits on the columns' top edge, centered in the gap, clear of the column text */
-.vs { position: absolute; left: 470px; width: 140px; height: 140px; border-radius: 50%; background: #fff;
+.vs { position: absolute; top: -70px; left: 410px; width: 140px; height: 140px; border-radius: 50%; background: #fff;
       color: var(--stroke); display: flex; align-items: center; justify-content: center; z-index: 2;
       font-size: 50px; font-weight: 800; box-shadow: 0 12px 36px rgba(0,0,0,.4); }
 

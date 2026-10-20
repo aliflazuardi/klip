@@ -6,6 +6,24 @@ All notable changes to Klip are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-20
+
+### Added
+
+- One switch for the illustrated stage look: spec `"look": "stage"`, `--stage` on `klip new` /
+  `klip script`, `stage: true` in batch files, and the MCP / `/klip` skill know it. The writer uses
+  stage scenes for most of the video; `klip validate` checks the share (`stage.look_min_share`).
+  `klip report` groups by look.
+
+### Changed
+
+- Maximum video length raised from 60 s to 120 s (`qa.max_duration_s`, `target_duration_s` up to 120) for long-form experiments.
+
+### Fixed
+
+- Render no longer crashes in the assets stage ("too many values to unpack") when logging the picked stock clips.
+- `compare` scenes: a two-line headline no longer runs under the VS badge and the columns; they now move down to fit the headline.
+
 ## [0.1.0] - 2026-10-19
 
 First public release.
@@ -27,5 +45,6 @@ First public release.
 - `klip.local.yaml` for personal overrides, deep-merged over `klip.yaml`.
 - `klip --version`.
 
-[Unreleased]: https://github.com/aliflazuardi/klip/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/aliflazuardi/klip/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/aliflazuardi/klip/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/aliflazuardi/klip/releases/tag/v0.1.0

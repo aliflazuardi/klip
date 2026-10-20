@@ -110,14 +110,15 @@ def validate(spec_path: Path, voice: Optional[str] = VoiceOpt) -> None:
 
 
 def _write_script(topic: str, voice: str, duration: int, style: str, provider: str | None, out: Path | None,
-                  hooks: int = 1, progress_bar: bool | None = None):
+                  hooks: int = 1, progress_bar: bool | None = None, stage: bool = False):
     from klip.engines.llm.base import LLMError
     from klip.stages import script
     if voice not in ("male", "female"):
         raise typer.BadParameter("voice must be 'male' or 'female'")
     try:
         with console.status(f"writing script for “{topic}”…"):
-            result = script.generate(topic, voice, duration, style, script.get_provider(provider), hooks=hooks)
+            result = script.generate(topic, voice, duration, style, script.get_provider(provider), hooks=hooks,
+                                     look="stage" if stage else "mixed")
     except (LLMError, script.ScriptError) as e:
         console.print(f"[red]Script generation failed:[/red] {e}")
         raise typer.Exit(1)
@@ -131,11 +132,12 @@ def _write_script(topic: str, voice: str, duration: int, style: str, provider: s
 
 
 TopicArg = typer.Argument(..., help="Topic in Indonesian, e.g. \"Kenapa langit biru?\"")
-DurationOpt = typer.Option(45, "--duration", "-d", min=10, max=60, help="Target seconds")
+DurationOpt = typer.Option(45, "--duration", "-d", min=10, max=120, help="Target seconds")
 StyleOpt = typer.Option("default", "--style", help="Style name from klip.yaml")
 ProviderOpt = typer.Option(None, "--provider", help="auto | claude | openai (default: klip.yaml llm.provider)")
 
 
+StageOpt = typer.Option(False, "--stage", help='Illustrated stage look on most scenes (spec "look": "stage")')
 HooksOpt = typer.Option(1, "--hooks", min=1, max=5, help="Number of hooks to write (2+ adds hook_variants for A/B tests)")
 
 
@@ -143,18 +145,18 @@ HooksOpt = typer.Option(1, "--hooks", min=1, max=5, help="Number of hooks to wri
 def script(topic: str = TopicArg, voice: str = typer.Option("female", "--voice", "-v"),
            duration: int = DurationOpt, style: str = StyleOpt, provider: Optional[str] = ProviderOpt,
            out: Optional[Path] = typer.Option(None, "--out", "-o", help="Spec path (default: specs/<slug>.json)"),
-           hooks: int = HooksOpt, progress_bar: Optional[bool] = ProgressOpt) -> None:
+           hooks: int = HooksOpt, progress_bar: Optional[bool] = ProgressOpt, stage: bool = StageOpt) -> None:
     """Write a spec for a topic with an LLM (no render)."""
-    _write_script(topic, voice, duration, style, provider, out, hooks, progress_bar)
+    _write_script(topic, voice, duration, style, provider, out, hooks, progress_bar, stage)
 
 
 @app.command()
 def new(topic: str = TopicArg, voice: str = typer.Option("female", "--voice", "-v"),
         duration: int = DurationOpt, style: str = StyleOpt, provider: Optional[str] = ProviderOpt,
-        hooks: int = HooksOpt, progress_bar: Optional[bool] = ProgressOpt,
+        hooks: int = HooksOpt, progress_bar: Optional[bool] = ProgressOpt, stage: bool = StageOpt,
         no_review: bool = typer.Option(False, "--no-review", help="Render right away, skipping the review gate")) -> None:
     """Topic → spec (→ video with --no-review). Stops for review by default."""
-    path = _write_script(topic, voice, duration, style, provider, None, hooks, progress_bar)
+    path = _write_script(topic, voice, duration, style, provider, None, hooks, progress_bar, stage)
     flag = " --variants" if hooks > 1 else ""
     if no_review:
         _render(path, None, None, False, hooks > 1)

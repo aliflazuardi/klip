@@ -117,6 +117,9 @@ cuts:
 # scenes with the same background keep it on screen (no whoosh; the props sweep off instead).
 stage:
   default_background: desk
+  # Spec "look": "stage" (klip new --stage) asks for the stage look on most of the video: at least
+  # this share of the scenes that can hold a stage (hook, explain, list_item) must use it.
+  look_min_share: 0.7
   # Built-in textures (CSS + SVG noise, no downloads). base = colour, grain = noise opacity,
   # grain_freq = SVG feTurbulence baseFrequency ("x y"; a tiny y gives wood-like streaks),
   # planks = px between plank seams (0 = none), vignette = edge darkening (0-1).
@@ -242,7 +245,7 @@ render:
 # ── QA thresholds ────────────────────────────────────────────────────────────
 qa:
   duration_tolerance: 0.15          # ±15% of target_duration_s
-  max_duration_s: 60
+  max_duration_s: 120               # raised from 60 for long-form experiments
   loudness_range: [-15.5, -12.5]    # LUFS integrated
   max_true_peak_db: -1.0
   min_scene_voice_db: -45           # mean volume per scene's voice segment

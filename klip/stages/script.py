@@ -77,7 +77,7 @@ def word_budget(voice: str, duration_s: int, scenes: int = 6) -> int:
 
 
 def build_prompts(topic: str, voice: str, duration_s: int, style: str, allow_web: bool,
-                  hooks: int = 1) -> tuple[str, str]:
+                  hooks: int = 1, look: str = "mixed") -> tuple[str, str]:
     example = EXAMPLE_PATH.read_text(encoding="utf-8")
     research = ("Use web search to check each factual claim and cite the page you used."
                 if allow_web else
@@ -102,6 +102,9 @@ overstating it.
             f"Voice: {voice}\nTarget duration: {duration_s} s "
             f"(about {word_budget(voice, duration_s)} words of narration in total)\n"
             f"Style: {style}\n"
+            + (f'Look: stage. Set "look": "stage" and use visual.type "stage" for at least '
+               f'{config.get("stage.look_min_share"):.0%} of the hook/explain/list_item scenes (see the '
+               f'"look" rules in the writing guide).\n' if look == "stage" else "")
             + (f"A/B hooks: also write exactly {hooks - 1} alternative hook(s) in `hook_variants`, each a "
                f"different hook type, same payoff.\n" if hooks > 1 else "")
             + "Write the spec JSON now. Indonesian narration, English stock queries.")
@@ -124,9 +127,9 @@ def extract_json(answer: str | dict) -> dict:
 
 
 def _validate(data: dict, voice: str, duration_s: int, style: str,
-              hooks: int = 1) -> tuple[Spec | None, list[str], list[Issue]]:
+              hooks: int = 1, look: str = "mixed") -> tuple[Spec | None, list[str], list[Issue]]:
     # The caller's choices win over whatever the model wrote.
-    data = {**data, "voice": voice, "target_duration_s": duration_s, "style": style}
+    data = {**data, "voice": voice, "target_duration_s": duration_s, "style": style, "look": look}
     data.pop("speech_rate", None)
     try:
         spec = Spec.model_validate(data)
@@ -141,10 +144,10 @@ def _validate(data: dict, voice: str, duration_s: int, style: str,
 
 
 def generate(topic: str, voice: str = "female", duration_s: int = 45, style: str = "default",
-             provider: LLMProvider | None = None, hooks: int = 1) -> ScriptResult:
+             provider: LLMProvider | None = None, hooks: int = 1, look: str = "mixed") -> ScriptResult:
     provider = provider or get_provider()
     allow_web = provider.name == "claude" and (config.get("llm.claude", {}) or {}).get("allow_web", True)
-    system, user = build_prompts(topic, voice, duration_s, style, allow_web, hooks)
+    system, user = build_prompts(topic, voice, duration_s, style, allow_web, hooks, look)
     schema = export_schema()
     max_tries = 1 + int(config.get("llm.max_retries", 2))
     attempts: list[dict] = []
@@ -157,7 +160,7 @@ def generate(topic: str, voice: str = "female", duration_s: int = 45, style: str
         except (ValueError, json.JSONDecodeError) as e:
             problems, spec, issues, data = [f"answer was not valid JSON: {e}"], None, [], None
         else:
-            spec, problems, issues = _validate(data, voice, duration_s, style, hooks)
+            spec, problems, issues = _validate(data, voice, duration_s, style, hooks, look)
         attempts.append({"attempt": n, "problems": problems})
         if spec and not problems:
             return ScriptResult(spec, issues, attempts, provider.name)

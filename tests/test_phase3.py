@@ -117,7 +117,8 @@ def test_check_format():
 def test_check_duration():
     assert qa.check_duration(44.0, 45)["ok"]
     assert not qa.check_duration(14.5, 12)["ok"]
-    assert not qa.check_duration(61.0, 60)["ok"]   # inside ±15% but over the 60 s cap
+    cap = qa.MAX_DURATION_S
+    assert not qa.check_duration(cap + 1, int(cap))["ok"]   # inside ±15% but over the qa.max_duration_s cap
 
 
 def test_check_loudness():

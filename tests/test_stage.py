@@ -122,6 +122,36 @@ def test_lint_stage_anchors_template_and_gaps():
     assert any("'tempe' is not a word in the narration after the previous stage element" in m for m in msgs)
 
 
+def test_look_stage_needs_most_stageable_scenes_staged():
+    lab = {"at": "harga", "kind": "label", "text": "Harga"}
+    st = lambda i: {"id": f"s{i}", "template": "explain", "narration": "Harga naik lagi", "visual": stage(lab)}  # noqa: E731
+    stock = lambda i: {"id": f"s{i}", "template": "explain", "narration": "Harga naik lagi",  # noqa: E731
+                       "visual": {"type": "stock_video", "query": "market", "name": "store"}}
+    card = {"id": "c", "template": "stat", "narration": "Naik lima persen", "stat": {"value": 5}}
+
+    def look_errors(*scenes, look="stage"):
+        spec = Spec.model_validate({"slug": "t", "look": look, "scenes": list(scenes)})
+        return [str(i) for i in lint(spec) if i.level == "error" and 'look "stage"' in str(i)]
+
+    assert look_errors(stock(1), st(2), st(3), card)                       # 2/3 < 70%
+    assert "s1" in look_errors(stock(1), st(2), st(3), card)[0]            # names what to convert
+    assert not look_errors(stock(1), st(2), st(3), st(4), card)            # 3/4, stat cards don't count
+    assert not look_errors(stock(1), stock(2), card, look="mixed")
+    assert Spec.model_validate({"slug": "t", "scenes": [card]}).look == "mixed"
+
+
+def test_writer_asks_for_and_keeps_the_stage_look():
+    from klip.stages import script
+    _, user = script.build_prompts("Kenapa harga tempe naik?", "male", 45, "default", False, look="stage")
+    assert "Look: stage" in user and "70%" in user
+    _, plain = script.build_prompts("Kenapa harga tempe naik?", "male", 45, "default", False)
+    assert "Look:" not in plain
+    data = {"slug": "t", "look": "mixed", "scenes": [
+        {"id": "s1", "template": "hook", "narration": "Harga naik lagi", "visual": stage({**{"at": "harga", "kind": "label", "text": "Harga"}})}]}
+    spec, _, _ = script._validate(data, "male", 45, "default", look="stage")
+    assert spec.look == "stage"                                             # the caller's switch wins
+
+
 # ---- cut-outs
 
 def _rgba(w, h, box):

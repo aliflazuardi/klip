@@ -27,6 +27,9 @@ word-synced captions, b-roll, music). Workflow:
 1. Call get_spec_schema once: it returns the JSON Schema, the writing guide, and an example spec.
 2. Research the facts for the topic (cite real sources in facts[]), then write the spec yourself.
    Voice: "suara cowok" = male, "suara cewek" = female (default female).
+   Look: if the user asks for the stage / illustrated / collage / 90secondslab look ("pakai stage",
+   "gaya ilustrasi"), set "look": "stage" and build most scenes with visual.type "stage";
+   validate_spec enforces the share.
 3. Call validate_spec and fix every error. Adjust the word count until the duration is in range.
 4. REVIEW GATE: show the user each scene's narration and on-screen text, the estimated duration
    and the facts with sources. Wait for their approval before rendering (unless they said not to).

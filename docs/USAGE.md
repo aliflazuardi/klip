@@ -54,6 +54,7 @@ failed.
 uv run klip new "Cara menyimpan cabai biar awet" --voice female   # writes specs/<slug>.json, shows review
 uv run klip render specs/cara-menyimpan-cabai.json               # after you've reviewed it
 uv run klip new "Kenapa langit biru?" --voice male --no-review   # skip review, render right away
+uv run klip new "Kenapa harga tempe naik?" --stage              # illustrated stage look (see below)
 uv run klip script "topik" -o specs/x.json                       # spec only
 ```
 
@@ -67,6 +68,23 @@ The model gets the same writing guide as the `/klip` skill. Its answer is valida
 the schema and the linter (durations, icons, template fields), and errors are sent back for
 a fix, up to `llm.max_retries` times. The output is always a spec you can read and edit
 before rendering.
+
+## The stage look (illustrated explainer)
+
+`stage` scenes build an illustrated collage on a persistent background (desk, paper, kraft,
+board): cut-out photos, icons, labels, numbers and bar charts pop in on their narration words
+and stay. To make the **whole video** look like that instead of stock footage, flip one switch:
+
+- `"look": "stage"` in the spec,
+- `--stage` on `klip new` / `klip script`, `stage: true` in a batch item or its defaults,
+- or ask Claude for it (*"pakai stage"*, *"gaya ilustrasi"*); the `/klip` skill and the MCP
+  server both know the switch.
+
+The writer then uses `visual.type: "stage"` for most hook/explain/list_item scenes
+(`stat`, `myth_fact`, `compare` and `cta` keep their own cards), and `klip validate` errors if
+fewer than `stage.look_min_share` (70%) of those scenes are staged. Without it (`"look": "mixed"`,
+the default) each scene picks its own visual. Backgrounds and animation are tuned in
+`klip.yaml` (`stage`); `klip report` groups results by look.
 
 ## Using the CLI directly
 
@@ -193,7 +211,7 @@ smaller than `report.min_group` (3) are marked ⚠. Only TikTok rows by default
 ## QA
 
 After every render, `qa.json` checks: 1080×1920 / 30 fps / H.264+AAC; duration within ±15%
-of `target_duration_s` and ≤ 60 s; no black or frozen video > 1 s; loudness -14 LUFS ±1.5
+of `target_duration_s` and ≤ `qa.max_duration_s` (120 s); no black or frozen video > 1 s; loudness -14 LUFS ±1.5
 and true peak ≤ -1 dBTP; voice in every scene; every word has a caption timing and no page
 has more than 4 words; credits for every stock asset. Run it alone with `klip run qa <spec>`.
 `tests/fixtures/broken-duration.json` is a spec that's meant to fail.

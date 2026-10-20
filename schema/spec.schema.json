@@ -925,7 +925,7 @@
     },
     "target_duration_s": {
       "default": 45,
-      "maximum": 60,
+      "maximum": 120,
       "minimum": 10,
       "title": "Target Duration S",
       "type": "integer"
@@ -962,6 +962,16 @@
       "default": null,
       "description": "Episode number shown on the series pill ('#12').",
       "title": "Episode"
+    },
+    "look": {
+      "default": "mixed",
+      "description": "'stage' = illustrated explainer look: most hook/explain/list_item scenes use visual.type 'stage' (share in klip.yaml stage.look_min_share). 'mixed' = pick per scene.",
+      "enum": [
+        "mixed",
+        "stage"
+      ],
+      "title": "Look",
+      "type": "string"
     },
     "progress_bar": {
       "anyOf": [

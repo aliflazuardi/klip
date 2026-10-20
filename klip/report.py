@@ -171,6 +171,7 @@ def features(pdir: Path) -> tuple[dict[str, str], set[str], str, float | None] |
         "avg shot": _bucket(_avg_shot_s(assets, timeline), config.get("report.shot_bins_s"), " s"),
         "style": style,
         "series": spec.get("series") or "—",
+        "look": spec.get("look") or "mixed",
         "cta type": cta or "none",
         "progress bar": "on" if pb else "off",
         "music": "on" if music else "off",

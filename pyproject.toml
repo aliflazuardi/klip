@@ -1,6 +1,6 @@
 [project]
 name = "klip"
-version = "0.1.0"
+version = "0.2.0"
 description = "Prompt -> short vertical video pipeline: scene spec JSON -> Indonesian voiceover, word-synced captions, b-roll, HyperFrames render."
 readme = "README.md"
 license = "Apache-2.0"

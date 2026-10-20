@@ -12,7 +12,9 @@ pipeline renders it. The spec is the contract: re-rendering the same spec gives 
 ## Flow
 
 1. **Parse the request.** Topic (Indonesian), voice (`male` = Ardi, `female` = Gadis; default
-   `female`; "suara cowok" = male, "suara cewek" = female), target duration (default 45 s, max 60).
+   `female`; "suara cowok" = male, "suara cewek" = female), target duration (default 45 s, max 120),
+   and the look: "stage" if the user asks for the stage / illustrated / collage / 90secondslab look
+   ("pakai stage", "gaya ilustrasi"), else leave it unset (mixed).
 2. **Read the contract** if you haven't this session: `schema/spec.schema.json` and the golden
    example `examples/menguap.json`.
 3. **Research the facts** for health / science / finance claims and put each one in `facts[]`
@@ -59,6 +61,12 @@ re-render; unchanged stages are cached. Tell the user about any check you couldn
     `follow` | `save` | `comment` | `share`. It adds an action chip (icon + "Follow" / "Simpan" /
     "Komen di bawah" / "Kirim ke teman") under the headline; for `comment`, `on_screen_text` is
     the question and becomes the headline.
+- Look: `"look": "stage"` (set when the user asks for it, or `klip new --stage`) means the
+  illustrated explainer look for the whole video: use `visual.type: "stage"` for at least 70%
+  (klip.yaml `stage.look_min_share`) of the hook/explain/list_item scenes, keep them on one
+  background so the stage carries across cuts, and keep stock footage for the few moments a real
+  shot says it better (often the hook). `stat`, `myth_fact`, `compare` and `cta` scenes keep their
+  own cards. `validate` errors if the share is too low. Without `look` (= `"mixed"`), pick per scene.
 - Style: leave `"style"` unset (default) unless the user names one or CLAUDE.md / CLAUDE.local.md
   says which to use. `uv run klip styles` lists them (klip.yaml styles and brand packs in
   `brands/<name>/`). A brand pack's series labels come from its `brand.yaml` (`series_pill.labels`).

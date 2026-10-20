@@ -29,12 +29,14 @@ def fake_results(passed=True):
 def test_batch_load_shapes_and_defaults(tmp_path):
     (tmp_path / "s.json").write_text(json.dumps(GOOD))
     f = tmp_path / "b.yaml"
-    f.write_text(yaml.safe_dump({"defaults": {"voice": "male", "duration": 40, "progress_bar": False},
-                                 "items": ["Topik A", {"topic": "Topik B", "voice": "female", "progress_bar": True},
+    f.write_text(yaml.safe_dump({"defaults": {"voice": "male", "duration": 40, "progress_bar": False, "stage": True},
+                                 "items": ["Topik A", {"topic": "Topik B", "voice": "female", "progress_bar": True,
+                                                       "stage": False},
                                            {"spec": "s.json"}]}))
     a, b, c = batch.load(f)
     assert (a.topic, a.voice, a.duration, a.progress_bar) == ("Topik A", "male", 40, False)
     assert (b.voice, b.duration, b.progress_bar) == ("female", 40, True)
+    assert a.stage and not b.stage
     assert c.spec == str(tmp_path / "s.json") and c.label == "s"
     f.write_text(yaml.safe_dump({"items": [{"voice": "male"}]}))
     with pytest.raises(ValueError, match="needs a topic or a spec"):
