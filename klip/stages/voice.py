@@ -168,7 +168,10 @@ def _whole_take(spec: Spec, engine: TTSEngine, voice_id: str, rate: str, lex: di
         if not mine:
             raise ValueError(f"{spec.scenes[i].id}: no spoken words found in the take")
         spans.append((mine[0].start_ms, mine[-1].end_ms))
-    cuts = scene_cuts(spans, silences(src), total, HOOK_LEAD_MS)
+    pauses = silences(src)
+    if pauses and pauses[0][0] <= 50 and pauses[0][1] < spans[0][1]:   # lead-in silence: speech starts after it
+        spans[0] = (max(spans[0][0], pauses[0][1]), spans[0][1])
+    cuts = scene_cuts(spans, pauses, total, HOOK_LEAD_MS)
     takes = []
     for i, scene in enumerate(spec.scenes):
         a, b = cuts[i], cuts[i + 1]
