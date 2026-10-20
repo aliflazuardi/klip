@@ -100,14 +100,18 @@ def silences(audio: Path, min_ms: int = 120, noise_db: int = -35) -> list[tuple[
     return merge_breaths(list(zip(starts, ends)))
 
 
-def snap_to_speech(words: list[Word], pauses: list[tuple[float, float]]) -> list[Word]:
-    """edge-tts times the first word after a sentence break from the start of the pause, so its
-    caption (and anything keyed to it) fires ~0.3 s early. Move such starts to where sound resumes."""
-    out = []
+def snap_to_speech(words: list[Word], pauses: list[tuple[float, float]], late_ms: float | None = None) -> list[Word]:
+    """Put the first word after each pause where the sound resumes. edge-tts times it from the start
+    of the pause (its caption fired ~0.3 s early); aligned timings (Whisper) often start it a little
+    after the sound resumes (~0.1-0.2 s late). Words starting inside a pause, or up to late_ms
+    (voices.snap_late_ms) after it ends with no other word in between, move to the pause's end."""
+    late = float(config.get("voices.snap_late_ms", 0) if late_ms is None else late_ms)
+    out: list[Word] = []
     for w in words:
         start = w.start_ms
+        prev = out[-1].start_ms if out else float("-inf")
         for a, b in pauses:
-            if a <= start < b - 20:
+            if a <= start < b - 20 or (b <= start <= b + late and prev < a):
                 start = b
                 break
         out.append(Word(w.text, start, max(w.end_ms, start)))

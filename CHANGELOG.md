@@ -16,6 +16,9 @@ All notable changes to Klip are listed here. The format follows
 - Forced alignment for engines without word timings (`klip/align.py`, faster-whisper word
   timestamps mapped onto the script; optional: `uv sync --extra align`). Measured against
   edge-tts's own timings: median start error 23 ms after `align.offset_ms`.
+- The first word after a pause now starts where the speech resumes even when its timing runs
+  late (`voices.snap_late_ms`); with Gemini this took caption sync from up to 215 ms late to a
+  mean of +5 ms after pauses.
 - `klip ab-voice <spec>` reads one script with several engine/take variants (voice.wav each, or
   full videos with `--render`) to compare by ear.
 

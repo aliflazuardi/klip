@@ -1,4 +1,10 @@
+import os
+
 import pytest
+
+# Tests run against klip.yaml alone: a personal klip.local.yaml (another TTS engine, a whole take…)
+# must not change what they check.
+os.environ["KLIP_LOCAL_CONFIG"] = os.path.join(os.path.dirname(__file__), "no-local-config.yaml")
 
 
 @pytest.fixture(autouse=True)

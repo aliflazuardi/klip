@@ -32,6 +32,9 @@ voices:
     female: "+15%"
   # Shift applied to word timings (ms) so captions match the audible onset.
   # edge-tts word offsets run ~115 ms early (measured with scripts/check_sync.py).
+  # The first word after a pause starts where the sound resumes: words timed up to this late after
+  # a pause are pulled back to it (aligned engines like Gemini time those words ~0.1-0.2 s late).
+  snap_late_ms: 300
   timing_offset_ms:
     edge: 100
     elevenlabs: 0
