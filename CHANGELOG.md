@@ -8,6 +8,9 @@ All notable changes to Klip are listed here. The format follows
 
 ### Added
 
+- Hashtags are written in lowercase in `post.txt` and the validate preview (`post.lowercase_hashtags`),
+  and `klip validate` warns about capitalised hashtags in the spec.
+
 - Natural voices: `voices.engine: elevenlabs` (ELEVENLABS_API_KEY; word timings from the API) and
   `voices.engine: gemini` (GEMINI_API_KEY; Gemini 3.8 Flash TTS with a style prompt in
   `gemini_tts.style`).

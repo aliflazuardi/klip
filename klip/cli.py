@@ -89,7 +89,8 @@ def print_preview(spec, issues) -> None:
         for f in spec.facts:
             console.print(f"  • {f.claim}\n    {f.source}")
     if spec.post.caption:
-        console.print(f"[bold]TikTok caption:[/bold] {spec.post.caption} {' '.join(spec.post.hashtags)}")
+        from klip.stages.post import hashtags_lower
+        console.print(f"[bold]TikTok caption:[/bold] {hashtags_lower(spec.post.caption + ' ' + ' '.join(spec.post.hashtags))}")
 
 
 @app.command()

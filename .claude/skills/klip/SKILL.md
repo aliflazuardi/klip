@@ -201,6 +201,9 @@ re-render; unchanged stages are cached. Tell the user about any check you couldn
   nggak lupa" pill pops up when item 2 starts. Don't also say it in the narration. Turn it off
   with `"save_nudge": false` (e.g. when the CTA is already `save`, to avoid asking twice).
 - `post.caption`: one sentence plus an emoji. `post.hashtags`: 3–5, including `#edukasi`.
+  **Hashtags are always all lowercase** (`#literasikeuangan`, `#ihsg`, never `#LiterasiKeuangan`
+  or `#IHSG`), in `post.hashtags`, inside `post.caption` and in any caption variants you write.
+  `post.txt` lowercases them anyway (klip.yaml `post.lowercase_hashtags`); `validate` warns.
 - **`cover`** (optional; the `cover.png` shown on the profile grid): `title` (3–5 words, the
   lead-in) + `keyword` (1–2 words, the payoff, drawn big in the accent colour), or `lines`
   (2–3 explicit lines, the last is the keyword), plus `subtitle` (one short sentence that adds

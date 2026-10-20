@@ -296,6 +296,11 @@ screenshot:
   wait_ms: 1500                     # after the page settles, before the capture
   timeout_s: 40
 
+# ── Post text (post.txt) ─────────────────────────────────────────────────────
+post:
+  lowercase_hashtags: true          # write every hashtag in lowercase (#WargaNalar → #warganalar),
+                                    # in the hashtag line and inside the caption; validate warns
+
 # ── Background music ─────────────────────────────────────────────────────────
 music:
   dir: assets/music                 # tracks in <dir>/<mood>/; spec music.mood picks the folder

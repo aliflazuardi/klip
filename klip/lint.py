@@ -130,6 +130,13 @@ def lint(spec: Spec) -> list[Issue]:
     err = lambda where, msg: issues.append(Issue("error", where, msg))      # noqa: E731
     warn = lambda where, msg: issues.append(Issue("warning", where, msg))   # noqa: E731
     _lint_look(spec, err)
+    if config.get("post.lowercase_hashtags", True):
+        import re
+        caps = sorted({t for t in re.findall(r"#\w+", spec.post.caption + " " + " ".join(spec.post.hashtags))
+                       if t != t.lower()})
+        if caps:
+            warn("post", f"hashtags must be all lowercase: {', '.join(caps)} "
+                         f"(post.txt writes {', '.join(t.lower() for t in caps)})")
 
     est = estimate_duration_s(spec)
     tol = config.get("qa.duration_tolerance", 0.15)
