@@ -102,6 +102,12 @@ def _lint_stage(spec: Spec, s: Scene, tokens: list[str], err, warn) -> None:
             warn(s.id, f"unit with {e.total} squares: they get tiny; scale it ('1 kotak = 1.000 …')")
         if e.kind == "person" and e.stat and len(e.stat) > 9:
             warn(s.id, f"person stat {e.stat!r} is long; keep it ≤ 9 characters")
+    pics = sum(e.kind in ("cutout", "photo", "person", "logo", "screenshot") for e in els)
+    icons = sum(e.kind in ("icon", "stack") for e in els)
+    need = float(config.get("stage.photos.min_share"))
+    if icons and pics < need * (pics + icons):
+        warn(s.id, f"{icons} icon(s) vs {pics} real picture(s) on this stage: make most object props real photos "
+                   f"(cutout/photo/person/logo, ≥ {need:.0%}); keep icons for abstract ideas")
     bg = s.visual.background
     if bg and bg not in (config.get("stage.backgrounds") or {}):
         from klip.paths import ROOT

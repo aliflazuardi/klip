@@ -15,9 +15,10 @@ def _spec(**kw):
     return spec.model_copy(update=kw)
 
 
-def test_progress_bar_default_on_and_spec_can_turn_it_off():
+def test_progress_bar_default_off_and_spec_can_turn_it_on():
     style = config.style("default")
-    b = compose.branding(_spec(), style, SCENES, 14.0)
+    assert compose.branding(_spec(), style, SCENES, 14.0)["progress"] is None
+    b = compose.branding(_spec(progress_bar=True), style, SCENES, 14.0)
     assert b["progress"]["width"] == 900 and len(b["progress"]["ticks"]) == 3
     assert b["progress"]["ticks"][0] == round(900 * 3.0 / 14.0, 1)
     assert compose.branding(_spec(progress_bar=False), style, SCENES, 14.0)["progress"] is None
@@ -26,7 +27,7 @@ def test_progress_bar_default_on_and_spec_can_turn_it_off():
 
 def test_brand_pack_branding():
     style = config.style("example")
-    b = compose.branding(_spec(style="example", series="why", episode=12), style, SCENES, 14.0)
+    b = compose.branding(_spec(style="example", series="why", episode=12, progress_bar=True), style, SCENES, 14.0)
     # bar stops short of the watermark logo at the right of the strip
     assert b["progress"]["left"] + b["progress"]["width"] < 1080 - style["watermark"]["right"] - style["watermark"]["size"]
     # watermark hidden on the cta scene; pill on the hook only, from frame 0
@@ -49,7 +50,7 @@ def test_rgba():
 @needs_ffmpeg
 @needs_renderer
 def test_compose_renders_brand_layer(project):  # noqa: F811
-    spec = _spec(style="example", series="myth-fact")
+    spec = _spec(style="example", series="myth-fact", progress_bar=True)
     project.mkdir()
     voice.run(spec, project, engine=FakeTTS())
     compose.run(spec, project)

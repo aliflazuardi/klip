@@ -114,7 +114,7 @@ def test_extra_untagged_candidates_join_the_pool():
         def enabled(self):
             return True
 
-        def search(self, q, kind, per_page=15):
+        def search(self, q, kind, per_page=15, **kw):
             return [cand("jar", ["food", "container"]), cand("fridge", ["kitchen"], 1), cand("cat", ["cat"], 2)]
 
         def fetch(self, c):

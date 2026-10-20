@@ -31,11 +31,12 @@ class Openverse:
     def enabled(self) -> bool:
         return True
 
-    def search(self, query: str, kind: Kind, per_page: int = 15) -> list[Candidate]:
+    def search(self, query: str, kind: Kind, per_page: int = 15, shape: str = "portrait") -> list[Candidate]:
         if kind != "photo":
             return []
-        params = {"q": query, "license": LICENSES, "aspect_ratio": "tall", "size": "large",
-                  "page_size": min(per_page, 20), "mature": "false"}
+        params = {"q": query, "license": LICENSES, "size": "large", "page_size": min(per_page, 20), "mature": "false"}
+        if shape == "portrait":
+            params["aspect_ratio"] = "tall"
         qs = urllib.parse.urlencode(sorted(params.items()))
         data = http.get_json(f"{API}?{qs}", cache_key=f"openverse:{qs}")
         out = []

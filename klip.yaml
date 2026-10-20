@@ -129,6 +129,7 @@ assets:
   # Below this, a center crop would be too soft → blurred-background fill instead.
   cover_min_fill: 0.6
   api_cache_hours: 24               # Pixabay terms require caching responses 24 h
+  unsplash_px: 1600                 # longest side of a downloaded Unsplash photo
   # Claude looks at numbered thumbnail sheets of each scene's candidates before downloading,
   # keeps the ones that actually show the narration, ranks them, and can rescue a few results
   # the tag gate dropped. One `claude -p` call per video (your Claude plan, ~30-90 s). Falls back
@@ -136,7 +137,7 @@ assets:
   vision_check:
     enabled: true
     candidates_per_scene: 8         # thumbnails per sheet
-    candidates_per_prop: 6          # thumbnails per stage prop (cutout/photo element); best rated is used
+    candidates_per_prop: 8          # thumbnails per stage prop (cutout/photo element); best rated is used
     photo_slots: 3                  # of those, reserved for stock photos (they often match better)
     min_score: 2                    # Claude rates 0-3 (3 shows the subject, 2 closely related, 1 generic)
     extra_untagged: 2               # per query: tag-gate rejects Claude may still approve
@@ -186,7 +187,24 @@ stage:
     kraft: {base: "#C9A273", tone: light, grain: 0.20, grain_freq: "0.7 0.7", vignette: 0.30}
     board: {base: "#25343A", tone: dark, grain: 0.16, grain_freq: "0.8 0.8", vignette: 0.40}
   bg_drift_px: 40                   # the background pans this far across a run of stage scenes
-  zoom: 1.04                        # the props layer slowly pushes in to this scale per scene
+  zoom: 1.04                        # the stage camera slowly pushes in to this scale per scene
+  # Motion of the props once they're on stage. float: an idle sway (px up/down by prop group:
+  # media = photos/cut-outs/people/logos, icon = icons/stacks, tag = labels/numbers, data =
+  # charts/bars/units/news/screenshots; 0 = still) over a period picked per prop from
+  # float_period_s, starting settle_s after the prop lands. camera_follow: on each entry the camera
+  # eases this share of the way toward the props on stage (0 = a plain push-in), over camera_move_s.
+  # count_up: numbers like "Rp12.000" or "-4%" count up as they land. exit: sweep (props fly off
+  # to their side) or fade (shrink and drop).
+  motion:
+    float_px: {media: 7, icon: 9, tag: 4, data: 2}
+    float_deg: 1.2
+    float_period_s: [2.4, 3.4]
+    settle_s: 0.55
+    camera_follow: 0.12
+    camera_move_s: 0.9
+    count_up: true
+    count_s: 0.7
+    exit: sweep
   # Layout: the stage area sits between the title and the stage captions (caption.stage.top).
   # A composition is a list of [x, y, size]: x as a share of the safe width (x 60–960), y as a
   # share of the free area under the title, so a two-line title pushes the props down.
@@ -214,6 +232,8 @@ stage:
   label_px: {s: 44, m: 54, l: 66}  # label (tag) font size
   stamp_px: {s: 64, m: 84, l: 110} # stamp font size
   tilt_deg: 4                       # props are rotated up to ± this (deterministic per element)
+  layout_gap_px: 16                 # props on one page keep at least this apart (overlaps are pushed
+                                    # apart, then shrunk); stamps may overlap what they judge
   lead_s: 0.06                      # an element lands this long before its word
   min_gap_s: 0.25                   # entries closer than this are pushed apart
   exit_s: 0.25                      # props sweep off this long before a cleared stage / stage→stage cut
@@ -277,6 +297,22 @@ stage:
     outline_px: 12                  # white sticker outline around the subject
     max_px: 900                     # longest side of the prepared image
     query_suffix: isolated          # tried first ("tempeh isolated"), then the plain query
+  # Photos for cutout/photo/person/logo props. Your own file wins: put it in <dir>/<slug>/ named
+  # <scene>-<n>[-anything].jpg|png|webp (n = the element's number in the scene, from 1), e.g.
+  # specs/photos/judi-online/s1-1-bandar.png. Otherwise every provider below is searched in any
+  # orientation and the vision check picks the best photo across all of them. Each fetch writes
+  # projects/<slug>/photo-brief.md: props with no photo, props marked `own`, and stock photos the
+  # vision check rated below brief_below (0-3), with the file name to save (`klip photos <spec>`).
+  photos:
+    dir: specs/photos
+    # unsplash/pexels/pixabay need a .env key. openverse is left out: its anonymous rate limit
+    # (minute-long waits) stalls a fetch that searches every prop; add it back if you have few keys.
+    providers: [local, unsplash, pexels, pixabay, commons]
+    per_provider: 4                 # candidates per provider and query shown to the vision check
+    enough: 8                       # stop asking further providers once this many relevant photos are found
+    brief_below: 3                  # stock photos rated below this go under "bisa lebih bagus"
+    min_share: 0.6                  # validate warns when real pictures are fewer than this share of a
+                                    # stage scene's object props (pictures + icons/stacks)
 
 # ── Real-world sources for stage elements ────────────────────────────────────
 # person / logo (and cutout / photo with `who`) take a Wikipedia article's image; the licence and
@@ -287,6 +323,13 @@ wikimedia:
   logo_px: 800
   allow_nonfree_logos: true         # most corporate logos are "non-free" (fair use) on Wikipedia;
                                     # false = leave such logos out. Non-free photos are never used.
+
+# Wikimedia Commons file search (stage props): free licences only.
+commons:
+  photo_px: 1600                    # width of the downloaded rendition
+  min_px: 600                       # skip files whose short side is smaller
+  allow_sharealike: false           # CC BY-SA asks that adaptations (a cut-out in a video) share
+                                    # alike; off keeps to CC0 / public domain / CC BY
 
 # screenshot elements: a web page (or its Wayback Machine copy) captured with headless Chrome.
 screenshot:
@@ -416,7 +459,7 @@ styles:
     # Branding strip at the top of the safe zone: progress bar (left) + watermark (right).
     # Kept above y 250, where headlines/cards start, and below TikTok's top tabs.
     progress_bar:
-      enabled: true                 # a spec can override with "progress_bar": true/false (A/B test)
+      enabled: false                # a spec can override with "progress_bar": true/false (A/B test)
       top: 210                      # y of the bar's top edge
       height: 8
       color: null                   # null = accent_color

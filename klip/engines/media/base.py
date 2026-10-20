@@ -66,7 +66,9 @@ class MediaProvider(Protocol):
 
     def enabled(self) -> bool: ...
 
-    def search(self, query: str, kind: Kind, per_page: int = 15) -> list[Candidate]: ...
+    def search(self, query: str, kind: Kind, per_page: int = 15, shape: str = "portrait") -> list[Candidate]:
+        """`shape`: "portrait" for full-screen b-roll, "any" for stage props (cut out or framed)."""
+        ...
 
     def fetch(self, c: Candidate) -> Path:
         """Return a local file for the candidate (downloading into the cache if needed)."""

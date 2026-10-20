@@ -21,8 +21,10 @@ class Pexels:
     def enabled(self) -> bool:
         return bool(env.get("PEXELS_API_KEY"))
 
-    def search(self, query: str, kind: Kind, per_page: int = 15) -> list[Candidate]:
-        params = {"query": query, "orientation": "portrait", "per_page": min(per_page, 80)}
+    def search(self, query: str, kind: Kind, per_page: int = 15, shape: str = "portrait") -> list[Candidate]:
+        params = {"query": query, "per_page": min(per_page, 80)}
+        if shape == "portrait":
+            params["orientation"] = "portrait"
         url = API + ("videos/search" if kind == "video" else "search")
         cache_key = f"pexels:{kind}:{urllib.parse.urlencode(sorted(params.items()))}"
         data = http.get_json(f"{url}?{urllib.parse.urlencode(params)}", cache_key=cache_key,

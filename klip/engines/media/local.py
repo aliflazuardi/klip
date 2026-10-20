@@ -49,7 +49,7 @@ class LocalLibrary:
     def enabled(self) -> bool:
         return self.root.is_dir()
 
-    def search(self, query: str, kind: Kind, per_page: int = 15) -> list[Candidate]:
+    def search(self, query: str, kind: Kind, per_page: int = 15, shape: str = "portrait") -> list[Candidate]:
         want = tokens(query)
         if not want or not self.enabled():
             return []

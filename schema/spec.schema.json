@@ -640,8 +640,27 @@
             }
           ],
           "default": null,
-          "description": "icon/stack: Lucide icon name, e.g. 'coins'.",
+          "description": "icon/stack: Lucide icon name, e.g. 'coins'. cutout/photo: an icon shown instead when no photo is found.",
           "title": "Name"
+        },
+        "brief": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "cutout/photo/person/logo: the ideal photo in a few words, in Indonesian, for the photo brief the user may shoot or find ('tangan memegang HP dengan aplikasi slot, malam hari').",
+          "title": "Brief"
+        },
+        "own": {
+          "default": false,
+          "description": "cutout/photo/person/logo: this prop must be exactly right (a local product, a specific place): always listed in the photo brief; stock is only a placeholder until the user's photo is in the photo folder.",
+          "title": "Own",
+          "type": "boolean"
         },
         "text": {
           "anyOf": [

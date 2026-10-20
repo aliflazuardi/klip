@@ -14,7 +14,7 @@ from urllib.parse import quote
 from markupsafe import Markup
 
 from klip import config, shots
-from klip.spec import StageElement, Visual
+from klip.spec import MEDIA, StageElement, Visual
 
 BUILTIN_BACKGROUNDS = ("desk", "paper", "kraft", "board")
 PHOTO_FRAME = (14, 14, 14, 54)      # photo card white frame: left, top, right, bottom (px)
@@ -25,7 +25,7 @@ def cfg(key: str):
     return config.get(f"stage.{key}")
 
 
-MEDIA_KINDS = ("cutout", "photo", "person", "logo")      # an image from stock, Wikipedia or a file
+MEDIA_KINDS = MEDIA                                     # an image from stock, Wikipedia or a file
 
 
 def is_media(e: StageElement) -> bool:
@@ -233,6 +233,52 @@ def fit(x: float, y: float, w: float, h: float, top: float, bottom: float) -> tu
     return x, y, w, h
 
 
+def separate(boxes: dict[int, dict], below: dict[int, float], top: float, bottom: float) -> None:
+    """Push overlapping boxes apart (in place) along the axis that overlaps least, keeping them in the
+    stage area; if they still overlap after that, shrink them all a little and try again.
+    `below`: extra px a box needs under it (its hanging label tag)."""
+    from itertools import combinations
+    gap, keys = float(cfg("layout_gap_px")), sorted(boxes)
+
+    def clamp(b: dict) -> None:
+        w, h = b["w"], b["h"] + below.get(b["_i"], 0)
+        b["x"] = min(max(b["x"], SAFE_X[0] + w / 2), SAFE_X[1] - w / 2)
+        b["y"] = min(max(b["y"], top + b["h"] / 2), bottom - h + b["h"] / 2)
+
+    def overlap(a: dict, b: dict) -> tuple[float, float]:
+        ay, by = a["y"] + below.get(a["_i"], 0) / 2, b["y"] + below.get(b["_i"], 0) / 2
+        ah, bh = a["h"] + below.get(a["_i"], 0), b["h"] + below.get(b["_i"], 0)
+        return (a["w"] + b["w"]) / 2 + gap - abs(a["x"] - b["x"]), (ah + bh) / 2 + gap - abs(ay - by)
+
+    for i in keys:
+        boxes[i]["_i"] = i
+    for _ in range(5):
+        for _ in range(40):
+            moved = False
+            for i, j in combinations(keys, 2):
+                a, b = boxes[i], boxes[j]
+                ox, oy = overlap(a, b)
+                if ox <= 0 or oy <= 0:
+                    continue
+                moved = True
+                axis, d = ("x", ox) if ox < oy else ("y", oy)
+                sign = 1.0 if a[axis] > b[axis] or (a[axis] == b[axis] and i > j) else -1.0
+                a[axis] += sign * d / 2
+                b[axis] -= sign * d / 2
+                clamp(a)
+                clamp(b)
+            if not moved:
+                break
+        if not any(min(overlap(boxes[i], boxes[j])) > 0 for i, j in combinations(keys, 2)):
+            break
+        for i in keys:
+            boxes[i]["w"] *= 0.9
+            boxes[i]["h"] *= 0.9
+            clamp(boxes[i])
+    for i in keys:
+        boxes[i].pop("_i")
+
+
 def layout(scene_id: str, elements: list[StageElement], media: dict[int, dict],
            area: tuple[float, float]) -> dict[int, dict]:
     """Box (x, y = centre; w, h; rot; size; slot) per element, highlights boxing their target."""
@@ -246,6 +292,11 @@ def layout(scene_id: str, elements: list[StageElement], media: dict[int, dict],
             cx, cy = SAFE_X[0] + px * (SAFE_X[1] - SAFE_X[0]), top + py * (bottom - top)
             x, y, w, h = fit(cx, cy, w, h, top, bottom)
             out[i] = {"x": x, "y": y, "w": w, "h": h, "rot": tilt(scene_id, i, e.kind), "size": size, "slot": slot}
+        # stamps slap over what they judge; everything else gets its own space
+        solid = [i for i in page if i in out and elements[i].kind != "stamp"]
+        below = {i: float(cfg("label_px")["s" if out[i]["size"] == "s" else "m"]) * 0.9
+                 for i in solid if elements[i].label}
+        separate({i: out[i] for i in solid}, below, top, bottom)
         for i in page:
             e = elements[i]
             if e.kind == "highlight" and (tb := out.get(e.target - 1)):
@@ -335,3 +386,87 @@ def unit_grid(total: int, filled: int, w: float, h: float) -> dict:
     cell, cols, rows = best
     return {"cell": round(cell, 2), "cols": cols, "rows": rows, "total": total, "filled": filled,
             "gw": round(cell * cols, 1), "gh": round(cell * rows, 1)}
+
+
+# ---- motion (after compose has linked the stage scenes, so every exit time is known)
+
+FLOAT_GROUP = {"cutout": "media", "photo": "media", "person": "media", "logo": "media", "icon": "icon", "stack": "icon",
+               "label": "tag", "number": "tag", "news": "data", "screenshot": "data", "chart": "data",
+               "bar": "data", "unit": "data"}
+_COUNT = re.compile(r"^([^\d]*?)(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d+))?([^\d]*)$")
+
+
+def _h(*parts) -> float:
+    """Deterministic 0-1 from the parts (same spec → same motion)."""
+    return int(hashlib.sha256(":".join(map(str, parts)).encode()).hexdigest()[:8], 16) / 0xFFFFFFFF
+
+
+def count_up(text: str | None) -> dict | None:
+    """'Rp12.000' → {prefix 'Rp', value 12000, decimals 0, suffix ''}; None when it isn't one number."""
+    m = _COUNT.match((text or "").strip())
+    if not m:
+        return None
+    pre, whole, frac, suf = m.groups()
+    value = float(whole.replace(".", "") + (f".{frac}" if frac else ""))
+    if value == 0 or (not pre.strip() and not suf.strip() and len(whole) == 4 and 1800 <= value <= 2100):
+        return None                                 # nothing to count, or a year
+    return {"prefix": pre, "value": value, "decimals": len(frac or ""), "suffix": suf}
+
+
+def _float(e: dict, scene_id: str, end: float, m: dict) -> dict | None:
+    """An idle sway for a prop that has landed: y and rotation ease back and forth (an odd number of
+    half cycles, so it ends where it started) until its exit or the scene's end."""
+    amp = (m["float_px"] or {}).get(FLOAT_GROUP.get(e["kind"], ""), 0)
+    if not amp:
+        return None
+    lo, hi = m["float_period_s"]
+    half = round((lo + (hi - lo) * _h(scene_id, e["i"], "p")) / 2, 3)
+    t0 = round(e["start"] + m["settle_s"], 3)
+    n = int((end - t0) / half)
+    if n % 2 == 0:
+        n -= 1
+    if n < 1:
+        return None
+    sign = 1 if _h(scene_id, e["i"], "s") < 0.5 else -1
+    deg = float(m["float_deg"]) * (1 if FLOAT_GROUP[e["kind"]] in ("media", "icon") else 0.4)
+    return {"t": t0, "half": half, "repeat": n - 1, "y": -amp * sign, "rot": round(deg * sign, 2)}
+
+
+def _camera(st: dict, end: float, m: dict) -> list[dict]:
+    """Camera moves (x, y and when/how long) for a stage scene: on each prop's entry the camera eases
+    part of the way toward the props on stage (the newest counts double). The push-in (stage.zoom)
+    is a separate linear tween on the same layer."""
+    top, bottom = st["area"]
+    cx, cy, follow = 540.0, (top + bottom) / 2, float(m["camera_follow"])
+    els = sorted((e for e in st["elements"] if e["kind"] not in ("highlight", "stamp")), key=lambda e: e["start"])
+    moves = []
+    for k, e in enumerate(els):
+        t = e["start"]
+        on = [x for x in els if x["start"] <= t and (x["exit"] is None or x["exit"] > t)]
+        wts = [x["w"] * x["h"] * (2 if x is e else 1) for x in on]
+        fx = sum(x["x"] * w for x, w in zip(on, wts)) / sum(wts)
+        fy = sum(x["y"] * w for x, w in zip(on, wts)) / sum(wts)
+        nxt = els[k + 1]["start"] if k + 1 < len(els) else end
+        moves.append({"t": round(t, 3), "dur": round(max(min(float(m["camera_move_s"]), nxt - t), 0.05), 3),
+                      "x": round((cx - fx) * follow, 1), "y": round((cy - fy) * follow, 1)})
+    return moves
+
+
+def add_motion(scene: dict) -> None:
+    """Fill in the motion of a stage scene's context: idle float, count-ups, entrance and exit
+    styles, camera keyframes (klip.yaml stage.motion)."""
+    st, m = scene["stage"], cfg("motion")
+    for e in st["elements"]:
+        end = e["exit"] if e["exit"] is not None else scene["end"]
+        e["float"] = _float(e, scene["id"], end, m)
+        e["count"] = count_up(e.get("text")) if e["kind"] == "number" and m["count_up"] else None
+        r = _h(scene["id"], e["i"], "enter")
+        if e["kind"] == "cutout":
+            e["enter"] = "slide" if e["col"] in ("l", "r") and r < 0.5 else "drop"
+        elif e["kind"] in ("photo", "person", "logo", "screenshot", "news"):
+            e["enter"] = "slide" if e["col"] in ("l", "r") and r < 0.4 else "toss"
+        else:
+            e["enter"] = None
+        side = {"l": -1, "r": 1}.get(e["col"], -1 if r < 0.5 else 1)
+        e["exit_to"] = {"x": side * 1100, "rot": side * 18} if m["exit"] == "sweep" else None
+    st["camera"] = _camera(st, scene["end"], m) if m["camera_follow"] else []

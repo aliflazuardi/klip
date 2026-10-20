@@ -132,7 +132,7 @@ class FakeProvider:
     def enabled(self):
         return self._enabled
 
-    def search(self, query, kind, per_page=15):
+    def search(self, query, kind, per_page=15, **kw):
         self.searches.append(kind)
         return [c for c in self.results if c.kind == kind]
 

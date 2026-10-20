@@ -65,6 +65,7 @@ _STAGE_NEEDS = {"cutout": (("query", "path", "who"),), "photo": (("query", "path
                 "unit": (("total",),), "person": (("who", "path", "query"),), "news": (("text",),),
                 "logo": (("who", "path"),), "screenshot": (("url",),)}
 LABELLED = ("cutout", "photo", "icon", "person", "logo", "screenshot")
+MEDIA = ("cutout", "photo", "person", "logo")          # an image file: stock, Wikipedia or the user's photo
 
 
 class StageElement(_Strict):
@@ -88,7 +89,14 @@ class StageElement(_Strict):
     who: str | None = Field(None, description="person/logo/cutout/photo: the Wikipedia article title of a real "
                                               "person or organisation (e.g. 'Joko Widodo', 'SoftBank Group'); its "
                                               "lead image is used, with the licence in the credits.")
-    name: str | None = Field(None, description="icon/stack: Lucide icon name, e.g. 'coins'.")
+    name: str | None = Field(None, description="icon/stack: Lucide icon name, e.g. 'coins'. cutout/photo: an "
+                                               "icon shown instead when no photo is found.")
+    brief: str | None = Field(None, description="cutout/photo/person/logo: the ideal photo in a few words, in "
+                                                "Indonesian, for the photo brief the user may shoot or find ('tangan "
+                                                "memegang HP dengan aplikasi slot, malam hari').")
+    own: bool = Field(False, description="cutout/photo/person/logo: this prop must be exactly right (a local "
+                                         "product, a specific place): always listed in the photo brief; stock "
+                                         "is only a placeholder until the user's photo is in the photo folder.")
     text: str | None = Field(None, description="label: the tag text (1-4 words); number: the number as shown, "
                                                "e.g. '-7%' or 'Rp12.000'; stamp: 1-2 words; chart: its title "
                                                "('IHSG'); unit: the legend ('1 kotak = 1.000 alat'); person: one "
@@ -132,6 +140,8 @@ class StageElement(_Strict):
                 raise ValueError(f"stage element kind={self.kind!r} requires {' or '.join(opts)}")
         if self.kind == "bar" and len(self.bars) < 2:
             raise ValueError("a bar element needs 2-4 bars")
+        if (self.brief or self.own) and self.kind not in MEDIA:
+            raise ValueError(f"`brief` / `own` are for {'/'.join(MEDIA)} elements")
         if self.label and self.kind not in LABELLED:
             raise ValueError(f"`label` is for {'/'.join(LABELLED)} elements (use kind=label for a lone tag)")
         if self.ticker and not self.start:

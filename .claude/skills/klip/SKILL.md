@@ -25,6 +25,11 @@ pipeline renders it. The spec is the contract: re-rendering the same spec gives 
 6. **Review gate — stop and show the user** the script: each scene's narration and on-screen
    text, the estimated duration, and the facts with sources. Ask for approval or edits.
    Do not render before the user says yes (skip only if they explicitly said not to review).
+   **Stage videos: also send the photo brief.** Run `uv run klip photos specs/<slug>.json`
+   (~1–3 min: stock search + vision check, no voice or render) and show the user the props under
+   "Perlu foto" and "Bisa lebih bagus" in `projects/<slug>/photo-brief.md`: what each photo
+   should show and the file name to save in `specs/photos/<slug>/`. They can drop photos in
+   (or say "pakai stock saja"); the render picks the files up automatically.
 7. **Render** (about 2–2.5 min for 45 s; run it in the background):
    `uv run klip render specs/<slug>.json --voice <voice>`
    Outputs land in `projects/<slug>/`: `final.mp4`, `cover.png` (designed cover), `post.txt` (with b-roll
@@ -111,6 +116,16 @@ re-render; unchanged stages are cached. Tell the user about any check you couldn
     number `target`), `stamp` (`text`, 1–2 words, a rubber-stamp verdict like "BERHASIL" or
     "PALSU"; `tone` up/down colours it). `cutout`/`photo`/`icon`/`logo`/`screenshot` take a short
     `label` tag.
+    **Real photos dominate, icons are the exception.** The look is a collage of real things cut
+    out with scissors: most object props (≥ 60%, `validate` warns below) are `cutout`/`photo`/
+    `person`/`logo`/`screenshot`; keep `icon` for abstract ideas with no photographable object
+    ("bisa diatur", "nggak dicek"). Every stage page should have one real photo as its hero.
+    For each photo prop also write `brief` (the ideal photo in a few Indonesian words, for the
+    photo brief), `name` (a fallback Lucide icon if no photo is found), and `"own": true` when it
+    must be exactly right (an Indonesian product, place or app screen) so the user is asked for
+    it. Stock search covers Unsplash (with a key), Pexels, Pixabay and Wikimedia Commons (good for
+    rupiah, Indonesian places and objects); `query` stays English and short (2–3 words: long
+    queries miss the stock tags).
     **Real things beat stock** (90secondslab uses real people, logos, pages and data):
     - `person`: a real person's card: `who` = their Wikipedia article title ("Joko Widodo",
       "Sri Mulyani Indrawati"), `text` = one small line ("2014–2024"), optional `stat` ("+53,95%")
@@ -141,10 +156,11 @@ re-render; unchanged stages are cached. Tell the user about any check you couldn
     melemah, jadi barang impor mahal: kedelai, pakan ayam, dan BBM" → `{"type": "stage",
     "background": "grid", "elements": [{"at": "Rupiah", "kind": "stack", "name": "coins"},
     {"at": "impor", "kind": "number", "text": "Rp18rb", "tone": "down"}, {"at": "kedelai",
-    "kind": "cutout", "query": "soybeans", "label": "Kedelai", "clear": true}, {"at": "pakan",
-    "kind": "cutout", "query": "chicken"}, {"at": "BBM", "kind": "icon", "name": "fuel", "label":
-    "BBM"}]}`. Stock search is weak for Indonesian food: prefer an icon, or `path` to the
-    user's own photo, when a prop must be exactly right.
+    "kind": "cutout", "query": "soybeans", "label": "Kedelai", "clear": true, "brief": "segenggam
+    kedelai kuning", "own": true}, {"at": "pakan", "kind": "cutout", "query": "chicken feed sack",
+    "name": "wheat"}, {"at": "BBM", "kind": "cutout", "query": "fuel pump nozzle", "name": "fuel",
+    "label": "BBM"}]}`. Stock search is weak for Indonesian food: mark such props `"own": true` (the user
+    is asked for the photo) rather than swapping in an icon.
   - `icon`: Lucide `name` (check `renderer/node_modules/lucide-static/icons/<name>.svg`).
     Good for the CTA and for abstract ideas with no good footage.
   - `local`: `path` to the user's own clip. Use it when they mention their own footage.
@@ -153,7 +169,8 @@ re-render; unchanged stages are cached. Tell the user about any check you couldn
     used as the query).
 - After rendering, check the `assets:` lines in the output and the warnings. If a scene
   fell back to an icon or got an off-topic clip, suggest a better query. For stage scenes,
-  look at `projects/<slug>/media/<scene>_el<n>.*` (the cut-outs) the same way.
+  look at `projects/<slug>/media/<scene>_el<n>.*` (the cut-outs) the same way, and pass on the
+  photo brief line (`Photo brief: …`) if props still want a photo.
 
 ## Writing guide
 

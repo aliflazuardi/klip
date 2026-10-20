@@ -21,14 +21,14 @@ class Pixabay:
     def enabled(self) -> bool:
         return bool(env.get("PIXABAY_API_KEY"))
 
-    def search(self, query: str, kind: Kind, per_page: int = 15) -> list[Candidate]:
+    def search(self, query: str, kind: Kind, per_page: int = 15, shape: str = "portrait") -> list[Candidate]:
         params = {"q": query[:100], "per_page": max(3, min(per_page, 200)), "safesearch": "true"}
         if kind == "video":
             url = API + "videos/"
             params["video_type"] = "film"
         else:
             url = API
-            params.update(image_type="photo", orientation="vertical")
+            params.update(image_type="photo", orientation="vertical" if shape == "portrait" else "all")
         cache_key = f"pixabay:{kind}:{urllib.parse.urlencode(sorted(params.items()))}"
         params["key"] = env.get("PIXABAY_API_KEY")
         data = http.get_json(f"{url}?{urllib.parse.urlencode(params)}", cache_key=cache_key)

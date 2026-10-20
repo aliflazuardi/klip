@@ -274,6 +274,7 @@ def _render(spec_path: Path, voice: str | None, out: Path | None, force: bool, v
     warnings = results["compose"]["warnings"] + results["assets"].get("warnings", [])
     if warnings:
         console.print(f"[yellow]{len(warnings)} warning(s):[/yellow] " + "; ".join(warnings))
+    _print_brief(results["assets"].get("photo_brief"))
     _print_qa(results["qa"])
     if variants:
         if not spec.hook_variants:
@@ -287,6 +288,31 @@ def _render(spec_path: Path, voice: str | None, out: Path | None, force: bool, v
                 raise typer.Exit(1)
     if not results["qa"]["passed"]:
         raise typer.Exit(1)
+
+
+def _print_brief(b: dict | None) -> None:
+    """One line on the photo brief (props that want a photo from you)."""
+    if not b or not b.get("props"):
+        return
+    if b["need"] or b["better"]:
+        console.print(f"[bold]Photo brief:[/] {b['need']} prop(s) need a photo, {b['better']} could be better "
+                      f"({b['provided']} of yours used) → {b['path']}\n  drop files in {b['folder']}/ and re-render")
+    else:
+        console.print(f"[green]Photo brief:[/] all {b['props']} photo props are fine ({b['provided']} of yours) → {b['path']}")
+
+
+@app.command()
+def photos(spec_path: Path, out: Optional[Path] = OutOpt) -> None:
+    """Find the stage props' photos (no voice, no render) and write the photo brief: which props
+    need a photo from you, and the file names to save in the photo folder."""
+    from klip.stages import assets
+    spec, project_dir = _load_or_exit(spec_path, None, out)
+    with console.status("searching photos (and the vision check)…"):
+        result = assets.fetch(spec, project_dir)
+    b = result.get("photo_brief")
+    if b and b.get("props"):
+        console.print(Path(b["path"]).read_text(encoding="utf-8"))
+    _print_brief(b)
 
 
 def _print_qa(report: dict) -> None:

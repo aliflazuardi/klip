@@ -153,8 +153,13 @@ def _stage_ctx(scene: Scene, t: dict, words: list[dict], media: dict, style: dic
     v = scene.visual
     bg = stage_mod.background_key(v)
     rows = {r["el"]: r for r in (media.get("stage") or [])}
-    els = v.elements
-    # elements whose photo couldn't be found are left out (and highlights pointing at them)
+    # a cutout/photo with no photo becomes its fallback icon (`name`); other elements whose file
+    # couldn't be had are left out (and highlights pointing at them)
+    els = [e.model_copy(update={"kind": "icon"}) if e.kind in ("cutout", "photo") and e.name and i not in rows
+           else e for i, e in enumerate(v.elements)]
+    for i, (a, b) in enumerate(zip(v.elements, els)):
+        if a.kind != b.kind:
+            warnings.append(f"{scene.id}: no photo for stage element at {a.at!r}; showing its icon {a.name!r}")
     missing = {i for i, e in enumerate(els) if stage_mod.needs_row(e) and i not in rows}
     missing |= {i for i, e in enumerate(els) if e.kind == "highlight" and e.target - 1 in missing}
     for i in sorted(missing):
@@ -225,7 +230,7 @@ def _stage_ctx(scene: Scene, t: dict, words: list[dict], media: dict, style: dic
                                f"({', '.join(config.get('stage.backgrounds'))}) nor an image file")
         image = {"src": f"stage/{path.name}", "path": str(path)}
     tone = stage_mod.tone(bg)
-    return {"bg": bg, "builtin": stage_mod.is_builtin(bg), "image": image, "elements": out, "tone": tone,
+    return {"bg": bg, "builtin": stage_mod.is_builtin(bg), "image": image, "elements": out, "tone": tone, "area": area,
             "title": _headline(scene.on_screen_text, scene.emphasis), "list_no": list_no,
             "hook": scene.template == "hook", "continues": False, "next_same": False, "bg_from": 0.0, "bg_to": 0.0}
 
@@ -328,6 +333,9 @@ def build_context(spec: Spec, timeline: dict, words: list[dict],
               for i, s in enumerate(spec.scenes)]
     outro = fold_outro(spec, scenes, style)
     _link_stages(scenes)
+    for s in scenes:
+        if s.get("stage"):
+            stage_mod.add_motion(s)
 
     # Caption words per scene, with emphasis flags from the spec.
     scene_words = []

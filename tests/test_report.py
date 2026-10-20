@@ -59,7 +59,7 @@ def test_features_from_project_dir():
     # music comes from what the render used (result.json), not the spec's mood
     assert report.features(VIDEOS / "cabai-busuk")[0]["music"] == "off"
     # progress_bar unset in the spec = the style's default
-    assert report.features(VIDEOS / "langit-biru")[0]["progress bar"] == "on"
+    assert report.features(VIDEOS / "langit-biru")[0]["progress bar"] == "off"
     assert report.features(VIDEOS / "nope") is None
 
 

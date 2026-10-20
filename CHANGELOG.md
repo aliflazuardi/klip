@@ -8,6 +8,20 @@ All notable changes to Klip are listed here. The format follows
 
 ### Added
 
+- Stage props lean on real photos: `klip photos <spec>` (and the MCP tool `photo_brief`) finds
+  photos for every stage prop and writes `projects/<slug>/photo-brief.md`, listing the props that
+  have no photo, are marked `"own": true` or got a weak stock match, with what to shoot or find
+  (`brief`) and the file name to save. Photos dropped in `specs/photos/<slug>/` (`<scene>-<n>…`)
+  win over stock on the next render.
+- Stock photo sources for stage props: Unsplash (`UNSPLASH_ACCESS_KEY`) and Wikimedia Commons
+  (free licences only). Props search every source in any orientation and stop once
+  `stage.photos.enough` photos are found; the vision check compares them all.
+- A `cutout`/`photo` prop with `name` falls back to that icon when no photo is found (it used to
+  be left out), and `klip validate` warns when a stage scene has more icons than real pictures.
+- Livelier stage motion (`stage.motion`): props sway gently once they land, cut-outs drop in with
+  a squash and photo cards are tossed in, labels wipe in, numbers count up, props sweep off to
+  their side, and the camera eases toward each new prop as it pushes in.
+
 - Hashtags are written in lowercase in `post.txt` and the validate preview (`post.lowercase_hashtags`),
   and `klip validate` warns about capitalised hashtags in the spec.
 
@@ -46,6 +60,8 @@ All notable changes to Klip are listed here. The format follows
 
 ### Changed
 
+- The progress bar is off by default (`styles.default.progress_bar.enabled: false`); turn it on
+  per video with `"progress_bar": true` or `--progress-bar`.
 - Stage layout composes by count and kind (`stage.compositions`): one big hero prop, hero + tag,
   pair, hero + two, grid, scatter. Props are larger.
 - Stage titles are left-aligned type with a marker on emphasis words (`stage.title.style: plain`);
@@ -54,6 +70,12 @@ All notable changes to Klip are listed here. The format follows
   underline marker, and hidden during pauses.
 - The cta narration is no longer captioned by default (`outro.captions`), so the sign-off doesn't
   appear twice.
+
+### Fixed
+
+- Stage props on one page no longer overlap (a label under an icon, a trophy over a tag): boxes
+  are pushed apart, then shrunk if needed (`stage.layout_gap_px`). Stamps may still overlap what
+  they judge.
 
 ## [0.2.1] - 2026-10-20
 

@@ -86,6 +86,31 @@ fewer than `stage.look_min_share` (70%) of those scenes are staged. Without it (
 the default) each scene picks its own visual. Backgrounds and animation are tuned in
 `klip.yaml` (`stage`); `klip report` groups results by look.
 
+### Photos on the stage: stock first, then a photo brief for you
+
+Stage props are mostly real photos cut out with scissors. For each `cutout`/`photo`/`person`/`logo`
+prop Klip looks, in order, for:
+
+1. **your file** in `specs/photos/<slug>/`, named `<scene>-<n>…` (n = the element's number in the
+   scene, from 1), e.g. `specs/photos/judi-online/s1-1-bandar.png`. A transparent PNG is used as
+   is; any other photo is cut out automatically;
+2. a Wikipedia image (`who`), a screenshot or chart data;
+3. stock: Unsplash (`UNSPLASH_ACCESS_KEY`), Pexels, Pixabay and Wikimedia Commons
+   (`stage.photos.providers`), in any orientation, with Claude's vision check picking the best
+   photo across all of them.
+
+Every asset fetch writes `projects/<slug>/photo-brief.md`: props with no photo, props marked
+`"own": true`, and stock photos the vision check found only loosely related, each with what the
+photo should show (`brief`), the file name to save and search links. Get it before rendering:
+
+```bash
+uv run klip photos specs/<slug>.json      # stock search + vision check + photo brief (no render)
+```
+
+Drop the photos you want into the folder and render; the rest stay stock. A photo prop with no
+photo at all shows its fallback icon (`name`) if it has one. Stage props also sway gently once
+they land, numbers count up, and the camera eases toward each new prop (`stage.motion`).
+
 ## Using the CLI directly
 
 ```bash
