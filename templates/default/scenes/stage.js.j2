@@ -17,7 +17,7 @@ tl.fromTo("#sc-{{ s.id }} .st-title", { y: -60, opacity: 0 }, { y: 0, opacity: 1
 {% for e in st.elements %}
 {% set sel = "#" ~ e.id %}
 gsap.set("{{ sel }}", { rotation: {{ e.rot }} });
-{% if e.kind in ("cutout", "photo") %}
+{% if e.kind in ("cutout", "photo", "person", "logo", "screenshot", "news") %}
 {% if e.col == "l" or e.col == "r" %}
 tl.fromTo("{{ sel }}", { x: {{ -760 if e.col == "l" else 760 }} }, { x: 0, duration: 0.42, ease: "power3.out" }, {{ e.start }});
 {% else %}
@@ -34,6 +34,16 @@ tl.fromTo("{{ sel }}", { scale: 0.6, opacity: 0 }, { scale: 1, opacity: 1, durat
 tl.fromTo("{{ sel }} .st-bar", { scaleY: 0 }, { scaleY: 1, duration: 0.45, stagger: 0.12, ease: "power2.out" }, {{ (e.start + 0.15) | round(3) }});
 {% elif e.kind == "stack" %}
 tl.fromTo("{{ sel }} .st-coin", { y: -260, opacity: 0 }, { y: 0, opacity: 1, duration: 0.3, stagger: 0.09, ease: "back.out(1.6)" }, {{ e.start }});
+{% elif e.kind == "chart" %}
+tl.fromTo("{{ sel }}", { scale: 0.7, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.3, ease: "back.out(1.6)" }, {{ e.start }});
+tl.fromTo("{{ sel }} .lc-band", { opacity: 0 }, { opacity: 1, duration: 0.3, stagger: 0.15, ease: "none" }, {{ (e.start + 0.2) | round(3) }});
+tl.fromTo("{{ sel }} .lc-line", { strokeDashoffset: {{ e.chart.len }} }, { strokeDashoffset: 0, duration: {{ c.chart.draw_s }}, ease: "power1.inOut" }, {{ (e.start + 0.25) | round(3) }});
+tl.fromTo("{{ sel }} .lc-area", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "none" }, {{ (e.start + 0.25 + c.chart.draw_s * 0.6) | round(3) }});
+tl.fromTo("{{ sel }} .lc-dot, {{ sel }} .lc-last", { scale: 0, opacity: 0, transformOrigin: "50% 50%" }, { scale: 1, opacity: 1, duration: 0.3, ease: "back.out(2.4)" }, {{ (e.start + 0.25 + c.chart.draw_s) | round(3) }});
+{% elif e.kind == "unit" %}
+tl.fromTo("{{ sel }}", { opacity: 0 }, { opacity: 1, duration: 0.15, ease: "none" }, {{ e.start }});
+tl.fromTo("{{ sel }} .un-grid i", { scale: 0 }, { scale: 1, duration: 0.18, stagger: {{ (c.unit.fill_s / [e.unit.total, 1] | max) | round(4) }}, ease: "back.out(2)" }, {{ e.start }});
+{% if e.text %}tl.fromTo("{{ sel }} .un-legend", { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.25, ease: "power2.out" }, {{ (e.start + 0.3) | round(3) }});{% endif %}
 {% elif e.kind == "stamp" %}
 tl.fromTo("{{ sel }}", { scale: 2.4, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.18, ease: "power3.in" }, {{ e.start }});
 tl.fromTo("#sc-{{ s.id }} .st-props", { y: 0 }, { y: 7, duration: 0.05, yoyo: true, repeat: 3, ease: "sine.inOut", immediateRender: false }, {{ (e.start + 0.18) | round(3) }});

@@ -14,7 +14,8 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 TemplateName = Literal["hook", "explain", "list_item", "myth_fact", "stat", "compare", "cta"]
 VisualType = Literal["stock_video", "stock_photo", "ai_image", "icon", "solid", "local", "stage"]
-StageKind = Literal["cutout", "photo", "icon", "label", "number", "bar", "stack", "highlight", "stamp"]
+StageKind = Literal["cutout", "photo", "icon", "label", "number", "bar", "stack", "highlight", "stamp",
+                    "chart", "unit", "person", "news", "logo", "screenshot"]
 StagePos = Literal["tl", "tc", "tr", "ml", "mc", "mr", "bl", "bc", "br"]
 VoiceName = Literal["male", "female"]
 LookName = Literal["mixed", "stage"]
@@ -45,10 +46,25 @@ class StageBar(_Strict):
     text: str | None = Field(None, description="Value shown on top of the bar, e.g. 'Rp12rb'; unset = no text.")
 
 
+class ChartPoint(_Strict):
+    x: str = Field(min_length=1, description="X value as shown/compared: an ISO date ('2024-10-16') or a label "
+                                             "('2019').")
+    y: float
+
+
+class ChartBand(_Strict):
+    start: str = Field(min_length=1, description="First x value of the shaded span (same form as the data's x).")
+    end: str = Field(min_length=1, description="Last x value of the span.")
+    label: str | None = Field(None, description="Short text in the band, e.g. 'SBY'.")
+
+
 # what each stage element kind needs (one of a tuple is enough)
-_STAGE_NEEDS = {"cutout": (("query", "path"),), "photo": (("query", "path"),), "icon": (("name",),),
+_STAGE_NEEDS = {"cutout": (("query", "path", "who"),), "photo": (("query", "path", "who"),), "icon": (("name",),),
                 "label": (("text",),), "number": (("text",),), "bar": (("bars",),), "stack": (("name",),),
-                "highlight": (("target",),), "stamp": (("text",),)}
+                "highlight": (("target",),), "stamp": (("text",),), "chart": (("points", "csv", "ticker"),),
+                "unit": (("total",),), "person": (("who", "path", "query"),), "news": (("text",),),
+                "logo": (("who", "path"),), "screenshot": (("url",),)}
+LABELLED = ("cutout", "photo", "icon", "person", "logo", "screenshot")
 
 
 class StageElement(_Strict):
@@ -59,17 +75,47 @@ class StageElement(_Strict):
                                         "photo = photo card; icon = Lucide icon on a sticker disc; label = paper "
                                         "tag; number = big number; bar = bar chart; stack = a pile of `count` "
                                         "icons; highlight = yellow box around an earlier element; stamp = a "
-                                        "rubber stamp that thumps down (a verdict: 'BERHASIL', 'PALSU').")
+                                        "rubber stamp that thumps down (a verdict: 'BERHASIL', 'PALSU'); "
+                                        "chart = a line chart that draws on (real data: points, csv or ticker); "
+                                        "unit = a grid of `total` squares, `filled` of them highlighted; person = a "
+                                        "real person's card (Wikipedia photo of `who`, name, a line, a stat); news = "
+                                        "a headline card (outlet, date, text); logo = an organisation's logo "
+                                        "(`who`) on a sign; screenshot = a web page (`url`) in a browser window.")
     query: str | None = Field(None, description="cutout/photo: English keywords for the stock photo, naming one "
                                                 "object or person (e.g. 'tempeh block', 'businessman shrugging').")
-    path: str | None = Field(None, description="cutout/photo: your own image instead of `query` (a transparent "
-                                               "PNG is used as-is).")
+    path: str | None = Field(None, description="cutout/photo/person/logo: your own image instead of `query` / "
+                                               "`who` (a transparent PNG is used as-is).")
+    who: str | None = Field(None, description="person/logo/cutout/photo: the Wikipedia article title of a real "
+                                              "person or organisation (e.g. 'Joko Widodo', 'SoftBank Group'); its "
+                                              "lead image is used, with the licence in the credits.")
     name: str | None = Field(None, description="icon/stack: Lucide icon name, e.g. 'coins'.")
     text: str | None = Field(None, description="label: the tag text (1-4 words); number: the number as shown, "
-                                               "e.g. '-7%' or 'Rp12.000'; stamp: 1-2 words.")
-    label: str | None = Field(None, description="cutout/photo/icon: a short tag stuck under the element.")
-    tone: Literal["up", "down", "neutral"] = Field("neutral", description="number/stamp: colour (up = green, "
-                                                                          "down = red).")
+                                               "e.g. '-7%' or 'Rp12.000'; stamp: 1-2 words; chart: its title "
+                                               "('IHSG'); unit: the legend ('1 kotak = 1.000 alat'); person: one "
+                                               "small line ('2014–2024'); news: the headline.")
+    label: str | None = Field(None, description="cutout/photo/icon/logo/screenshot: a short tag stuck under the "
+                                                "element; person: the name (default: from `who`).")
+    tone: Literal["up", "down", "neutral"] = Field("neutral", description="number/stamp/person stat/chart line: "
+                                                                          "colour (up = green, down = red; a "
+                                                                          "neutral chart follows its trend).")
+    points: list[ChartPoint] = Field(default_factory=list, max_length=400, description="chart: inline data.")
+    csv: str | None = Field(None, description="chart: repo-relative CSV with a header; first column x, second y.")
+    ticker: str | None = Field(None, description="chart: a Yahoo Finance symbol, e.g. '^JKSE' (IHSG), 'BBCA.JK', "
+                                                 "'IDR=X' (USD/IDR); needs `start`.")
+    start: str | None = Field(None, description="chart ticker: first date, YYYY-MM-DD.")
+    end: str | None = Field(None, description="chart ticker: last date, YYYY-MM-DD (unset = today).")
+    bands: list[ChartBand] = Field(default_factory=list, max_length=6,
+                                   description="chart: shaded spans with a label (eras, terms of office).")
+    total: int | None = Field(None, ge=2, le=400, description="unit: how many squares.")
+    filled: int | None = Field(None, ge=0, le=400, description="unit: how many are highlighted (default all).")
+    outlet: str | None = Field(None, description="news: the outlet, e.g. 'Katadata'.")
+    date: str | None = Field(None, description="news: the date as shown, e.g. 'Jumat, 16 Okt 2026'.")
+    url: str | None = Field(None, description="screenshot: the page to capture (http/https).")
+    wayback: str | None = Field(None, description="screenshot: capture the Wayback Machine copy from this date "
+                                                  "(YYYY or YYYYMMDD), for pages as they looked back then.")
+    selector: str | None = Field(None, description="screenshot: CSS selector of the part to capture (unset = the "
+                                                   "top of the page).")
+    stat: str | None = Field(None, description="person: a short stat under the name, e.g. '+499,50%'.")
     bars: list[StageBar] = Field(default_factory=list, max_length=4, description="bar: 2-4 bars, left to right.")
     count: int | None = Field(None, ge=2, le=8, description="stack: how many icons pile up (default 4).")
     target: int | None = Field(None, ge=1, description="highlight: number (1-based) of the earlier element in "
@@ -86,8 +132,18 @@ class StageElement(_Strict):
                 raise ValueError(f"stage element kind={self.kind!r} requires {' or '.join(opts)}")
         if self.kind == "bar" and len(self.bars) < 2:
             raise ValueError("a bar element needs 2-4 bars")
-        if self.label and self.kind not in ("cutout", "photo", "icon"):
-            raise ValueError("`label` is for cutout/photo/icon elements (use kind=label for a lone tag)")
+        if self.label and self.kind not in LABELLED:
+            raise ValueError(f"`label` is for {'/'.join(LABELLED)} elements (use kind=label for a lone tag)")
+        if self.ticker and not self.start:
+            raise ValueError("a chart `ticker` needs `start` (YYYY-MM-DD)")
+        if self.kind == "chart" and sum(map(bool, (self.points, self.csv, self.ticker))) > 1:
+            raise ValueError("a chart takes one of points, csv or ticker")
+        if self.kind == "chart" and self.points and len(self.points) < 2:
+            raise ValueError("a chart needs at least 2 points")
+        if self.kind == "unit" and self.filled is not None and self.filled > self.total:
+            raise ValueError("unit `filled` can't be more than `total`")
+        if self.url and not self.url.startswith(("http://", "https://")):
+            raise ValueError("screenshot `url` must start with http:// or https://")
         return self
 
 

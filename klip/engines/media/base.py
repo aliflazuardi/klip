@@ -38,6 +38,7 @@ class Candidate:
     local_path: str | None = None    # set for the local provider
     tags: list[str] = field(default_factory=list)
     thumb_url: str = ""              # small preview image (for the vision relevance check)
+    nonfree: bool = False            # Wikipedia marks the file non-free (fair use, e.g. a corporate logo)
 
     @property
     def key(self) -> str:

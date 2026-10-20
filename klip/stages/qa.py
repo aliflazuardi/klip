@@ -141,7 +141,8 @@ def check_footage(assets: dict | None) -> dict:
     """Every b-roll source on screen once: a clip shown twice (or re-cut) reads as looping.
     Shots longer than cuts.max_shot_s are named in the detail (not a failure)."""
     rows = [(sid, r) for sid, a in ((assets or {}).get("scenes") or {}).items() for r in a.get("shots") or []]
-    props = [(sid, r) for sid, a in ((assets or {}).get("scenes") or {}).items() for r in a.get("stage") or []]
+    props = [(sid, r) for sid, a in ((assets or {}).get("scenes") or {}).items() for r in a.get("stage") or []
+             if r.get("render") != "chart"]                     # the same data may be charted twice
     seen: dict[str, str] = {}
     reused = []
     for sid, r in rows + props:

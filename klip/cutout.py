@@ -191,3 +191,14 @@ def card(src: Path) -> Path:
             im.thumbnail((max_px, max_px), Image.LANCZOS)
             im.save(out, quality=88)
     return out
+
+
+def fit(src: Path, max_px: int) -> Path:
+    """An image resized to fit max_px, transparency kept (logos, screenshots); cached PNG."""
+    out = _cache_dir() / f"fit-{_sha(src)[:20]}-{max_px}.png"
+    if not out.exists():
+        with Image.open(src) as im:
+            im = im.convert("RGBA")
+            im.thumbnail((max_px, max_px), Image.LANCZOS)
+            im.save(out, optimize=True)
+    return out

@@ -24,6 +24,63 @@
       "title": "Beat",
       "type": "object"
     },
+    "ChartBand": {
+      "additionalProperties": false,
+      "properties": {
+        "start": {
+          "description": "First x value of the shaded span (same form as the data's x).",
+          "minLength": 1,
+          "title": "Start",
+          "type": "string"
+        },
+        "end": {
+          "description": "Last x value of the span.",
+          "minLength": 1,
+          "title": "End",
+          "type": "string"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Short text in the band, e.g. 'SBY'.",
+          "title": "Label"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "title": "ChartBand",
+      "type": "object"
+    },
+    "ChartPoint": {
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "description": "X value as shown/compared: an ISO date ('2024-10-16') or a label ('2019').",
+          "minLength": 1,
+          "title": "X",
+          "type": "string"
+        },
+        "y": {
+          "title": "Y",
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ],
+      "title": "ChartPoint",
+      "type": "object"
+    },
     "Compare": {
       "additionalProperties": false,
       "properties": {
@@ -513,7 +570,7 @@
           "type": "string"
         },
         "kind": {
-          "description": "cutout = stock photo with its background removed (a sticker); photo = photo card; icon = Lucide icon on a sticker disc; label = paper tag; number = big number; bar = bar chart; stack = a pile of `count` icons; highlight = yellow box around an earlier element; stamp = a rubber stamp that thumps down (a verdict: 'BERHASIL', 'PALSU').",
+          "description": "cutout = stock photo with its background removed (a sticker); photo = photo card; icon = Lucide icon on a sticker disc; label = paper tag; number = big number; bar = bar chart; stack = a pile of `count` icons; highlight = yellow box around an earlier element; stamp = a rubber stamp that thumps down (a verdict: 'BERHASIL', 'PALSU'); chart = a line chart that draws on (real data: points, csv or ticker); unit = a grid of `total` squares, `filled` of them highlighted; person = a real person's card (Wikipedia photo of `who`, name, a line, a stat); news = a headline card (outlet, date, text); logo = an organisation's logo (`who`) on a sign; screenshot = a web page (`url`) in a browser window.",
           "enum": [
             "cutout",
             "photo",
@@ -523,7 +580,13 @@
             "bar",
             "stack",
             "highlight",
-            "stamp"
+            "stamp",
+            "chart",
+            "unit",
+            "person",
+            "news",
+            "logo",
+            "screenshot"
           ],
           "title": "Kind",
           "type": "string"
@@ -551,8 +614,21 @@
             }
           ],
           "default": null,
-          "description": "cutout/photo: your own image instead of `query` (a transparent PNG is used as-is).",
+          "description": "cutout/photo/person/logo: your own image instead of `query` / `who` (a transparent PNG is used as-is).",
           "title": "Path"
+        },
+        "who": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "person/logo/cutout/photo: the Wikipedia article title of a real person or organisation (e.g. 'Joko Widodo', 'SoftBank Group'); its lead image is used, with the licence in the credits.",
+          "title": "Who"
         },
         "name": {
           "anyOf": [
@@ -577,7 +653,7 @@
             }
           ],
           "default": null,
-          "description": "label: the tag text (1-4 words); number: the number as shown, e.g. '-7%' or 'Rp12.000'; stamp: 1-2 words.",
+          "description": "label: the tag text (1-4 words); number: the number as shown, e.g. '-7%' or 'Rp12.000'; stamp: 1-2 words; chart: its title ('IHSG'); unit: the legend ('1 kotak = 1.000 alat'); person: one small line ('2014–2024'); news: the headline.",
           "title": "Text"
         },
         "label": {
@@ -590,12 +666,12 @@
             }
           ],
           "default": null,
-          "description": "cutout/photo/icon: a short tag stuck under the element.",
+          "description": "cutout/photo/icon/logo/screenshot: a short tag stuck under the element; person: the name (default: from `who`).",
           "title": "Label"
         },
         "tone": {
           "default": "neutral",
-          "description": "number/stamp: colour (up = green, down = red).",
+          "description": "number/stamp/person stat/chart line: colour (up = green, down = red; a neutral chart follows its trend).",
           "enum": [
             "up",
             "down",
@@ -603,6 +679,184 @@
           ],
           "title": "Tone",
           "type": "string"
+        },
+        "points": {
+          "description": "chart: inline data.",
+          "items": {
+            "$ref": "#/$defs/ChartPoint"
+          },
+          "maxItems": 400,
+          "title": "Points",
+          "type": "array"
+        },
+        "csv": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "chart: repo-relative CSV with a header; first column x, second y.",
+          "title": "Csv"
+        },
+        "ticker": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "chart: a Yahoo Finance symbol, e.g. '^JKSE' (IHSG), 'BBCA.JK', 'IDR=X' (USD/IDR); needs `start`.",
+          "title": "Ticker"
+        },
+        "start": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "chart ticker: first date, YYYY-MM-DD.",
+          "title": "Start"
+        },
+        "end": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "chart ticker: last date, YYYY-MM-DD (unset = today).",
+          "title": "End"
+        },
+        "bands": {
+          "description": "chart: shaded spans with a label (eras, terms of office).",
+          "items": {
+            "$ref": "#/$defs/ChartBand"
+          },
+          "maxItems": 6,
+          "title": "Bands",
+          "type": "array"
+        },
+        "total": {
+          "anyOf": [
+            {
+              "maximum": 400,
+              "minimum": 2,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "unit: how many squares.",
+          "title": "Total"
+        },
+        "filled": {
+          "anyOf": [
+            {
+              "maximum": 400,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "unit: how many are highlighted (default all).",
+          "title": "Filled"
+        },
+        "outlet": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "news: the outlet, e.g. 'Katadata'.",
+          "title": "Outlet"
+        },
+        "date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "news: the date as shown, e.g. 'Jumat, 16 Okt 2026'.",
+          "title": "Date"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "screenshot: the page to capture (http/https).",
+          "title": "Url"
+        },
+        "wayback": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "screenshot: capture the Wayback Machine copy from this date (YYYY or YYYYMMDD), for pages as they looked back then.",
+          "title": "Wayback"
+        },
+        "selector": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "screenshot: CSS selector of the part to capture (unset = the top of the page).",
+          "title": "Selector"
+        },
+        "stat": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "person: a short stat under the name, e.g. '+499,50%'.",
+          "title": "Stat"
         },
         "bars": {
           "description": "bar: 2-4 bars, left to right.",

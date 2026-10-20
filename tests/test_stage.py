@@ -92,7 +92,10 @@ def test_compositions_by_count_and_kind():
     lab = {"at": "a", "kind": "label", "text": "x"}
     comp = lambda *els: stage_mod.composition(Visual(**stage(*els)).elements, list(range(len(els))))  # noqa: E731
     assert comp(cut) == "hero" and comp(cut, lab) == "hero_tag" and comp(cut, cut) == "pair"
-    assert comp(cut, lab, lab) == "hero_two" and comp(lab, cut, lab) == "trio"
+    assert comp(cut, lab, lab) == "hero_two" and comp(lab, cut, lab) == "hero_two" and comp(cut, cut, lab) == "trio"
+    late = stage_mod.layout("s1", Visual(**stage(lab, cut)).elements, {1: {"w": 800, "h": 800, "render": "cutout"}},
+                            (450, 1270))
+    assert late[1]["size"] == "l" and late[0]["size"] == "s"            # the photo is the hero, even second
     assert comp(*[lab] * 4) == "grid4" and comp(*[lab] * 6) == "scatter6"
     v = Visual(**stage(cut, lab))
     boxes = stage_mod.layout("s1", v.elements, {0: {"w": 800, "h": 800, "render": "cutout"}}, (450, 1270))

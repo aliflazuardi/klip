@@ -8,6 +8,15 @@ All notable changes to Klip are listed here. The format follows
 
 ### Added
 
+- Real-world stage elements: `chart` (a line chart that draws on, from a Yahoo Finance `ticker`,
+  a `csv` or inline `points`, with shaded `bands`), `unit` (a waffle of squares), `person` (a real
+  person's card from Wikipedia via `who`), `logo` (an organisation's logo via Wikidata), `news`
+  (a headline card) and `screenshot` (a web page, or its Wayback Machine copy, captured with the
+  headless Chrome HyperFrames already installs). `cutout` / `photo` also take `who`.
+- Wikimedia source: images come with their licence and author in `credits.json` / `post.txt`;
+  non-free photos are never used, non-free logos only with `wikimedia.allow_nonfree_logos`.
+- Hero compositions pick the one big prop as the hero, whatever its position in the list.
+
 - Clean stage sets: `grid` (dot-grid paper, now the default), `studio` (a wall over a light desk)
   and `spotlight` (a dark desk under a light). Title, tag and shadow colours follow each set's `tone`.
 - Stage `stamp` element: a rubber-stamp verdict ("BERHASIL", "PALSU") that thumps down with a hit.

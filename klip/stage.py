@@ -8,6 +8,7 @@ cut-out and photo files.
 from __future__ import annotations
 
 import hashlib
+import re
 from urllib.parse import quote
 
 from markupsafe import Markup
@@ -24,8 +25,16 @@ def cfg(key: str):
     return config.get(f"stage.{key}")
 
 
+MEDIA_KINDS = ("cutout", "photo", "person", "logo")      # an image from stock, Wikipedia or a file
+
+
 def is_media(e: StageElement) -> bool:
-    return e.kind in ("cutout", "photo")
+    return e.kind in MEDIA_KINDS
+
+
+def needs_row(e: StageElement) -> bool:
+    """Elements that need something from the assets stage (a file or chart data)."""
+    return is_media(e) or e.kind == "screenshot" or (e.kind == "chart" and not e.points)
 
 
 def background_key(v: Visual) -> str:
@@ -118,13 +127,14 @@ def pages(elements: list[StageElement]) -> list[list[int]]:
 
 def tilt(scene_id: str, i: int, kind: str) -> float:
     h = int(hashlib.sha256(f"{scene_id}:{i}".encode()).hexdigest()[:8], 16) / 0xFFFFFFFF
-    damp = {"number": 0.5, "label": 0.6, "bar": 0.3, "highlight": 0.0, "stamp": 0.0}.get(kind, 1.0)
+    damp = {"number": 0.5, "label": 0.6, "bar": 0.3, "highlight": 0.0, "stamp": 0.0, "chart": 0.0, "unit": 0.0,
+            "news": 0.3, "screenshot": 0.2, "person": 0.5, "logo": 0.4}.get(kind, 1.0)
     if kind == "stamp":
         return -7.0 if h < 0.5 else 6.0
     return round((h * 2 - 1) * float(cfg("tilt_deg")) * damp, 2)
 
 
-BIG = ("cutout", "photo", "bar")          # kinds that can carry a composition as its hero
+BIG = ("cutout", "photo", "bar", "chart", "unit", "person", "news", "logo", "screenshot")   # can be a hero
 
 
 def composition(elements: list[StageElement], placed: list[int]) -> str:
@@ -133,10 +143,11 @@ def composition(elements: list[StageElement], placed: list[int]) -> str:
     n = len(kinds)
     if n <= 1:
         return "hero"
+    big = sum(k in BIG for k in kinds)
     if n == 2:
-        return "hero_tag" if kinds[0] in BIG and kinds[1] not in BIG else "pair"
+        return "hero_tag" if big == 1 else "pair"
     if n == 3:
-        return "hero_two" if kinds[0] in BIG and not any(k in BIG for k in kinds[1:]) else "trio"
+        return "hero_two" if big == 1 else "trio"
     return "grid4" if n == 4 else "scatter5" if n == 5 else "scatter6"
 
 
@@ -145,6 +156,7 @@ def assign_places(elements: list[StageElement], page: list[int]) -> dict[int, tu
     page's composition, in order. A `pos` takes the composition place nearest to it out of the pool."""
     placed = [i for i in page if elements[i].kind != "highlight"]
     places = [tuple(p) for p in cfg("compositions")[composition(elements, placed)]]
+    placed.sort(key=lambda i: elements[i].kind not in BIG)      # the one big prop takes the hero place
     cols, rows = cfg("columns"), cfg("rows")
     out: dict[int, tuple[float, float, str, str]] = {}
     for i in placed:
@@ -168,6 +180,26 @@ def _slot(x: float, y: float) -> str:
 def box_size(e: StageElement, size: str, media: dict | None) -> tuple[float, float]:
     """(w, h) of an element's box in px."""
     bw, bh = cfg("sizes")[size]
+    if e.kind == "chart":
+        return bw, bw * float(cfg("chart.aspect"))
+    if e.kind == "unit":
+        d = min(bw, bh)
+        return d, d * 0.86 + (60 if e.text else 0)
+    if e.kind == "person":                      # portrait cards run taller than the size box
+        a, h = float(cfg("person.aspect")), bh * float(cfg("person.grow"))
+        return min(bw, h / a), min(bw, h / a) * a
+    if e.kind == "news":
+        return bw, bw * float(cfg("news.aspect"))
+    if e.kind == "logo":
+        iw, ih = (media or {}).get("w") or 2, (media or {}).get("h") or 1
+        s = min(bw * 0.8 / iw, bh * 0.45 / ih)
+        pad = bw * 0.8 * float(cfg("logo.pad"))
+        return iw * s + 2 * pad, ih * s + 2 * pad
+    if e.kind == "screenshot":
+        iw, ih = (media or {}).get("w") or 1, (media or {}).get("h") or 1
+        bar = float(cfg("screenshot.bar_px"))
+        s = min(bw / iw, (bh - bar) / ih)
+        return iw * s, ih * s + bar
     if e.kind in ("cutout", "photo"):
         iw, ih = (media or {}).get("w") or 1, (media or {}).get("h") or 1
         fl, ft, fr, fb = PHOTO_FRAME if media and media.get("render") == "photo" else (0, 0, 0, 0)
@@ -220,3 +252,86 @@ def layout(scene_id: str, elements: list[StageElement], media: dict[int, dict],
                 pad = float(cfg("highlight.pad"))
                 out[i] = {**tb, "w": tb["w"] + 2 * pad, "h": tb["h"] + 2 * pad, "size": tb["size"], "slot": tb["slot"]}
     return {i: {k: round(v, 1) if isinstance(v, float) else v for k, v in b.items()} for i, b in out.items()}
+
+
+# ---- real-data elements
+
+MONTHS_ID = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
+_ISO = re.compile(r"^(\d{4})-(\d{2})-(\d{2})")
+
+
+def x_label(x: str, span_days: float | None) -> str:
+    """'2024-10-16' → '2024' over long spans, '16 Okt' over short ones; other labels as they are."""
+    m = _ISO.match(x)
+    if not m:
+        return x
+    y, mo, d = (int(g) for g in m.groups())
+    return str(y) if span_days is None or span_days > 400 else f"{d} {MONTHS_ID[mo - 1]}"
+
+
+def _span_days(a: str, b: str) -> float | None:
+    from datetime import date
+    ma, mb = _ISO.match(a), _ISO.match(b)
+    if not (ma and mb):
+        return None
+    return abs((date(*map(int, mb.groups())) - date(*map(int, ma.groups()))).days)
+
+
+def fmt_value(v: float, ref: float) -> str:
+    """Indonesian number format, decimals only for small values (5.134 / 12,5 / 0,85)."""
+    from klip.stages.compose import format_number
+    return format_number(v, 0 if abs(ref) >= 100 else 1 if abs(ref) >= 10 else 2)
+
+
+def chart_geometry(points: list, bands: list, w: float, h: float, tone: str, has_title: bool) -> dict:
+    """SVG geometry for a line chart in a w×h px card: line/area paths, the line's length (for the
+    draw-on), shaded bands, axis labels and the last value."""
+    xs = [str(p[0]) for p in points]
+    ys = [float(p[1]) for p in points]
+    pad_l, pad_r = w * 0.05, w * 0.05
+    top = h * (0.2 if has_title else 0.1)
+    bottom = h - h * 0.17
+    lo, hi = min(ys), max(ys)
+    rng = (hi - lo) or abs(hi) or 1.0
+    lo, hi = lo - rng * 0.08, hi + rng * 0.12
+    n = len(ys)
+
+    def px(i: int) -> float:
+        return pad_l + (w - pad_l - pad_r) * i / (n - 1)
+
+    def py(v: float) -> float:
+        return bottom - (bottom - top) * (v - lo) / (hi - lo)
+
+    pts = [(round(px(i), 1), round(py(v), 1)) for i, v in enumerate(ys)]
+    line = "M" + " L".join(f"{x},{y}" for x, y in pts)
+    area = f"{line} L{pts[-1][0]},{bottom} L{pts[0][0]},{bottom} Z"
+    length = sum(((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5 for (x1, y1), (x2, y2) in zip(pts, pts[1:]))
+    if tone == "neutral":
+        tone = "up" if ys[-1] > ys[0] else "down" if ys[-1] < ys[0] else "neutral"
+    out_bands = []
+    for k, b in enumerate(bands):
+        idx = [i for i, x in enumerate(xs) if b["start"] <= x <= b["end"]]
+        if not idx:
+            continue
+        x0 = px(idx[0]) if idx[0] > 0 else pad_l
+        x1 = px(min(idx[-1] + 1, n - 1))           # a band runs until the next point
+        out_bands.append({"x": round(x0, 1), "w": round(max(x1 - x0, 2), 1), "label": b.get("label"), "k": k})
+    span = _span_days(xs[0], xs[-1])
+    return {"line": line, "area": area, "len": round(length + 2, 1), "top": round(top, 1), "bottom": round(bottom, 1),
+            "tone": tone, "bands": out_bands, "x0": x_label(xs[0], span), "x1": x_label(xs[-1], span),
+            "last": {"x": pts[-1][0], "y": pts[-1][1], "text": fmt_value(ys[-1], max(abs(v) for v in ys))},
+            "first_text": fmt_value(ys[0], max(abs(v) for v in ys))}
+
+
+def unit_grid(total: int, filled: int, w: float, h: float) -> dict:
+    """Square size and columns for a waffle of `total` squares in a w×h px box."""
+    import math
+    best = None
+    for cols in range(1, total + 1):
+        rows = math.ceil(total / cols)
+        cell = min(w / cols, h / rows)
+        if not best or cell > best[0]:
+            best = (cell, cols, rows)
+    cell, cols, rows = best
+    return {"cell": round(cell, 2), "cols": cols, "rows": rows, "total": total, "filled": filled,
+            "gw": round(cell * cols, 1), "gh": round(cell * rows, 1)}

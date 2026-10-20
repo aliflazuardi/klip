@@ -82,10 +82,26 @@ def _lint_stage(spec: Spec, s: Scene, tokens: list[str], err, warn) -> None:
             warn(s.id, f"number {e.text!r} is long; keep it ≤ 9 characters (e.g. 'Rp12rb', '-7%')")
         if e.kind == "bar" and any(len(b.label) > 9 for b in e.bars):
             warn(s.id, "bar labels over 9 characters won't fit under the bars")
-        if e.path and e.kind in ("cutout", "photo"):
+        if e.path and e.kind in ("cutout", "photo", "person", "logo"):
             from klip.paths import ROOT
             if not (ROOT / e.path).exists():
                 err(s.id, f"stage element path not found: {e.path}")
+        if e.csv:
+            from klip.paths import ROOT
+            if not (ROOT / e.csv).is_file():
+                err(s.id, f"chart csv not found: {e.csv}")
+        if e.kind == "person" and e.query and not (e.who or e.path):
+            warn(s.id, f"person {e.query!r} has only a stock `query`: that's a stranger, not the real person; "
+                       f"set `who` to their Wikipedia article title")
+        if e.kind == "news":
+            if not e.outlet:
+                warn(s.id, f"news card {e.text[:40]!r}…: set `outlet` (and `date`) so it reads as a real headline")
+            if len(e.text.split()) > 14:
+                warn(s.id, "news headline over 14 words won't fit the card; shorten it")
+        if e.kind == "unit" and e.total > 200:
+            warn(s.id, f"unit with {e.total} squares: they get tiny; scale it ('1 kotak = 1.000 …')")
+        if e.kind == "person" and e.stat and len(e.stat) > 9:
+            warn(s.id, f"person stat {e.stat!r} is long; keep it ≤ 9 characters")
     bg = s.visual.background
     if bg and bg not in (config.get("stage.backgrounds") or {}):
         from klip.paths import ROOT

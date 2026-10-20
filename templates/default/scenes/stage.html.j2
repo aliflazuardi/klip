@@ -8,10 +8,28 @@
       {% elif e.kind == "icon" %}<div class="st-disc">{{ e.svg | safe }}</div>
       {% elif e.kind == "label" %}<div class="st-tag" style="font-size: {{ e.font }}px;">{{ e.text }}</div>
       {% elif e.kind == "number" %}<div class="st-num" style="font-size: {{ e.font }}px; color: {{ e.color }};">{{ e.text }}</div>
-      {% elif e.kind == "bar" %}{% set plot = e.h - 136 %}<div class="st-chart">{% for b in e.bars %}<div class="st-barcol"><div class="st-bartext">{{ b.text or "" }}</div><div class="st-bar" style="height: {{ (plot * b.pct / 100) | round(1) }}px; background: {{ b.color }};"></div><div class="st-barlabel">{{ b.label }}</div></div>{% endfor %}</div>
+      {% elif e.kind == "bar" %}{% set plot = e.h - 136 %}<div class="st-barcard">{% for b in e.bars %}<div class="st-barcol"><div class="st-bartext">{{ b.text or "" }}</div><div class="st-bar" style="height: {{ (plot * b.pct / 100) | round(1) }}px; background: {{ b.color }};"></div><div class="st-barlabel">{{ b.label }}</div></div>{% endfor %}</div>
       {% elif e.kind == "stack" %}{% for k in range(e.n) %}<div class="st-coin" style="width: {{ e.d }}px; height: {{ e.d }}px; margin-left: -{{ e.d / 2 }}px; bottom: {{ (k * e.d * 0.42) | round(1) }}px;">{{ e.svg | safe }}</div>{% endfor %}
       {% elif e.kind == "stamp" %}<div class="st-stamp" style="width: 100%; height: 100%;"><div class="st-stamp-in" style="font-size: {{ e.font }}px; color: {{ e.color }};">{{ e.text }}</div></div>
       {% elif e.kind == "highlight" %}<div class="st-hl"></div>
+      {% elif e.kind == "chart" %}{% set g = e.chart %}<div class="st-lc" style="font-size: {{ e.fs }}px;">
+        <svg width="{{ e.w }}" height="{{ e.h }}" viewBox="0 0 {{ e.w }} {{ e.h }}">
+          {% for bd in g.bands %}<g class="lc-band"><rect x="{{ bd.x }}" y="{{ g.top }}" width="{{ bd.w }}" height="{{ (g.bottom - g.top) | round(1) }}" fill="{{ stage.cfg.chart.bands[bd.k % 2] }}" />{% if bd.label %}<text x="{{ (bd.x + bd.w / 2) | round(1) }}" y="{{ (g.top + e.fs * 1.1) | round(1) }}" text-anchor="middle" class="lc-bl">{{ bd.label }}</text>{% endif %}</g>{% endfor %}
+          {% for k in range(4) %}<line x1="0" x2="{{ e.w }}" y1="{{ (g.top + (g.bottom - g.top) * k / 3) | round(1) }}" y2="{{ (g.top + (g.bottom - g.top) * k / 3) | round(1) }}" stroke="{{ stage.cfg.chart.grid }}" stroke-width="2" />{% endfor %}
+          <path class="lc-area" d="{{ g.area }}" fill="{{ stage.cfg.chart.line[g.tone] }}" fill-opacity=".10" />
+          <path class="lc-line" d="{{ g.line }}" fill="none" stroke="{{ stage.cfg.chart.line[g.tone] }}" stroke-width="{{ stage.cfg.chart.line_px }}" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="{{ g.len }}" stroke-dashoffset="{{ g.len }}" />
+          <circle class="lc-dot" cx="{{ g.last.x }}" cy="{{ g.last.y }}" r="{{ (stage.cfg.chart.line_px * 1.8) | round(1) }}" fill="{{ stage.cfg.chart.line[g.tone] }}" stroke="#fff" stroke-width="4" />
+          <text x="{{ (e.w * 0.05) | round(1) }}" y="{{ (e.h - e.fs * 0.35) | round(1) }}" class="lc-ax">{{ g.x0 }}</text>
+          <text x="{{ (e.w * 0.95) | round(1) }}" y="{{ (e.h - e.fs * 0.35) | round(1) }}" class="lc-ax" text-anchor="end">{{ g.x1 }}</text>
+        </svg>
+        {% if e.text %}<div class="lc-title">{{ e.text }}</div>{% endif %}
+        <div class="lc-last" style="left: {{ g.last.x }}px; top: {{ g.last.y }}px; background: {{ stage.cfg.chart.line[g.tone] }};">{{ g.last.text }}</div>
+      </div>
+      {% elif e.kind == "unit" %}{% set u = e.unit %}<div class="un-box"><div class="un-grid" style="width: {{ u.gw }}px; grid-template-columns: repeat({{ u.cols }}, {{ u.cell }}px); grid-auto-rows: {{ u.cell }}px;">{% for k in range(u.total) %}<i class="{{ 'on' if k < u.filled else 'off' }}" style="margin: {{ (u.cell * stage.cfg.unit.gap / 2) | round(2) }}px;"></i>{% endfor %}</div>{% if e.text %}<div class="un-legend" style="font-size: {{ e.fs }}px;">{{ e.text }}</div>{% endif %}</div>
+      {% elif e.kind == "person" %}<div class="ps-card" style="font-size: {{ e.fs }}px;"><div class="ps-photo"><img src="{{ e.src }}" alt="" /></div><div class="ps-name">{{ e.name }}</div>{% if e.text %}<div class="ps-line">{{ e.text }}</div>{% endif %}{% if e.stat %}<div class="ps-stat" style="color: {{ e.stat_color }};">{{ e.stat }}</div>{% endif %}</div>
+      {% elif e.kind == "news" %}<div class="nw-card" style="font-size: {{ e.fs }}px;"><div class="nw-top"><b>{{ e.outlet or "" }}</b><span>{{ e.date or "" }}</span></div><div class="nw-head">{{ e.text }}</div></div>
+      {% elif e.kind == "logo" %}<div class="lg-card"><img src="{{ e.src }}" alt="" /></div>
+      {% elif e.kind == "screenshot" %}<div class="st-shot"><div class="sh-bar"><i></i><i></i><i></i><span>{{ e.host }}</span></div><img src="{{ e.src }}" alt="" /></div>
       {% endif %}
       {% if e.label_font %}<div class="st-subrow" style="font-size: {{ e.label_font }}px;"><div class="st-tag">{{ e.label }}</div></div>{% endif %}
       </div>

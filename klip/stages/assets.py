@@ -19,8 +19,9 @@ import shutil
 import time
 from pathlib import Path
 
-from klip import config, cutout, ffmpeg, http, shots
+from klip import chartdata, config, cutout, ffmpeg, http, screenshot, shots
 from klip import stage as stage_mod
+from klip.engines.media import wikimedia
 from klip.engines.media.base import Candidate, Kind, MediaProvider, TARGET_H, TARGET_W, relevance, score
 from klip.engines.media.local import LocalLibrary, candidate_for_file
 from klip.engines.media.openverse import Openverse
@@ -239,7 +240,7 @@ def stage_pools(scene: Scene, used: set[str], providers: list[MediaProvider], wa
     gated on the plain query: the suffix word alone must never let a photo in."""
     plans = {}
     for i, e in enumerate(scene.visual.elements):
-        if stage_mod.is_media(e) and not e.path:
+        if stage_mod.is_media(e) and e.query and not (e.path or e.who):
             plans[prop_key(scene.id, i)] = [(q, *found) for q in stage_queries(e) if (
                 found := _pool(scene, q, "photo", 3.0, used, providers, warnings, extra, gate=e.query))]
     return plans
@@ -346,18 +347,60 @@ def _local_path(scene: Scene, path: str | None = None) -> Path:
     return p
 
 
+def _stage_source(scene: Scene, i: int, e, used: set[str], warnings: list[str]) -> dict | None:
+    """A row for an element that isn't a stock search: Wikipedia (`who`), a screenshot or chart data.
+    None (with a warning) when it can't be had; the element is then left out."""
+    try:
+        if e.kind == "chart":
+            d = chartdata.series(e)
+            return {"el": i, "data": d["points"], "credit": d["credit"]}
+        if e.kind == "screenshot":
+            path = screenshot.capture(e.url, e.wayback, e.selector)
+            return {"el": i, "src": str(path), "credit": screenshot.credit(e.url, e.wayback), "query": None}
+        c = wikimedia.lookup(e.who, logo=e.kind == "logo")
+    except (chartdata.DataError, screenshot.ScreenshotError, http.HTTPError) as err:
+        warnings.append(f"{scene.id}: stage element at {e.at!r}: {err}; it is left out")
+        return None
+    if not c:
+        warnings.append(f"{scene.id}: no Wikipedia {'logo' if e.kind == 'logo' else 'image'} for {e.who!r} "
+                        f"(check the article title); it is left out")
+        return None
+    if c.nonfree and not (e.kind == "logo" and config.get("wikimedia.allow_nonfree_logos")):
+        warnings.append(f"{scene.id}: the Wikipedia image for {e.who!r} is non-free ({c.license}); it is left out")
+        return None
+    if c.key in used:
+        warnings.append(f"{scene.id}: the image for {e.who!r} is already used in this video; it is left out")
+        return None
+    try:
+        path = wikimedia.fetch(c)
+    except http.HTTPError as err:
+        warnings.append(f"{scene.id}: {e.who!r}: {err}; it is left out")
+        return None
+    used.add(c.key)
+    if c.nonfree:
+        warnings.append(f"{scene.id}: the {e.who!r} logo is non-free on Wikipedia (fair use): fine for commentary, "
+                        f"credited in post.txt")
+    log.info("assets: %s el %d ← wikimedia %s", scene.id, i, c.id)
+    return {"el": i, "src": str(path), "credit": c.credit(), "query": None}
+
+
 def fetch_stage(scene: Scene, used: set[str], providers: list[MediaProvider], warnings: list[str],
                 plans: dict[str, list[Pool]] | None = None) -> list[dict]:
-    """One photo per cutout/photo element of a stage scene (never one already used in the video).
-    With `plans` (from the vision check, by prop_key) the best approved candidate is taken;
+    """One row per stage element that needs a file or data: stock photos for cutout/photo/person
+    (never one already used in the video), Wikipedia images for `who`, screenshots and chart data.
+    With `plans` (from the vision check, by prop_key) the best approved stock candidate is taken;
     otherwise the first tag-relevant result of stage_queries()."""
     rows = []
     for i, e in enumerate(scene.visual.elements):
-        if not stage_mod.is_media(e):
+        if not stage_mod.needs_row(e):
             continue
         if e.path:
             c = candidate_for_file(_local_path(scene, e.path))
             rows.append({"el": i, "src": c.local_path, "credit": c.credit(), "query": None})
+            continue
+        if e.who or e.kind in ("chart", "screenshot"):
+            if row := _stage_source(scene, i, e, used, warnings):
+                rows.append(row)
             continue
         got = None
         if plans is not None and (key := prop_key(scene.id, i)) in plans:
@@ -456,7 +499,8 @@ def fetch(spec: Spec, project_dir: Path, providers: list[MediaProvider] | None =
     result = {"scenes": scenes, "warnings": warnings, "http": vars(http.stats).copy(), "vision": vision_report}
     (project_dir / "assets.fetch.json").write_text(json.dumps(result, indent=2, ensure_ascii=False))
     credits = [{"scene": sid, **clip["credit"]} for sid, sc in scenes.items()
-               for clip in [*sc.get("clips", []), *sc.get("stage", [])] if clip["credit"]["provider"] != "local"]
+               for clip in [*sc.get("clips", []), *sc.get("stage", [])]
+               if clip.get("credit") and clip["credit"]["provider"] != "local"]
     (project_dir / "credits.json").write_text(json.dumps(credits, indent=2, ensure_ascii=False))
     for w in warnings:
         log.warning(w)
@@ -539,12 +583,18 @@ def plan_shots(scene_visual: Visual, t: dict, words: list[dict], clips: list[dic
 
 def prepare_stage(sid: str, visual: Visual, rows: list[dict], media_dir: Path, project_dir: Path,
                   warnings: list[str]) -> list[dict]:
-    """Cut-outs (background removed, white outline) and photo cards for a stage scene's elements.
-    A cut-out whose subject can't be lifted becomes a photo card."""
+    """Files for a stage scene's elements: cut-outs (background removed, white outline), photo cards
+    (also person portraits), logos and screenshots (alpha kept, resized). A cut-out whose subject
+    can't be lifted becomes a photo card. Chart rows pass their data through."""
     from PIL import Image
     out = []
     for r in rows:
         e = visual.elements[r["el"]]
+        cr = r.get("credit") or {}
+        if "data" in r:
+            out.append({"el": r["el"], "render": "chart", "data": r["data"],      # a csv is your own data
+                        "source": f"{cr['provider']}:{cr['id']}" if cr else f"local:{e.csv}"})
+            continue
         src = Path(r["src"])
         render, file = "photo", None
         if e.kind == "cutout":
@@ -552,14 +602,17 @@ def prepare_stage(sid: str, visual: Visual, rows: list[dict], media_dir: Path, p
             if file:
                 render = "cutout"
             else:
-                warnings.append(f"{sid}: couldn't cut out {e.query or e.path!r} ({why}); shown as a photo card")
+                warnings.append(f"{sid}: couldn't cut out {e.query or e.who or e.path!r} ({why}); shown as a photo card")
+        elif e.kind in ("logo", "screenshot"):
+            file, render = cutout.fit(src, int(config.get(f"stage.{e.kind}.max_px"))), e.kind
+        elif e.kind == "person":
+            render = "person"
         if not file:
             file = cutout.card(src)
         dst = media_dir / f"{sid}_el{r['el']}{file.suffix}"
         shutil.copyfile(file, dst)
         with Image.open(dst) as im:
             w, h = im.size
-        cr = r["credit"]
         out.append({"el": r["el"], "render": render, "file": str(dst.relative_to(project_dir)), "w": w, "h": h,
                     "source": f"{cr['provider']}:{cr.get('id') or r['src']}"})
     return out

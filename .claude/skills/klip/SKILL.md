@@ -109,7 +109,27 @@ re-render; unchanged stages are cached. Tell the user about any check you couldn
     "-11%", "Rp18rb"; `tone` up/down colours it), `bar` (2–4 `bars` `{label, value, text}`),
     `stack` (`name` × `count`, e.g. coins piling up), `highlight` (yellow box around element
     number `target`), `stamp` (`text`, 1–2 words, a rubber-stamp verdict like "BERHASIL" or
-    "PALSU"; `tone` up/down colours it). `cutout`/`photo`/`icon` take a short `label` tag.
+    "PALSU"; `tone` up/down colours it). `cutout`/`photo`/`icon`/`logo`/`screenshot` take a short
+    `label` tag.
+    **Real things beat stock** (90secondslab uses real people, logos, pages and data):
+    - `person`: a real person's card: `who` = their Wikipedia article title ("Joko Widodo",
+      "Sri Mulyani Indrawati"), `text` = one small line ("2014–2024"), optional `stat` ("+53,95%")
+      with `tone`. The photo is the article's lead image, with its licence in the credits. Only
+      public figures, in an editorial context; never pair a face with a claim the facts don't
+      support. `cutout`/`photo` also take `who` (a cut-out of the real person).
+    - `logo`: an organisation's logo on a sign: `who` = its Wikipedia title ("SoftBank Group",
+      "Bank Indonesia"). If Wikipedia has no logo the prop is left out (use `path` then).
+    - `chart`: a line chart that draws on, from real data: `ticker` (Yahoo Finance: "^JKSE" IHSG,
+      "BBCA.JK", "IDR=X" USD/IDR, "BTC-USD") with `start` (and `end`), or `csv` (your file), or
+      inline `points` [{x, y}]. `text` = title ("IHSG"); `bands` [{start, end, label}] shade eras
+      (terms of office, crises). Line colour follows the trend unless `tone` is set. Cite the data
+      source in `facts`.
+    - `unit`: `total` squares with `filled` of them highlighted and a legend `text`
+      ("1 kotak = 1.000 alat"): for counts and shares people can't picture. Keep total ≤ 200.
+    - `news`: a headline card: `outlet`, `date`, `text` (the headline, ≤ 14 words). Only real
+      headlines, quoted as published, with the article in `facts`.
+    - `screenshot`: a web page in a browser window: `url`, optional `wayback` (YYYY or YYYYMMDD:
+      the Wayback Machine copy, for "remember Kaskus in 2010?") and `selector` (capture one part).
     Rules: one element per narration subject, every ~1–2 s; `at` words in narration order.
     **Fewer, bigger props read better:** the layout is automatic and composes by count: one
     prop is a big centred hero; a photo/chart + a tag or number becomes hero + tag; three with

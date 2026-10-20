@@ -155,11 +155,12 @@ def _stage_ctx(scene: Scene, t: dict, words: list[dict], media: dict, style: dic
     rows = {r["el"]: r for r in (media.get("stage") or [])}
     els = v.elements
     # elements whose photo couldn't be found are left out (and highlights pointing at them)
-    missing = {i for i, e in enumerate(els) if stage_mod.is_media(e) and i not in rows}
+    missing = {i for i, e in enumerate(els) if stage_mod.needs_row(e) and i not in rows}
     missing |= {i for i, e in enumerate(els) if e.kind == "highlight" and e.target - 1 in missing}
     for i in sorted(missing):
-        if stage_mod.is_media(els[i]):
-            warnings.append(f"{scene.id}: no image for stage element at {els[i].at!r}; left out")
+        if stage_mod.needs_row(els[i]):
+            warnings.append(f"{scene.id}: no {'data' if els[i].kind == 'chart' else 'image'} for stage element "
+                            f"at {els[i].at!r}; left out")
     times = stage_mod.entry_times(els, words, t["start_ms"], t["duration_ms"], warnings, scene.id)
     area = (stage_title_bottom(scene) + 24, caption_style(style, True)["top"] - 10)
     boxes = stage_mod.layout(scene.id, els, rows, area)
@@ -177,9 +178,25 @@ def _stage_ctx(scene: Scene, t: dict, words: list[dict], media: dict, style: dic
         b = boxes[i]
         el = {"id": f"st-{scene.id}-{i}", "i": i, "kind": e.kind, "start": times[i], "exit": exits.get(i),
               "col": b["slot"][1], **b, "label": e.label, "label_font": None, "text": e.text, "page": next(k for k, pg in enumerate(pgs) if i in pg)}
-        if stage_mod.is_media(e):
+        if e.kind == "chart":
+            pts = rows[i]["data"] if i in rows else [[p.x, p.y] for p in e.points]
+            el["chart"] = stage_mod.chart_geometry(pts, [bd.model_dump() for bd in e.bands], b["w"], b["h"],
+                                                   e.tone, bool(e.text))
+            el["fs"] = round(b["w"] * 0.048, 1)
+        elif e.kind == "unit":
+            legend = 60 if e.text else 0
+            el["unit"] = stage_mod.unit_grid(e.total, e.total if e.filled is None else e.filled, b["w"], b["h"] - legend)
+            el["fs"] = round(min(34.0, b["w"] * 0.055), 1)
+        elif e.kind == "news":
+            el.update(fs=round(b["w"] * 0.07, 1), outlet=e.outlet, date=e.date)
+        elif stage_mod.is_media(e) or e.kind == "screenshot":
             r = rows[i]
             el.update(kind=r["render"], src=r["file"].replace("\\", "/"))
+            if e.kind == "person":
+                el.update(kind="person", name=e.label or (e.who or "").split(" (")[0], stat=e.stat,
+                          stat_color=c["number"][e.tone], fs=round(b["w"] * 0.13, 1))
+            if e.kind == "screenshot":
+                el["host"] = (e.url or "").split("//", 1)[-1].rstrip("/")
         elif e.kind in ("icon", "stack"):
             el["svg"] = icon_svg(e.name)
             if e.kind == "stack":
@@ -197,7 +214,7 @@ def _stage_ctx(scene: Scene, t: dict, words: list[dict], media: dict, style: dic
             top = max(x.value for x in e.bars) or 1
             el["bars"] = [{"label": x.label, "text": x.text, "pct": round(100 * x.value / top, 1),
                            "color": c["bar"]["colors"][k % len(c["bar"]["colors"])]} for k, x in enumerate(e.bars)]
-        if e.label and e.kind in ("cutout", "photo", "icon"):
+        if e.label and e.kind in ("cutout", "photo", "icon", "logo", "screenshot"):
             el["label_font"] = c["label_px"]["s" if b["size"] == "s" else "m"]
         out.append(el)
     image = None
