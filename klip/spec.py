@@ -14,7 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 TemplateName = Literal["hook", "explain", "list_item", "myth_fact", "stat", "compare", "cta"]
 VisualType = Literal["stock_video", "stock_photo", "ai_image", "icon", "solid", "local", "stage"]
-StageKind = Literal["cutout", "photo", "icon", "label", "number", "bar", "stack", "highlight"]
+StageKind = Literal["cutout", "photo", "icon", "label", "number", "bar", "stack", "highlight", "stamp"]
 StagePos = Literal["tl", "tc", "tr", "ml", "mc", "mr", "bl", "bc", "br"]
 VoiceName = Literal["male", "female"]
 LookName = Literal["mixed", "stage"]
@@ -48,7 +48,7 @@ class StageBar(_Strict):
 # what each stage element kind needs (one of a tuple is enough)
 _STAGE_NEEDS = {"cutout": (("query", "path"),), "photo": (("query", "path"),), "icon": (("name",),),
                 "label": (("text",),), "number": (("text",),), "bar": (("bars",),), "stack": (("name",),),
-                "highlight": (("target",),)}
+                "highlight": (("target",),), "stamp": (("text",),)}
 
 
 class StageElement(_Strict):
@@ -58,16 +58,18 @@ class StageElement(_Strict):
     kind: StageKind = Field(description="cutout = stock photo with its background removed (a sticker); "
                                         "photo = photo card; icon = Lucide icon on a sticker disc; label = paper "
                                         "tag; number = big number; bar = bar chart; stack = a pile of `count` "
-                                        "icons; highlight = yellow box around an earlier element.")
+                                        "icons; highlight = yellow box around an earlier element; stamp = a "
+                                        "rubber stamp that thumps down (a verdict: 'BERHASIL', 'PALSU').")
     query: str | None = Field(None, description="cutout/photo: English keywords for the stock photo, naming one "
                                                 "object or person (e.g. 'tempeh block', 'businessman shrugging').")
     path: str | None = Field(None, description="cutout/photo: your own image instead of `query` (a transparent "
                                                "PNG is used as-is).")
     name: str | None = Field(None, description="icon/stack: Lucide icon name, e.g. 'coins'.")
     text: str | None = Field(None, description="label: the tag text (1-4 words); number: the number as shown, "
-                                               "e.g. '-7%' or 'Rp12.000'.")
+                                               "e.g. '-7%' or 'Rp12.000'; stamp: 1-2 words.")
     label: str | None = Field(None, description="cutout/photo/icon: a short tag stuck under the element.")
-    tone: Literal["up", "down", "neutral"] = Field("neutral", description="number: colour (up = green, down = red).")
+    tone: Literal["up", "down", "neutral"] = Field("neutral", description="number/stamp: colour (up = green, "
+                                                                          "down = red).")
     bars: list[StageBar] = Field(default_factory=list, max_length=4, description="bar: 2-4 bars, left to right.")
     count: int | None = Field(None, ge=2, le=8, description="stack: how many icons pile up (default 4).")
     target: int | None = Field(None, ge=1, description="highlight: number (1-based) of the earlier element in "
@@ -103,8 +105,10 @@ class Visual(_Strict):
     bg: Literal["solid", "gradient"] = "gradient"
     path: str | None = Field(None, description="Local clip/photo path (type=local).")
     prompt: str | None = Field(None, description="Image prompt (type=ai_image).")
-    background: str | None = Field(None, description="type=stage: 'desk', 'paper', 'kraft', 'board' (see klip.yaml "
-                                                     "stage.backgrounds) or a repo-relative image path. "
+    background: str | None = Field(None, description="type=stage: 'grid' (dot-grid paper), 'studio' (wall over a "
+                                                     "light desk), 'spotlight' (dark desk under a light), or the "
+                                                     "older 'desk', 'paper', 'kraft', 'board' (see klip.yaml "
+                                                     "stage.backgrounds), or a repo-relative image path. "
                                                      "Unset = stage.default_background.")
     elements: list[StageElement] = Field(default_factory=list, max_length=12,
                                          description="type=stage: props that build up on the background, each "

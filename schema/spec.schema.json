@@ -513,7 +513,7 @@
           "type": "string"
         },
         "kind": {
-          "description": "cutout = stock photo with its background removed (a sticker); photo = photo card; icon = Lucide icon on a sticker disc; label = paper tag; number = big number; bar = bar chart; stack = a pile of `count` icons; highlight = yellow box around an earlier element.",
+          "description": "cutout = stock photo with its background removed (a sticker); photo = photo card; icon = Lucide icon on a sticker disc; label = paper tag; number = big number; bar = bar chart; stack = a pile of `count` icons; highlight = yellow box around an earlier element; stamp = a rubber stamp that thumps down (a verdict: 'BERHASIL', 'PALSU').",
           "enum": [
             "cutout",
             "photo",
@@ -522,7 +522,8 @@
             "number",
             "bar",
             "stack",
-            "highlight"
+            "highlight",
+            "stamp"
           ],
           "title": "Kind",
           "type": "string"
@@ -576,7 +577,7 @@
             }
           ],
           "default": null,
-          "description": "label: the tag text (1-4 words); number: the number as shown, e.g. '-7%' or 'Rp12.000'.",
+          "description": "label: the tag text (1-4 words); number: the number as shown, e.g. '-7%' or 'Rp12.000'; stamp: 1-2 words.",
           "title": "Text"
         },
         "label": {
@@ -594,7 +595,7 @@
         },
         "tone": {
           "default": "neutral",
-          "description": "number: colour (up = green, down = red).",
+          "description": "number/stamp: colour (up = green, down = red).",
           "enum": [
             "up",
             "down",
@@ -865,7 +866,7 @@
             }
           ],
           "default": null,
-          "description": "type=stage: 'desk', 'paper', 'kraft', 'board' (see klip.yaml stage.backgrounds) or a repo-relative image path. Unset = stage.default_background.",
+          "description": "type=stage: 'grid' (dot-grid paper), 'studio' (wall over a light desk), 'spotlight' (dark desk under a light), or the older 'desk', 'paper', 'kraft', 'board' (see klip.yaml stage.backgrounds), or a repo-relative image path. Unset = stage.default_background.",
           "title": "Background"
         },
         "elements": {

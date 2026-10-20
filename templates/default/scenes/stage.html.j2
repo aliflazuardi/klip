@@ -10,6 +10,7 @@
       {% elif e.kind == "number" %}<div class="st-num" style="font-size: {{ e.font }}px; color: {{ e.color }};">{{ e.text }}</div>
       {% elif e.kind == "bar" %}{% set plot = e.h - 136 %}<div class="st-chart">{% for b in e.bars %}<div class="st-barcol"><div class="st-bartext">{{ b.text or "" }}</div><div class="st-bar" style="height: {{ (plot * b.pct / 100) | round(1) }}px; background: {{ b.color }};"></div><div class="st-barlabel">{{ b.label }}</div></div>{% endfor %}</div>
       {% elif e.kind == "stack" %}{% for k in range(e.n) %}<div class="st-coin" style="width: {{ e.d }}px; height: {{ e.d }}px; margin-left: -{{ e.d / 2 }}px; bottom: {{ (k * e.d * 0.42) | round(1) }}px;">{{ e.svg | safe }}</div>{% endfor %}
+      {% elif e.kind == "stamp" %}<div class="st-stamp" style="width: 100%; height: 100%;"><div class="st-stamp-in" style="font-size: {{ e.font }}px; color: {{ e.color }};">{{ e.text }}</div></div>
       {% elif e.kind == "highlight" %}<div class="st-hl"></div>
       {% endif %}
       {% if e.label_font %}<div class="st-subrow" style="font-size: {{ e.label_font }}px;"><div class="st-tag">{{ e.label }}</div></div>{% endif %}
@@ -17,5 +18,6 @@
     {% endfor %}
     </div>
     {% if st.title or st.list_no %}
-    <div class="st-title-row"><div class="st-title" style="font-size: {{ stage.cfg.title.hook_font_size if st.hook else stage.cfg.title.font_size }}px;">{% if st.list_no %}<span class="st-no">{{ st.list_no[0] }}/{{ st.list_no[1] }}</span>{% endif %}{% for h in st.title %}<span class="hw{{ ' emph' if h.emph }}">{{ h.text }}</span>{{ ' ' if not loop.last }}{% endfor %}</div></div>
+    {% set plain = stage.cfg.title.style == "plain" %}
+    <div class="st-title-row{{ ' plain' if plain }}"><div class="st-title{{ ' plain' if plain }}" style="font-size: {{ stage.cfg.title.hook_font_size if st.hook else stage.cfg.title.font_size }}px;">{% if st.list_no %}<span class="st-no">{{ st.list_no[0] }}/{{ st.list_no[1] }}</span>{% endif %}{% for h in st.title %}<span class="hw{{ ' emph' if h.emph }}">{{ h.text }}</span>{{ ' ' if not loop.last }}{% endfor %}</div></div>
     {% endif %}

@@ -6,6 +6,29 @@ All notable changes to Klip are listed here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Clean stage sets: `grid` (dot-grid paper, now the default), `studio` (a wall over a light desk)
+  and `spotlight` (a dark desk under a light). Title, tag and shadow colours follow each set's `tone`.
+- Stage `stamp` element: a rubber-stamp verdict ("BERHASIL", "PALSU") that thumps down with a hit.
+- Configurable outro (`outro` in klip.yaml styles / brand.yaml): `card` (the end card), `overlay`
+  (the previous scene keeps playing under the sign-off while a small logo + text + action chip
+  badge slides up) or `none`.
+- Caption options: `caption.highlight: underline` (an accent marker sweeps under the active word),
+  `caption.shadow`, `caption.hide_gap_ms` (no caption during pauses), and `caption.stage` to
+  restyle captions on stage scenes.
+
+### Changed
+
+- Stage layout composes by count and kind (`stage.compositions`): one big hero prop, hero + tag,
+  pair, hero + two, grid, scatter. Props are larger.
+- Stage titles are left-aligned type with a marker on emphasis words (`stage.title.style: plain`);
+  `strip` keeps the old paper strip.
+- Captions on stage scenes are phrase pages (up to 6 words), lower, without a stroke, with the
+  underline marker, and hidden during pauses.
+- The cta narration is no longer captioned by default (`outro.captions`), so the sign-off doesn't
+  appear twice.
+
 ## [0.2.1] - 2026-10-20
 
 ### Fixed

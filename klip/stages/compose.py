@@ -161,7 +161,7 @@ def _stage_ctx(scene: Scene, t: dict, words: list[dict], media: dict, style: dic
         if stage_mod.is_media(els[i]):
             warnings.append(f"{scene.id}: no image for stage element at {els[i].at!r}; left out")
     times = stage_mod.entry_times(els, words, t["start_ms"], t["duration_ms"], warnings, scene.id)
-    area = (stage_title_bottom(scene) + 24, style["caption"]["top"] - 10)
+    area = (stage_title_bottom(scene) + 24, caption_style(style, True)["top"] - 10)
     boxes = stage_mod.layout(scene.id, els, rows, area)
     exits: dict[int, float] = {}
     pgs = stage_mod.pages(els)
@@ -190,6 +190,9 @@ def _stage_ctx(scene: Scene, t: dict, words: list[dict], media: dict, style: dic
             el["color"] = c["number"][e.tone]
         elif e.kind == "label":
             el["font"] = c["label_px"][b["size"]]
+        elif e.kind == "stamp":
+            el["font"] = c["stamp_px"][b["size"]]
+            el["color"] = c["stamp"][e.tone]
         elif e.kind == "bar":
             top = max(x.value for x in e.bars) or 1
             el["bars"] = [{"label": x.label, "text": x.text, "pct": round(100 * x.value / top, 1),
@@ -204,20 +207,28 @@ def _stage_ctx(scene: Scene, t: dict, words: list[dict], media: dict, style: dic
             raise ComposeError(f"{scene.id}: stage background {bg!r} is neither a built-in "
                                f"({', '.join(config.get('stage.backgrounds'))}) nor an image file")
         image = {"src": f"stage/{path.name}", "path": str(path)}
-    return {"bg": bg, "builtin": stage_mod.is_builtin(bg), "image": image, "elements": out,
+    tone = stage_mod.tone(bg)
+    return {"bg": bg, "builtin": stage_mod.is_builtin(bg), "image": image, "elements": out, "tone": tone,
             "title": _headline(scene.on_screen_text, scene.emphasis), "list_no": list_no,
             "hook": scene.template == "hook", "continues": False, "next_same": False, "bg_from": 0.0, "bg_to": 0.0}
 
 
 def stage_title_bottom(scene: Scene) -> float:
-    """Bottom edge (px) of a stage scene's title strip, estimating how many lines the text wraps to."""
+    """Bottom edge (px) of a stage scene's title, estimating how many lines the text wraps to."""
     t = config.get("stage.title")
     font = t["hook_font_size"] if scene.template == "hook" else t["font_size"]
     text = (scene.on_screen_text or "") + (" 1/3 " if scene.template == "list_item" else "")
     if not text.strip():
         return t["top"]
-    lines = max(1, -(-len(text) * 0.56 * font // 840))     # ~0.56 em per character, 840 px of text width
-    return t["top"] + lines * font * 1.1 + 28
+    width = 900 if t["style"] == "plain" else 840
+    lines = max(1, -(-len(text) * 0.56 * font // width))    # ~0.56 em per character
+    return t["top"] + lines * font * 1.1 + (8 if t["style"] == "plain" else 28)
+
+
+def caption_style(style: dict, stage: bool) -> dict:
+    """Caption settings for a page: the style's caption, with caption.stage on top for stage scenes."""
+    cap = {k: v for k, v in style["caption"].items() if k != "stage"}
+    return {**cap, **(style["caption"].get("stage") or {})} if stage else cap
 
 
 def _link_stages(scenes: list[dict]) -> None:
@@ -270,7 +281,7 @@ def _scene_ctx(scene: Scene, idx: int, t: dict, style: dict, warnings: list[str]
     headline = _headline(scene.on_screen_text, scene.emphasis)
 
     return {
-        "id": scene.id, "idx": idx, "template": template,
+        "id": scene.id, "idx": idx, "template": template, "hidden": False,
         "start": _s(t["start_ms"]), "dur": _s(t["duration_ms"]),
         "end": _s(t["start_ms"] + t["duration_ms"]),
         "c1": c1, "c2": c2, "icon": icon, "headline": headline,
@@ -298,18 +309,26 @@ def build_context(spec: Spec, timeline: dict, words: list[dict],
     numbers = _list_numbers(spec)
     scenes = [_scene_ctx(s, i, tmap[s.id], style, warnings, media.get(s.id), by_scene.get(s.id, []), numbers)
               for i, s in enumerate(spec.scenes)]
+    outro = fold_outro(spec, scenes, style)
     _link_stages(scenes)
 
     # Caption words per scene, with emphasis flags from the spec.
     scene_words = []
     for s in spec.scenes:
+        if outro and s.id == outro["scene"] and not outro["captions"]:
+            continue                          # the outro's words are already on screen
         ws = by_scene.get(s.id, [])
         mask = emphasis_mask([w["text"].strip() for w in ws], s.emphasis)
         scene_words.append((s.id, [CaptionWord(w["text"].strip(), w["startMs"], w["endMs"], e)
                                    for w, e in zip(ws, mask)]))
-    cap = style["caption"]
+    cap = caption_style(style, False)
+    staged = {s.id for s in spec.scenes if s.visual.type == "stage"}
+    tones = {s["id"]: s["stage"]["tone"] for s in scenes if s.get("stage")}
+    per_scene = {sid: {k: caption_style(style, True)[k] for k in ("max_words", "max_page_ms", "hide_gap_ms")}
+                 for sid in staged}
     scene_ends = {s["id"]: s["start_ms"] + s["duration_ms"] for s in timeline["scenes"]}
-    pages = paginate(scene_words, cap["max_words"], cap["max_page_ms"], scene_ends=scene_ends)
+    pages = paginate(scene_words, cap["max_words"], cap["max_page_ms"], scene_ends=scene_ends,
+                     hide_gap_ms=cap.get("hide_gap_ms"), per_scene=per_scene)
 
     # The first caption page is on screen from frame 0 (no blank first beat before word one).
     if pages and pages[0].scene_id == spec.scenes[0].id:
@@ -323,22 +342,65 @@ def build_context(spec: Spec, timeline: dict, words: list[dict],
             off = p.words[wi + 1].start_ms if wi + 1 < len(p.words) else p.end_ms
             wctx.append({"id": f"p{pi}w{wi}", "text": w.text, "cls": base,
                          "on": _s(w.start_ms), "off": _s(off)})
-        page_ctx.append({"id": f"p{pi}", "start": _s(p.start_ms),
+        st = p.scene_id in staged
+        page_ctx.append({"id": f"p{pi}", "start": _s(p.start_ms), "stage": st,
+                         "light": st and tones.get(p.scene_id) == "light",
+                         "highlight": caption_style(style, st)["highlight"],
                          "dur": round(_s(p.end_ms) - _s(p.start_ms), 3), "words": wctx})
 
     total = _s(timeline["total_ms"])
     brand = branding(spec, style, scenes, total)
+    brand["outro"] = outro_badge(outro, brand, scenes)
     stage_bgs = sorted({s["stage"]["bg"] for s in scenes if s.get("stage") and s["stage"]["builtin"]})
     ctx = {
         "total": total, "style": style, "scenes": scenes, "pages": page_ctx, "brand": brand,
+        "cap": {"base": cap, "stage": caption_style(style, True)},
         "stage": {"cfg": config.get("stage"),
                   "bgs": [{"key": b, "css": stage_mod.background_css(b), "grain": stage_mod.grain_css(b)}
                           for b in stage_bgs]} if any(s.get("stage") for s in scenes) else None,
         "font_files": FONT_FILES, "slug": spec.slug, "cut_zoom": config.get("cuts.cut_zoom", 1.12),
-        "sfx": sfx_events(scenes, page_ctx, end_card=bool(brand["end_card"]), nudge=brand["save_nudge"])
+        "sfx": sfx_events(scenes, page_ctx, end_card=bool(brand["end_card"]), nudge=brand["save_nudge"],
+                          outro=brand["outro"])
                if spec.sfx else [],
     }
     return ctx, warnings
+
+
+def fold_outro(spec: Spec, scenes: list[dict], style: dict) -> dict | None:
+    """Apply the style's outro to a final cta scene. card: it stays a scene (the end card). overlay / none:
+    the scene before it keeps playing over the cta narration (its last shot is held) and the cta scene is
+    hidden; overlay adds a badge on top. Returns the outro settings, or None without a final cta."""
+    o = style["outro"]
+    last = scenes[-1] if scenes else None
+    if not last or last["template"] != "cta":
+        return None
+    out = {"mode": o["mode"], "scene": last["id"], "captions": o["captions"]}
+    if o["mode"] == "card" or len(scenes) < 2:
+        out["mode"] = "card"
+        return out
+    prev = scenes[-2]
+    prev["dur"], prev["end"] = round(last["end"] - prev["start"], 3), last["end"]
+    if prev["shots"]:
+        sh = prev["shots"][-1]
+        sh["dur"] = round(last["end"] - sh["start"], 3)
+    last["hidden"] = True
+    scene = spec.scenes[-1]
+    text = o.get("text") if o.get("text") and scene.cta_type != "comment" else scene.on_screen_text
+    out.update(start=last["start"], dur=last["dur"], chip=last["t"].get("chip") if o["chip"] else None,
+               chip_at=round(last["start"] + last["t"]["chip_at"], 3), text=_headline(text, scene.emphasis),
+               logo=o["logo"], top=o["badge_top"], font_size=o["font_size"],
+               lift=prev["id"] if prev.get("stage") else None, lift_px=o["lift_px"], shrink=o["shrink"],
+               bg=rgba(style["shade_color"], o["bg_opacity"]))
+    return out
+
+
+def outro_badge(outro: dict | None, brand: dict, scenes: list[dict]) -> dict | None:
+    """The overlay badge (None for card / none / no outro): logo from the end card, else the watermark."""
+    if not outro or outro["mode"] != "overlay":
+        return None
+    ec, wm = brand["end_card"] or {}, brand["watermark"] or {}
+    logo = (ec.get("logo") or wm.get("img")) if outro["logo"] else None
+    return {**outro, "logo": logo, "disc": ec.get("disc")}
 
 
 def _brand_file(path: str | None) -> dict | None:
@@ -354,6 +416,7 @@ def _brand_file(path: str | None) -> dict | None:
 def _spans(scenes: list[dict], total: float, show) -> list[dict]:
     """Merged time spans covering the scenes where show(scene) is true (a scene lasts until the next starts)."""
     out: list[dict] = []
+    scenes = [s for s in scenes if not s.get("hidden")]
     for i, s in enumerate(scenes):
         if not show(s):
             continue
@@ -388,7 +451,7 @@ def branding(spec: Spec, style: dict, scenes: list[dict], total: float) -> dict:
         progress = {"left": 60, "width": right - 60, "top": pb["top"], "height": pb["height"],
                     "color": pb.get("color") or style["accent_color"],
                     "track": rgba(style["text_color"], pb["track_opacity"]),
-                    "ticks": [round((right - 60) * s["start"] / total, 1) for s in scenes[1:]]
+                    "ticks": [round((right - 60) * s["start"] / total, 1) for s in scenes[1:] if not s.get("hidden")]
                              if pb.get("scene_ticks") else []}
 
     watermark = None
@@ -445,7 +508,7 @@ RISER_LEN_S = 1.0
 
 
 def sfx_events(scenes: list[dict], pages: list[dict], end_card: bool = False,
-               nudge: dict | None = None) -> list[dict]:
+               nudge: dict | None = None, outro: dict | None = None) -> list[dict]:
     """Sound-effect cues from the composed timeline: [{t, moment, sfx}], sorted by time."""
     names = config.get("sfx.events", {}) or {}
     out: list[dict] = []
@@ -455,12 +518,14 @@ def sfx_events(scenes: list[dict], pages: list[dict], end_card: bool = False,
             out.append({"t": round(max(t, 0.0), 3), "moment": moment, "sfx": names[moment]})
 
     for s in scenes:
+        if s.get("hidden"):
+            continue
         if s["idx"] == 0 and s["template"] == "hook":
             add("hook_start", 0.0)
         if s["idx"] > 0 and not (s.get("stage") and s["stage"]["continues"]):
             add("scene_cut", s["start"] - WHOOSH_PEAK_S)
         for e in (s.get("stage") or {}).get("elements", []):
-            add({"number": "stage_number", "highlight": "stage_highlight"}.get(e["kind"], "stage_pop"), e["start"])
+            add({"number": "stage_number", "highlight": "stage_highlight", "stamp": "stage_stamp"}.get(e["kind"], "stage_pop"), e["start"])
         if s["template"] == "list_item":
             add("list_badge", s["start"] + 0.05)
         elif s["template"] == "myth_fact":
@@ -476,6 +541,10 @@ def sfx_events(scenes: list[dict], pages: list[dict], end_card: bool = False,
             add("cta_ask", s["start"] + s["t"]["chip_at"])
     if nudge:
         add("save_nudge", nudge["start"])
+    if outro:
+        add("cta_icon", outro["start"])
+        if outro["chip"]:
+            add("cta_ask", outro["chip_at"])
     for p in pages:
         add("caption_page", p["start"])
     return sorted(out, key=lambda e: e["t"])
@@ -518,7 +587,8 @@ def run(spec: Spec, project_dir: Path) -> dict:
     for f in FONT_FILES.values():
         shutil.copyfile(font_src / f, out / "fonts" / f)
     b = ctx["brand"]
-    for f in [(b["watermark"] or {}).get("img"), *((b["end_card"] or {}).get(k) for k in ("logo", "wordmark"))]:
+    for f in [(b["watermark"] or {}).get("img"), *((b["end_card"] or {}).get(k) for k in ("logo", "wordmark")),
+              (b["outro"] or {}).get("logo")]:
         if f:
             (out / "brand").mkdir(exist_ok=True)
             shutil.copyfile(f["path"], out / f["src"])

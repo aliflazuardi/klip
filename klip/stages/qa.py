@@ -99,6 +99,11 @@ def check_voice(levels: dict[str, float]) -> dict:
                  f"silent scenes: {', '.join(silent)}" if silent else f"{len(levels)} scenes have voice")
 
 
+def caption_limit(cap: dict) -> int:
+    """Most words a caption page may hold (stage scenes use caption.stage.max_words)."""
+    return max(cap["max_words"], (cap.get("stage") or {}).get("max_words", 0))
+
+
 def check_captions(spec: Spec, words: list[dict], pages: list[dict], max_words: int) -> dict:
     problems = []
     by_scene: dict[str, int] = {}
@@ -175,7 +180,7 @@ def run(spec: Spec, project_dir: Path) -> dict:
         check_loudness(measure_loudness(final)),
         check_voice(scene_voice_levels(project_dir / "voice.wav", timeline)),
         check_captions(spec, load("words.json", []), load("captions.json", []),
-                       config.style(spec.style)["caption"]["max_words"]),
+                       caption_limit(config.style(spec.style)["caption"])),
         check_credits(load("assets.json"), load("credits.json", [])),
         check_footage(load("assets.json")),
     ]

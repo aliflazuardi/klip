@@ -116,57 +116,83 @@ cuts:
 # icons, labels, numbers and charts pop in on their narration words and stay. Consecutive stage
 # scenes with the same background keep it on screen (no whoosh; the props sweep off instead).
 stage:
-  default_background: desk
+  default_background: grid
   # Spec "look": "stage" (klip new --stage) asks for the stage look on most of the video: at least
   # this share of the scenes that can hold a stage (hook, explain, list_item) must use it.
   look_min_share: 0.7
-  # Built-in textures (CSS + SVG noise, no downloads). base = colour, grain = noise opacity,
-  # grain_freq = SVG feTurbulence baseFrequency ("x y"; a tiny y gives wood-like streaks),
-  # planks = px between plank seams (0 = none), vignette = edge darkening (0-1).
+  # Built-in sets (CSS + SVG noise, no downloads). base = colour, tone = light | dark surface
+  # (picks the title/tag colours), grain = noise opacity, grain_freq = SVG feTurbulence
+  # baseFrequency ("x y"; a tiny y gives wood-like streaks), vignette = edge darkening (0-1).
+  # Optional: dots = dot grid {gap px, size px, color}; floor = a wall over a desk {at: share of
+  # the height where the desk starts, color}; spot = a soft light {color, at, size} (CSS radial);
+  # planks = px between plank seams.
+  # grid / studio / spotlight are the clean sets (90secondslab-like); desk / paper / kraft / board
+  # are the original textured ones.
   backgrounds:
-    desk:  {base: "#A86F42", grain: 0.38, grain_freq: "0.012 0.32", planks: 270, vignette: 0.45}
-    paper: {base: "#F4EEE2", grain: 0.10, grain_freq: "0.9 0.9", planks: 0, vignette: 0.18}
-    kraft: {base: "#C9A273", grain: 0.20, grain_freq: "0.7 0.7", planks: 0, vignette: 0.30}
-    board: {base: "#25343A", grain: 0.16, grain_freq: "0.8 0.8", planks: 0, vignette: 0.40}
+    grid:      {base: "#F3F1EC", tone: light, grain: 0.05, grain_freq: "0.9 0.9", vignette: 0.10,
+                dots: {gap: 34, size: 2.6, color: "rgba(21,21,28,.17)"}}
+    studio:    {base: "#ECE7E0", tone: light, grain: 0.08, grain_freq: "0.02 0.5", vignette: 0.20,
+                floor: {at: 0.34, color: "#CFB290"}}
+    spotlight: {base: "#17161A", tone: dark, grain: 0.10, grain_freq: "0.8 0.8", vignette: 0.30,
+                spot: {color: "rgba(255,238,210,.26)", at: "50% 48%", size: "75% 45%"}}
+    desk:  {base: "#A86F42", tone: dark, grain: 0.38, grain_freq: "0.012 0.32", planks: 270, vignette: 0.45}
+    paper: {base: "#F4EEE2", tone: light, grain: 0.10, grain_freq: "0.9 0.9", vignette: 0.18}
+    kraft: {base: "#C9A273", tone: light, grain: 0.20, grain_freq: "0.7 0.7", vignette: 0.30}
+    board: {base: "#25343A", tone: dark, grain: 0.16, grain_freq: "0.8 0.8", vignette: 0.40}
   bg_drift_px: 40                   # the background pans this far across a run of stage scenes
   zoom: 1.04                        # the props layer slowly pushes in to this scale per scene
-  # Layout: the stage area sits between the title strip and the captions (caption.top 1180).
-  # A slot is a t/m/b row + l/c/r column (e.g. tl, mc, br). Columns are x centres on the canvas;
-  # rows are y centres as a share of the free area under the title strip, so a two-line title
-  # pushes the props down instead of crowding them against it.
-  columns: {l: 290, c: 510, r: 730}
-  rows: {t: 0.2, m: 0.5, b: 0.8}
-  # Automatic slots by how many elements share the stage (highlights don't take a slot).
-  layouts:
-    1: [mc]
-    2: [tl, br]
-    3: [tl, tr, bc]
-    4: [tl, tr, bl, br]
-    5: [tl, tr, mc, bl, br]
-    6: [tl, tc, tr, bl, bc, br]
-  # Default size by how many elements share the stage: 1 → l, 2 → m, 3+ → s.
+  # Layout: the stage area sits between the title and the stage captions (caption.stage.top).
+  # A composition is a list of [x, y, size]: x as a share of the safe width (x 60–960), y as a
+  # share of the free area under the title, so a two-line title pushes the props down.
+  # `auto` picks one by how many props share the stage and which kinds they are:
+  # 1 → hero; 2 → hero_tag (a photo/chart + a small tag, number or icon) or pair;
+  # 3 → hero_two (one big prop + two small) or trio; 4 → grid4; 5 → scatter5; 6 → scatter6.
+  compositions:
+    hero:     [[0.5, 0.5, l]]
+    hero_tag: [[0.42, 0.42, l], [0.82, 0.86, s]]
+    pair:     [[0.27, 0.5, m], [0.73, 0.5, m]]
+    hero_two: [[0.5, 0.38, l], [0.2, 0.9, s], [0.8, 0.9, s]]
+    trio:     [[0.27, 0.25, m], [0.73, 0.25, m], [0.5, 0.78, m]]
+    grid4:    [[0.27, 0.25, m], [0.73, 0.25, m], [0.27, 0.77, m], [0.73, 0.77, m]]
+    scatter5: [[0.24, 0.17, s], [0.76, 0.17, s], [0.5, 0.5, m], [0.24, 0.84, s], [0.76, 0.84, s]]
+    scatter6: [[0.22, 0.17, s], [0.78, 0.17, s], [0.22, 0.52, s], [0.78, 0.52, s], [0.24, 0.86, s], [0.76, 0.86, s]]
+  # `pos` on an element overrides its place: a t/m/b row + l/c/r column (e.g. tl, mc, br).
+  columns: {l: 290, c: 510, r: 730}  # x centres on the canvas
+  rows: {t: 0.2, m: 0.5, b: 0.8}    # y centres as a share of the free area
   sizes:
-    s: [300, 260]                   # bounding box (w, h) px for cutout/photo/bar/stack
-    m: [420, 360]
-    l: [640, 560]
-  icon_px: {s: 170, m: 220, l: 300} # icon sticker disc diameter
-  number_px: {s: 110, m: 150, l: 210}   # number font size
-  label_px: {s: 40, m: 50, l: 62}   # label font size
-  tilt_deg: 6                       # props are rotated up to ± this (deterministic per element)
+    s: [360, 300]                   # bounding box (w, h) px for cutout/photo/bar/stack
+    m: [470, 420]
+    l: [820, 640]
+  icon_px: {s: 190, m: 250, l: 340} # icon sticker disc diameter
+  number_px: {s: 130, m: 180, l: 260}   # number font size
+  label_px: {s: 44, m: 54, l: 66}  # label (tag) font size
+  stamp_px: {s: 64, m: 84, l: 110} # stamp font size
+  tilt_deg: 4                       # props are rotated up to ± this (deterministic per element)
   lead_s: 0.06                      # an element lands this long before its word
   min_gap_s: 0.25                   # entries closer than this are pushed apart
   exit_s: 0.25                      # props sweep off this long before a cleared stage / stage→stage cut
   lint_min_gap_s: 0.5               # validate warns when two anchors are closer than this
   lint_max_gap_s: 3.0               # ... and when nothing new appears for longer than this
   stack_count: 4                    # stack elements without `count`
-  title:                            # the scene's on_screen_text as a paper strip at the top
+  title:                            # the scene's on_screen_text at the top of the stage
+    style: plain                    # plain = left-aligned type with a marker on emphasis words;
+                                    # strip = the older centred white paper strip
     top: 330
-    font_size: 58
-    hook_font_size: 72
-    bg: "#FFFFFF"
-    color: "#15151C"
-    tilt_deg: -1.5
-  label: {bg: "#FFFFFF", color: "#15151C"}
+    font_size: 62
+    hook_font_size: 80
+    ink: {light: "#15151C", dark: "#F6F1E7"}   # plain text colour by the background's tone
+    marker: null                    # emphasis marker colour; null = the style's accent_color
+    bg: "#FFFFFF"                   # strip only
+    color: "#15151C"                # strip only
+    tilt_deg: -1.5                  # strip only
+  label:                            # tags: dark on light sets, light on dark sets
+    light: {bg: "#15151C", color: "#FFFFFF"}
+    dark: {bg: "#FFFFFF", color: "#15151C"}
+    uppercase: true
+  stamp: {neutral: "#15151C", up: "#1FA45B", down: "#D93A3F", border_px: 9}
+  shadow:                           # prop drop shadow by the background's tone
+    light: "0 16px 18px rgba(0,0,0,.20)"
+    dark: "0 18px 22px rgba(0,0,0,.42)"
   highlight: {color: "#FFE14D", width: 10, pad: 18}
   icon: {bg: "#FFFFFF", color: "#15151C"}
   number: {neutral: "#15151C", up: "#1FA45B", down: "#E5484D", stroke: "#FFFFFF"}   # by `tone`; white sticker outline
@@ -222,6 +248,7 @@ sfx:
     stage_pop: pop            # a stage element (cutout, icon, label, chart...) pops in
     stage_number: ding        # a stage number lands
     stage_highlight: null     # a yellow highlight box draws in
+    stage_stamp: hit          # a stamp thumps down
 
 # ── Final mix loudness ───────────────────────────────────────────────────────
 loudness:
@@ -340,6 +367,23 @@ styles:
       # Brand end card with a comment question: logo disc and wordmark shrink to make room.
       compact_disc: 300             # px (normal 460)
       compact_word: 520             # wordmark width, px (normal 700)
+    # How a final cta scene ends the video:
+    #   card    = a full end card (end_card logo/wordmark if the style has them, else icon + headline)
+    #   overlay = no card: the scene before keeps playing under the cta narration and a small badge
+    #             (logo, text, action chip) slides up over it
+    #   none    = the scene before keeps playing and nothing is added (the ask lives in post.txt)
+    outro:
+      mode: card
+      text: null                    # badge line; null = the cta scene's on_screen_text (a comment
+                                    # cta always shows its question)
+      logo: true                    # overlay: end_card.logo (else the watermark image) in the badge
+      chip: true                    # show the cta_type action chip
+      captions: false               # caption the outro narration (off: its text is already on screen)
+      badge_top: 1300               # overlay: y of the badge's top edge (above TikTok's caption area)
+      font_size: 58                 # overlay: badge text size
+      shrink: 0.85                  # overlay: a stage scene's props shrink to this (towards the
+      lift_px: 40                   # title) and move up this far, to make room for the badge
+      bg_opacity: 0.9               # overlay: shade_color behind the badge
     # "Simpan dulu biar nggak lupa" pill on list videos, shown when list item `at_item` starts
     # (first run of list_item scenes only). A spec can override with "save_nudge": true/false.
     save_nudge:
@@ -392,6 +436,24 @@ styles:
       stroke_px: 10
       max_words: 4                  # words per caption page
       max_page_ms: 1200
+      highlight: color              # active word: color = turns accent_color; underline = an accent
+                                    # marker sweeps in under it
+      shadow: null                  # CSS text-shadow, e.g. "0 0 20px rgba(0,0,0,.5)"; null = none
+      hide_gap_ms: null             # hide the caption in pauses longer than this; null = keep it up
+      # Stage scenes (visual.type stage) use these on top: phrase pages under the stage, lower and
+      # quieter (no stroke, soft shadow, marker under the active word), gone during pauses.
+      stage:
+        top: 1290
+        height: 200
+        font_size: 62
+        stroke_px: 0
+        shadow: "0 3px 0 rgba(0,0,0,.28), 0 0 20px rgba(0,0,0,.55), 0 0 6px rgba(0,0,0,.35)"
+        max_words: 6
+        max_page_ms: 2600
+        highlight: underline
+        hide_gap_ms: 450
+        # On light sets (stage.backgrounds tone: light) white text washes out: dark text instead.
+        on_light: {color: "#15151C", shadow: "0 0 14px rgba(255,255,255,.95), 0 0 4px rgba(255,255,255,.9)"}
     headline:
       font_size: 96
       font_weight: 800

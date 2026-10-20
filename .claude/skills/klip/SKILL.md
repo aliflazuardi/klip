@@ -60,7 +60,10 @@ re-render; unchanged stages are cached. Tell the user about any check you couldn
   - `cta`: always the last scene. Set `cta_type` to pick the ask (see the writing guide):
     `follow` | `save` | `comment` | `share`. It adds an action chip (icon + "Follow" / "Simpan" /
     "Komen di bawah" / "Kirim ke teman") under the headline; for `comment`, `on_screen_text` is
-    the question and becomes the headline.
+    the question and becomes the headline. How the cta looks is the style's `outro.mode`
+    (klip.yaml / brand.yaml): `card` (an end card), `overlay` (the previous scene keeps playing
+    and a small logo + text + chip badge slides up) or `none`. The cta narration isn't
+    captioned (its text is already on screen) unless `outro.captions` is on.
 - Look: `"look": "stage"` (set when the user asks for it, or `klip new --stage`) means the
   illustrated explainer look for the whole video: use `visual.type: "stage"` for at least 70%
   (klip.yaml `stage.look_min_share`) of the hook/explain/list_item scenes, keep them on one
@@ -95,22 +98,28 @@ re-render; unchanged stages are cached. Tell the user about any check you couldn
     on a timer into as many shots as it has distinct clips. (`queries` is the older, timer-cut
     form; prefer `beats`.) `max_shots: 1` keeps one continuous shot (rarely needed).
   - `stage` (illustrated explainer, 90secondslab style): no stock footage. A persistent
-    `background` (`desk`, `paper`, `kraft`, `board`, or an image path) on which `elements`
-    build up, each popping in on its `at` word and staying. Use it for scenes about money,
+    `background` on which `elements` build up, each popping in on its `at` word and staying.
+    Backgrounds: `grid` (dot-grid paper, the default and the calmest), `studio` (a wall over a
+    light desk), `spotlight` (a dark desk under a light, for tense or "investigation" beats), the
+    older textured `desk`, `paper`, `kraft`, `board`, or an image path. Use it for scenes about money,
     numbers, causes and effects, or things stock footage shows badly (local food, Indonesian
     institutions). Kinds: `cutout` (`query` = one English object/person, e.g. "soybeans",
     "stressed businessman"; background removed, sticker look), `photo` (photo card), `icon`
     (Lucide `name`), `label` (`text`, 1–4 words), `number` (`text` as shown, ≤ 9 chars, e.g.
     "-11%", "Rp18rb"; `tone` up/down colours it), `bar` (2–4 `bars` `{label, value, text}`),
     `stack` (`name` × `count`, e.g. coins piling up), `highlight` (yellow box around element
-    number `target`). `cutout`/`photo`/`icon` take a short `label` tag. Rules: one element per
-    narration subject, every ~1–2 s; `at` words in narration order; at most 6 on the stage at
-    once (`"clear": true` on an element wipes the stage first); layout is automatic (`pos`
-    tl…br only to force a slot). Works with `hook`, `explain` and `list_item` (the
-    on_screen_text becomes a paper title strip). Keep consecutive stage scenes on the same
+    number `target`), `stamp` (`text`, 1–2 words, a rubber-stamp verdict like "BERHASIL" or
+    "PALSU"; `tone` up/down colours it). `cutout`/`photo`/`icon` take a short `label` tag.
+    Rules: one element per narration subject, every ~1–2 s; `at` words in narration order.
+    **Fewer, bigger props read better:** the layout is automatic and composes by count: one
+    prop is a big centred hero; a photo/chart + a tag or number becomes hero + tag; three with
+    one photo first become hero + two small; 4–6 shrink to a grid. Aim for 1–3 props per stage
+    page and `"clear": true` to start the next page rather than piling up 6 small ones (`pos`
+    tl…br only to force a place). Works with `hook`, `explain` and `list_item` (the
+    on_screen_text becomes a left-aligned title with the `emphasis` words marked). Keep consecutive stage scenes on the same
     background: it stays on screen and only the props change. Example: narration "Rupiah
     melemah, jadi barang impor mahal: kedelai, pakan ayam, dan BBM" → `{"type": "stage",
-    "background": "desk", "elements": [{"at": "Rupiah", "kind": "stack", "name": "coins"},
+    "background": "grid", "elements": [{"at": "Rupiah", "kind": "stack", "name": "coins"},
     {"at": "impor", "kind": "number", "text": "Rp18rb", "tone": "down"}, {"at": "kedelai",
     "kind": "cutout", "query": "soybeans", "label": "Kedelai", "clear": true}, {"at": "pakan",
     "kind": "cutout", "query": "chicken"}, {"at": "BBM", "kind": "icon", "name": "fuel", "label":
