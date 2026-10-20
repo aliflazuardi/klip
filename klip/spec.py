@@ -15,7 +15,10 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 TemplateName = Literal["hook", "explain", "list_item", "myth_fact", "stat", "compare", "cta"]
 VisualType = Literal["stock_video", "stock_photo", "ai_image", "icon", "solid", "local", "stage"]
 StageKind = Literal["cutout", "photo", "icon", "label", "number", "bar", "stack", "highlight", "stamp",
-                    "chart", "unit", "person", "news", "logo", "screenshot"]
+                    "chart", "unit", "person", "news", "logo", "screenshot",
+                    "kinetic", "split", "flow", "meter", "cycle", "timeline", "funnel", "reel"]
+# Motion components: animated diagrams whose `steps` play out on their own narration words.
+COMPONENTS = ("kinetic", "split", "flow", "meter", "cycle", "timeline", "funnel", "reel")
 StagePos = Literal["tl", "tc", "tr", "ml", "mc", "mr", "bl", "bc", "br"]
 VoiceName = Literal["male", "female"]
 LookName = Literal["mixed", "stage"]
@@ -38,6 +41,25 @@ class Beat(_Strict):
     at: str = Field(min_length=1, description="Narration word (or phrase; its first word counts) where this "
                                               "shot starts: the cut lands as the voice says it.")
     query: str = Field(min_length=1, description="English keywords for this shot's stock clip.")
+
+
+class MotionStep(_Strict):
+    """One beat of a motion component (see StageElement.steps)."""
+    text: str = Field(min_length=1, description="kinetic: the phrase; split/flow/funnel: the part's name; "
+                                                "meter: a short caption for this level; cycle: the step; "
+                                                "timeline: the event; reel: an option.")
+    at: str | None = Field(None, description="Narration word where this step plays (after the element's own "
+                                             "`at`, in order). Unset = shortly after the previous step.")
+    value: float | None = Field(None, ge=0, description="split/flow/funnel: the amount (sizes the part); "
+                                                        "meter: the fill level (≤ the element's `max`).")
+    show: str | None = Field(None, description="The value as shown, e.g. 'Rp96rb', '96%', '1,2 jt'; counts up "
+                                               "when it's a number. Unset: split shows the share in %, flow/"
+                                               "funnel the plain value.")
+    label: str | None = Field(None, description="timeline: the date ('2014', 'Mar 2020'); others: a small line "
+                                                "under the step.")
+    name: str | None = Field(None, description="Lucide icon for the step (flow/cycle/timeline/funnel nodes).")
+    accent: bool = Field(False, description="Highlight this step (kinetic phrase, split/flow part, funnel "
+                                            "layer); reel: the option the reel lands on (exactly one).")
 
 
 class StageBar(_Strict):
@@ -63,7 +85,12 @@ _STAGE_NEEDS = {"cutout": (("query", "path", "who"),), "photo": (("query", "path
                 "label": (("text",),), "number": (("text",),), "bar": (("bars",),), "stack": (("name",),),
                 "highlight": (("target",),), "stamp": (("text",),), "chart": (("points", "csv", "ticker"),),
                 "unit": (("total",),), "person": (("who", "path", "query"),), "news": (("text",),),
-                "logo": (("who", "path"),), "screenshot": (("url",),)}
+                "logo": (("who", "path"),), "screenshot": (("url",),), "kinetic": (("steps",),),
+                "split": (("steps",),), "flow": (("steps",), ("text",)), "meter": (("steps",), ("max",)),
+                "cycle": (("steps",),), "timeline": (("steps",),), "funnel": (("steps",),), "reel": (("steps",),)}
+# steps each component takes (min, max) and whether every step needs a `value`
+STEP_RULES = {"kinetic": (1, 6, False), "split": (2, 5, True), "flow": (1, 4, True), "meter": (1, 5, True),
+              "cycle": (3, 6, False), "timeline": (2, 6, False), "funnel": (2, 5, True), "reel": (3, 10, False)}
 LABELLED = ("cutout", "photo", "icon", "person", "logo", "screenshot")
 MEDIA = ("cutout", "photo", "person", "logo")          # an image file: stock, Wikipedia or the user's photo
 
@@ -81,7 +108,16 @@ class StageElement(_Strict):
                                         "unit = a grid of `total` squares, `filled` of them highlighted; person = a "
                                         "real person's card (Wikipedia photo of `who`, name, a line, a stat); news = "
                                         "a headline card (outlet, date, text); logo = an organisation's logo "
-                                        "(`who`) on a sign; screenshot = a web page (`url`) in a browser window.")
+                                        "(`who`) on a sign; screenshot = a web page (`url`) in a browser window. "
+                                        "Motion components (animated diagrams; their `steps` play on their own "
+                                        "words): kinetic = big kinetic type, one phrase per step; split = a whole "
+                                        "that breaks into shares (step values); flow = amounts flowing from a "
+                                        "source (`text`, `name`) to 1-4 destinations; meter = a gauge filling to "
+                                        "each step's value out of `max`, with a counter; cycle = a loop of 3-6 "
+                                        "steps with a dot going round (a vicious circle); timeline = dated events "
+                                        "(step `label` = the date); funnel = layers narrowing step by step; "
+                                        "reel = a slot reel spinning through options and landing on the "
+                                        "`accent` one.")
     query: str | None = Field(None, description="cutout/photo: English keywords for the stock photo, naming one "
                                                 "object or person (e.g. 'tempeh block', 'businessman shrugging').")
     path: str | None = Field(None, description="cutout/photo/person/logo: your own image instead of `query` / "
@@ -90,7 +126,7 @@ class StageElement(_Strict):
                                               "person or organisation (e.g. 'Joko Widodo', 'SoftBank Group'); its "
                                               "lead image is used, with the licence in the credits.")
     name: str | None = Field(None, description="icon/stack: Lucide icon name, e.g. 'coins'. cutout/photo: an "
-                                               "icon shown instead when no photo is found.")
+                                               "icon shown instead when no photo is found. flow/meter: the source / gauge icon.")
     brief: str | None = Field(None, description="cutout/photo/person/logo: the ideal photo in a few words, in "
                                                 "Indonesian, for the photo brief the user may shoot or find ('tangan "
                                                 "memegang HP dengan aplikasi slot, malam hari').")
@@ -100,7 +136,9 @@ class StageElement(_Strict):
     text: str | None = Field(None, description="label: the tag text (1-4 words); number: the number as shown, "
                                                "e.g. '-7%' or 'Rp12.000'; stamp: 1-2 words; chart: its title "
                                                "('IHSG'); unit: the legend ('1 kotak = 1.000 alat'); person: one "
-                                               "small line ('2014–2024'); news: the headline.")
+                                               "small line ('2014–2024'); news: the headline; flow: the source "
+                                               "('Rp100rb'); meter: what's measured ('Uang hilang'); cycle: the "
+                                               "centre; split/reel/funnel: an optional title.")
     label: str | None = Field(None, description="cutout/photo/icon/logo/screenshot: a short tag stuck under the "
                                                 "element; person: the name (default: from `who`).")
     tone: Literal["up", "down", "neutral"] = Field("neutral", description="number/stamp/person stat/chart line: "
@@ -125,6 +163,9 @@ class StageElement(_Strict):
                                                    "top of the page).")
     stat: str | None = Field(None, description="person: a short stat under the name, e.g. '+499,50%'.")
     bars: list[StageBar] = Field(default_factory=list, max_length=4, description="bar: 2-4 bars, left to right.")
+    steps: list[MotionStep] = Field(default_factory=list, max_length=10,
+                                    description="Motion components: the beats, in narration order.")
+    max: float | None = Field(None, gt=0, description="meter: the full-scale value.")
     count: int | None = Field(None, ge=2, le=8, description="stack: how many icons pile up (default 4).")
     target: int | None = Field(None, ge=1, description="highlight: number (1-based) of the earlier element in "
                                                        "this scene to box.")
@@ -138,6 +179,18 @@ class StageElement(_Strict):
         for opts in _STAGE_NEEDS[self.kind]:
             if not any(getattr(self, f) for f in opts):
                 raise ValueError(f"stage element kind={self.kind!r} requires {' or '.join(opts)}")
+        if self.steps and self.kind not in COMPONENTS:
+            raise ValueError(f"`steps` are for motion components ({', '.join(COMPONENTS)})")
+        if self.kind in COMPONENTS:
+            lo, hi, valued = STEP_RULES[self.kind]
+            if not lo <= len(self.steps) <= hi:
+                raise ValueError(f"a {self.kind} takes {lo}-{hi} steps")
+            if valued and any(st.value is None for st in self.steps):
+                raise ValueError(f"every {self.kind} step needs a `value`")
+            if self.kind == "meter" and any(st.value > self.max for st in self.steps):
+                raise ValueError("meter step values can't be more than `max`")
+            if self.kind == "reel" and sum(st.accent for st in self.steps) != 1:
+                raise ValueError("a reel needs exactly one `accent` step (the option it lands on)")
         if self.kind == "bar" and len(self.bars) < 2:
             raise ValueError("a bar element needs 2-4 bars")
         if (self.brief or self.own) and self.kind not in MEDIA:

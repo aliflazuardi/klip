@@ -181,6 +181,64 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; 
 .st-coin svg { width: 60%; height: 60%; stroke: {{ sc.icon.color }}; stroke-width: 2; }
 .st-hl { width: 100%; height: 100%; border: {{ sc.highlight.width }}px solid {{ sc.highlight.color }}; border-radius: 16px;
          box-shadow: 0 6px 16px rgba(0,0,0,.25); }
+/* Motion components (klip.yaml stage.components) */
+{% set cc = sc.components %}
+.cp-card { width: 100%; height: 100%; border-radius: 22px; background: {{ cc.card }}; box-shadow: var(--st-shadow); }
+.cp-in { position: relative; }
+.cp-svg { position: absolute; inset: 0; overflow: visible; }
+.cp-title { font-weight: 800; color: {{ cc.ink }}; margin-bottom: .5em; }
+.cp-kin { width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; gap: .08em; }
+.kn-line { align-self: flex-start; font-weight: 800; line-height: 1.08; letter-spacing: -0.02em; color: var(--ink); padding: 0 .08em;
+           background: linear-gradient(transparent 58%, var(--accent) 58%, var(--accent) 92%, transparent 92%) no-repeat 0 0 / 0% 100%; }
+.kn-w { display: inline-block; }
+.sp-wrap { display: flex; flex-direction: column; height: 100%; }
+.sp-bar { display: flex; gap: 6px; border-radius: 14px; overflow: visible; transform-origin: 0 50%; flex: none; }
+.sp-seg { height: 100%; border-radius: 10px; background: {{ cc.track }}; transform-origin: 50% 100%; }
+.sp-legend { margin-top: .8em; display: flex; flex-direction: column; gap: .35em; }
+.sp-row { display: flex; align-items: center; gap: .5em; color: {{ cc.ink }}; font-weight: 700; }
+.sp-row i { width: .8em; height: .8em; border-radius: 4px; flex: none; }
+.sp-row span { flex: 1; min-width: 0; }
+.sp-row b { font-weight: 800; }
+.sp-row.acc { font-size: 1.12em; }
+.cp-node { position: absolute; border-radius: 50%; background: {{ cc.ink }}; color: #fff; display: flex; align-items: center; justify-content: center;
+           box-shadow: 0 8px 16px rgba(0,0,0,.18); }
+.cp-node.acc, .cp-node.src { background: var(--accent); color: {{ cc.ink }}; }
+.cp-node svg { width: 56%; height: 56%; stroke: currentColor; stroke-width: 2; }
+.cp-lab { position: absolute; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; text-align: center;
+          color: {{ cc.ink }}; font-weight: 700; line-height: 1.1; white-space: nowrap; }
+.cp-lab b { font-weight: 800; }
+.cp-lab.cy b { padding: .05em .3em; border-radius: 8px; background: {{ cc.card }}; }
+.cp-lab.src { transform: translateY(-50%); align-items: flex-start; text-align: left; }
+.cp-lab b.acc { color: {{ cc.ink }}; background: linear-gradient(transparent 55%, var(--accent) 55%); }
+.mt-tube { position: absolute; border-radius: 999px; background: {{ cc.track }}; overflow: hidden; box-shadow: inset 0 4px 10px rgba(0,0,0,.08); }
+.mt-fill { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: var(--accent); }
+.mt-tick { position: absolute; height: 4px; margin-top: -2px; border-radius: 2px; background: {{ cc.ink }}; transform-origin: 50% 50%; }
+.mt-icon { position: absolute; color: {{ cc.ink }}; }
+.mt-icon svg { width: 100%; height: 100%; stroke: currentColor; stroke-width: 2; }
+.mt-title { position: absolute; font-weight: 800; color: {{ cc.muted }}; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
+.mt-val { position: absolute; left: 0; top: 50%; margin-top: -0.75em; display: flex; flex-direction: column; color: {{ cc.ink }}; }
+.mt-val b { font-weight: 800; line-height: 1; letter-spacing: -0.03em; white-space: nowrap; }
+.mt-val span { margin-top: .5em; font-weight: 700; color: {{ cc.muted }}; line-height: 1.2; }
+.cy-center { position: absolute; transform: translate(-50%, -50%); text-align: center; font-weight: 800; line-height: 1.1; color: {{ cc.ink }}; }
+.tl-track, .tl-line { position: absolute; width: 6px; border-radius: 3px; }
+.tl-track { background: {{ cc.track }}; }
+.tl-line { background: {{ cc.ink }}; }
+.tl-dot { position: absolute; width: 30px; height: 30px; border-radius: 50%; background: #fff; border: 7px solid {{ cc.ink }}; box-sizing: border-box; }
+.tl-dot.acc { border-color: var(--accent); }
+.tl-row { position: absolute; transform: translateY(-50%); display: flex; flex-direction: column; color: {{ cc.ink }}; line-height: 1.15; }
+.tl-row b { font-weight: 800; }
+.tl-row b.acc { background: linear-gradient(transparent 55%, var(--accent) 55%); align-self: flex-start; }
+.tl-row span { font-weight: 700; color: {{ cc.muted }}; font-size: .8em; }
+.fn-layer { position: absolute; left: 0; right: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: #fff; line-height: 1.05; text-align: center; }
+.fn-layer b { font-weight: 800; }
+.fn-layer span { font-size: .62em; font-weight: 700; opacity: .9; }
+.rl-title { display: flex; align-items: center; justify-content: center; margin: 0; }
+.rl-win { position: absolute; left: 0; right: 0; overflow: hidden; border-radius: 16px; background: #F4F5F7; }
+.rl-item { display: flex; align-items: center; justify-content: center; font-weight: 800; color: {{ cc.ink }}; white-space: nowrap; }
+.rl-shade { position: absolute; inset: 0; pointer-events: none;
+            background: linear-gradient(#F4F5F7 0%, rgba(244,245,247,0) 34%, rgba(244,245,247,0) 66%, #F4F5F7 100%); }
+.rl-mark { position: absolute; left: 0; right: 0; border-top: 5px solid var(--accent); border-bottom: 5px solid var(--accent); }
 .st-title-row { position: absolute; left: 60px; width: 900px; top: {{ sc.title.top }}px; display: flex; justify-content: center; z-index: 50; }
 .st-title { max-width: 900px; padding: 12px 30px 16px; border-radius: 8px; background: {{ sc.title.bg }}; color: {{ sc.title.color }};
             font-weight: 800; line-height: 1.1; letter-spacing: -0.01em; text-align: center; box-shadow: 0 14px 30px rgba(0,0,0,.35); }
@@ -314,6 +372,18 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; 
 </div>
 <script>
 const tl = gsap.timeline({ paused: true });
+{% if stage %}
+// count a number up in an element's text (motion components): c = {prefix, value, decimals, suffix}
+const klipFmt = (v, c) => {
+  const [whole, frac] = Math.abs(v).toFixed(c.decimals).split(".");
+  return c.prefix + (v < 0 ? "-" : "") + whole.replace(/\B(?=(\d{3})+(?!\d))/g, ".") + (frac ? "," + frac : "") + c.suffix;
+};
+function klipCount(sel, from, c, at, dur) {
+  const el = document.querySelector(sel);
+  const n = { v: from };
+  tl.fromTo(n, { v: from }, { v: c.value, duration: dur, ease: "power2.out", onUpdate: () => { el.textContent = klipFmt(n.v, c); } }, at);
+}
+{% endif %}
 {% for s in scenes if not s.hidden %}
 // ---- scene {{ s.id }} ({{ s.template }}{{ ', stage' if s.stage }})
 {% if s.stage %}

@@ -33,6 +33,8 @@ tl.fromTo("{{ sel }} > .st-in", { scaleX: 1, scaleY: 1, transformOrigin: "50% 10
 {% elif e.enter == "toss" %}
 // card: tossed in from below, spinning down to its tilt
 tl.fromTo("{{ sel }}", { y: 320, scale: 0.82, rotation: {{ e.rot + 16 }}, opacity: 0 }, { y: 0, scale: 1, rotation: {{ e.rot }}, opacity: 1, duration: 0.5, ease: "back.out(1.5)" }, {{ e.start }});
+{% elif e.comp is defined %}
+{% include "scenes/components.js.j2" %}
 {% elif e.kind == "icon" %}
 tl.fromTo("{{ sel }}", { scale: 0, rotation: {{ e.rot - 25 }} }, { scale: 1, rotation: {{ e.rot }}, duration: 0.4, ease: "back.out(2.2)" }, {{ e.start }});
 {% elif e.kind == "label" %}

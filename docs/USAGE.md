@@ -86,6 +86,16 @@ fewer than `stage.look_min_share` (70%) of those scenes are staged. Without it (
 the default) each scene picks its own visual. Backgrounds and animation are tuned in
 `klip.yaml` (`stage`); `klip report` groups results by look.
 
+### Motion components
+
+For the beats that explain something (shares, flows, accumulation, loops, schedules), a stage can
+hold an animated diagram instead of props. Each is a stage element whose `steps` play on their own
+narration words: `kinetic` (kinetic type), `split` (a whole breaking into shares), `flow` (an
+amount flowing to destinations), `meter` (a gauge filling, with a counter), `cycle` (a loop with a
+dot going round), `timeline`, `funnel` and `reel` (a slot reel landing on the answer). Numbers in
+`show` count up. See `examples/motion-components.json` (one of each) and `stage.components` in
+`klip.yaml` for sizes, colours and timing.
+
 ### Photos on the stage: stock first, then a photo brief for you
 
 Stage props are mostly real photos cut out with scissors. For each `cutout`/`photo`/`person`/`logo`

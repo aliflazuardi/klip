@@ -36,10 +36,12 @@ def _contains(tokens: list[str], phrase: str) -> bool:
     return bool(want) and any(have[i:i + len(want)] == want for i in range(len(have) - len(want) + 1))
 
 
-def _check_anchors(where: str, tokens: list[str], anchors: list[str], what: str, err) -> list[int | None]:
-    """Each anchor must be a narration word after the previous anchor. Returns word indexes."""
-    rest = [norm(t) for t in tokens]
-    offset, out = 0, []
+def _check_anchors(where: str, tokens: list[str], anchors: list[str], what: str, err,
+                   start: int = 0) -> list[int | None]:
+    """Each anchor must be a narration word after the previous anchor (the first at or after word
+    `start`). Returns word indexes."""
+    rest = [norm(t) for t in tokens][start:]
+    offset, out = start, []
     for a in anchors:
         first = norm(a.split()[0]) if a.split() else ""
         if first not in rest:
@@ -60,10 +62,21 @@ def _lint_stage(spec: Spec, s: Scene, tokens: list[str], err, warn) -> None:
         err(s.id, f"visual.type 'stage' works with the {', '.join(sorted(STAGE_TEMPLATES))} templates, "
                   f"not {s.template!r} (its cards would cover the stage)")
     els = s.visual.elements
-    idx = _check_anchors(s.id, tokens, [e.at for e in els], "stage element", err)
+    # elements and the steps of motion components share one narration order; a component's first
+    # steps may land on the element's own word
+    idx: list[int | None] = []
+    pos = 0
+    for e in els:
+        [k] = _check_anchors(s.id, tokens, [e.at], "stage element", err, pos)
+        idx.append(k)
+        if k is None:
+            continue
+        found = _check_anchors(s.id, tokens, [st.at for st in e.steps if st.at], f"{e.kind} step", err, k)
+        idx += found
+        pos = max([k, *(j for j in found if j is not None)]) + 1
     wps = words_per_second(spec.voice, spec.speech_rate)
     lo, hi = config.get("stage.lint_min_gap_s"), config.get("stage.lint_max_gap_s")
-    marks = [-1] + [i for i in idx if i is not None] + [len(tokens)]
+    marks = [-1] + sorted({i for i in idx if i is not None}) + [len(tokens)]
     for a, b in zip(marks, marks[1:]):
         gap = (b - max(a, 0)) / wps
         if a >= 0 and b < len(tokens) and gap < lo:
@@ -74,6 +87,11 @@ def _lint_stage(spec: Spec, s: Scene, tokens: list[str], err, warn) -> None:
             warn(s.id, f"nothing new on the stage for ~{gap:.0f}s {where}; add an element so the picture "
                        f"changes every 1-2 s")
     for e in els:
+        for st in e.steps:
+            if e.kind == "kinetic" and len(st.text.split()) > 5:
+                warn(s.id, f"kinetic phrase {st.text!r}: keep each line to 1-5 words")
+            elif e.kind in ("split", "flow", "cycle", "funnel", "reel") and len(st.text) > 22:
+                warn(s.id, f"{e.kind} step {st.text!r} is long; keep it to ~2-3 words so it fits")
         if e.kind == "label" and len(e.text.split()) > 4:
             warn(s.id, f"label {e.text!r} has {len(e.text.split())} words; keep labels to 1-4")
         if e.label and len(e.label.split()) > 3:

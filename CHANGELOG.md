@@ -8,6 +8,10 @@ All notable changes to Klip are listed here. The format follows
 
 ### Added
 
+- Motion components for stage scenes: `kinetic`, `split`, `flow`, `meter`, `cycle`, `timeline`,
+  `funnel` and `reel`, animated diagrams whose `steps` play on their own narration words, with
+  count-up values, accent steps and SFX (`stage.components` in klip.yaml). Example:
+  `examples/motion-components.json`.
 - Stage props lean on real photos: `klip photos <spec>` (and the MCP tool `photo_brief`) finds
   photos for every stage prop and writes `projects/<slug>/photo-brief.md`, listing the props that
   have no photo, are marked `"own": true` or got a weak stock match, with what to shoot or find

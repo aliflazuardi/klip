@@ -145,6 +145,29 @@ re-render; unchanged stages are cached. Tell the user about any check you couldn
       headlines, quoted as published, with the article in `facts`.
     - `screenshot`: a web page in a browser window: `url`, optional `wayback` (YYYY or YYYYMMDD:
       the Wayback Machine copy, for "remember Kaskus in 2010?") and `selector` (capture one part).
+    **Motion components** (animated diagrams for the *explaining* beats: numbers, shares, causes,
+    processes; they beat a solid background or generic stock). One component usually fills a
+    stage page on its own (`"clear": true` before it). Each takes `steps`; a step plays on its own
+    `at` word (searched from the element's word on, in order; unset = 0.45 s after the previous)
+    and has `text`, optional `value` (sizes it), `show` (the value as shown, "Rp2,5 jt", "30%";
+    counts up), `label`, `name` (Lucide icon) and `accent` (the one that matters). Pick by shape:
+    - `kinetic`: big type, 1–6 short phrases slamming in (a hook, a punchline). `accent` = marker.
+    - `split`: one whole breaking into 2–5 shares (`value`s; `show` defaults to the %): budgets,
+      "96% balik, 4% ke bandar", market share. `text` = the whole ("Gaji kamu").
+    - `flow`: an amount (`text`, `name`) flowing to 1–4 destinations (`value` = stream width):
+      where money/time/goods go.
+    - `meter`: a gauge filling to each step's `value` out of `max`, counter showing `show`:
+      something accumulating (savings, losses, debt, days). `text` = what's measured.
+    - `cycle`: 3–6 steps in a loop with a dot going round: habits, vicious circles, seasons.
+    - `timeline`: 2–6 dated events (`label` = date): history, a month's schedule, a story.
+    - `funnel`: 2–5 layers narrowing (`value`s): from many to few (applicants → hired, gaji → sisa).
+    - `reel`: a slot reel spinning through 3–10 options and landing on the `accent` one (its
+      `at` = the word of the answer): "which one is it?" moments.
+    Keep step texts to 1–3 words (kinetic phrases ≤ 5). Example: `{"at": "gajimu", "kind": "flow",
+    "text": "Rp5 juta", "name": "wallet", "steps": [{"text": "Kebutuhan", "value": 2.5, "show":
+    "Rp2,5 jt", "name": "house", "at": "kebutuhan"}, {"text": "Tabungan", "value": 1, "show":
+    "Rp1 jt", "name": "piggy-bank", "at": "tabungan", "accent": true}]}`. Full set:
+    `examples/motion-components.json`.
     Rules: one element per narration subject, every ~1–2 s; `at` words in narration order.
     **Fewer, bigger props read better:** the layout is automatic and composes by count: one
     prop is a big centred hero; a photo/chart + a tag or number becomes hero + tag; three with

@@ -29,6 +29,7 @@
       {% elif e.kind == "person" %}<div class="ps-card" style="font-size: {{ e.fs }}px;"><div class="ps-photo"><img src="{{ e.src }}" alt="" /></div><div class="ps-name">{{ e.name }}</div>{% if e.text %}<div class="ps-line">{{ e.text }}</div>{% endif %}{% if e.stat %}<div class="ps-stat" style="color: {{ e.stat_color }};">{{ e.stat }}</div>{% endif %}</div>
       {% elif e.kind == "news" %}<div class="nw-card" style="font-size: {{ e.fs }}px;"><div class="nw-top"><b>{{ e.outlet or "" }}</b><span>{{ e.date or "" }}</span></div><div class="nw-head">{{ e.text }}</div></div>
       {% elif e.kind == "logo" %}<div class="lg-card"><img src="{{ e.src }}" alt="" /></div>
+      {% elif e.comp is defined %}{% include "scenes/components.html.j2" %}
       {% elif e.kind == "screenshot" %}<div class="st-shot"><div class="sh-bar"><i></i><i></i><i></i><span>{{ e.host }}</span></div><img src="{{ e.src }}" alt="" /></div>
       {% endif %}
       {% if e.label_font %}<div class="st-subrow" style="font-size: {{ e.label_font }}px;"><div class="st-tag">{{ e.label }}</div></div>{% endif %}

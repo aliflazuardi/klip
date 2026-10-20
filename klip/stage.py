@@ -14,7 +14,7 @@ from urllib.parse import quote
 from markupsafe import Markup
 
 from klip import config, shots
-from klip.spec import MEDIA, StageElement, Visual
+from klip.spec import COMPONENTS, MEDIA, StageElement, Visual
 
 BUILTIN_BACKGROUNDS = ("desk", "paper", "kraft", "board")
 PHOTO_FRAME = (14, 14, 14, 54)      # photo card white frame: left, top, right, bottom (px)
@@ -123,18 +123,38 @@ def pages(elements: list[StageElement]) -> list[list[int]]:
     return out
 
 
+def step_times(e: StageElement, start: float, end: float, words: list[dict]) -> list[float]:
+    """When each step of a motion component plays (s): on its `at` word, searched after the element's
+    own word; a step without one (or not found) comes stage.components.step_gap_s after the previous.
+    Kept in order, at least min_step_s apart, and before `end`."""
+    c = cfg("components")
+    gap, min_gap = float(c["step_gap_s"]), float(c["min_step_s"])
+    after = [w for w in words if w["startMs"] / 1000 >= start - 0.01]
+    want = [(i, st.at) for i, st in enumerate(e.steps) if st.at]
+    found = dict(zip((i for i, _ in want), shots.anchor_times(after, [a for _, a in want])))
+    out: list[float] = []
+    for i in range(len(e.steps)):
+        t = found.get(i)
+        prev = out[-1] if out else start + float(c["first_step_s"]) - gap
+        v = t / 1000 - float(cfg("lead_s")) if t is not None else prev + gap
+        v = max(v, prev + min_gap if out else start + 0.05)
+        out.append(round(min(v, end - 0.2), 3))
+    return out
+
+
 # ---- layout
 
 def tilt(scene_id: str, i: int, kind: str) -> float:
     h = int(hashlib.sha256(f"{scene_id}:{i}".encode()).hexdigest()[:8], 16) / 0xFFFFFFFF
     damp = {"number": 0.5, "label": 0.6, "bar": 0.3, "highlight": 0.0, "stamp": 0.0, "chart": 0.0, "unit": 0.0,
-            "news": 0.3, "screenshot": 0.2, "person": 0.5, "logo": 0.4}.get(kind, 1.0)
+            "news": 0.3, "screenshot": 0.2, "person": 0.5, "logo": 0.4,
+            **{k: 0.0 for k in COMPONENTS}}.get(kind, 1.0)
     if kind == "stamp":
         return -7.0 if h < 0.5 else 6.0
     return round((h * 2 - 1) * float(cfg("tilt_deg")) * damp, 2)
 
 
-BIG = ("cutout", "photo", "bar", "chart", "unit", "person", "news", "logo", "screenshot")   # can be a hero
+BIG = ("cutout", "photo", "bar", "chart", "unit", "person", "news", "logo", "screenshot", *COMPONENTS)   # can be a hero
 
 
 def composition(elements: list[StageElement], placed: list[int]) -> str:
@@ -180,6 +200,10 @@ def _slot(x: float, y: float) -> str:
 def box_size(e: StageElement, size: str, media: dict | None) -> tuple[float, float]:
     """(w, h) of an element's box in px."""
     bw, bh = cfg("sizes")[size]
+    if e.kind in COMPONENTS:                   # a component spans the width its size allows
+        c = cfg("components")
+        w = float(c["width"][size])
+        return w, w * float(c[e.kind]["aspect"])
     if e.kind == "chart":
         return bw, bw * float(cfg("chart.aspect"))
     if e.kind == "unit":
@@ -394,7 +418,7 @@ def unit_grid(total: int, filled: int, w: float, h: float) -> dict:
 
 FLOAT_GROUP = {"cutout": "media", "photo": "media", "person": "media", "logo": "media", "icon": "icon", "stack": "icon",
                "label": "tag", "number": "tag", "news": "data", "screenshot": "data", "chart": "data",
-               "bar": "data", "unit": "data"}
+               "bar": "data", "unit": "data", **{k: "data" for k in COMPONENTS}}
 _COUNT = re.compile(r"^([^\d]*?)(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d+))?([^\d]*)$")
 
 

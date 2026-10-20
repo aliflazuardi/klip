@@ -16,10 +16,11 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 from klip import config
+from klip import motion
 from klip import stage as stage_mod
 from klip.captions import CaptionWord, emphasis_mask, norm, paginate, tokenize
 from klip.paths import RENDERER_DIR, ROOT, TEMPLATES_DIR
-from klip.spec import IMPLEMENTED_TEMPLATES, IMPLEMENTED_VISUALS, Scene, Spec
+from klip.spec import COMPONENTS, IMPLEMENTED_TEMPLATES, IMPLEMENTED_VISUALS, Scene, Spec
 
 log = logging.getLogger(__name__)
 
@@ -194,6 +195,10 @@ def _stage_ctx(scene: Scene, t: dict, words: list[dict], media: dict, style: dic
             el["fs"] = round(min(34.0, b["w"] * 0.055), 1)
         elif e.kind == "news":
             el.update(fs=round(b["w"] * 0.07, 1), outlet=e.outlet, date=e.date)
+        elif e.kind in COMPONENTS:
+            end = exits.get(i) or (t["start_ms"] + t["duration_ms"]) / 1000
+            st_times = stage_mod.step_times(e, times[i], end, words)
+            el["comp"] = motion.build(e, b["w"], b["h"], st_times, times[i], end, icon_svg, style["accent_color"])
         elif stage_mod.is_media(e) or e.kind == "screenshot":
             r = rows[i]
             el.update(kind=r["render"], src=r["file"].replace("\\", "/"))
@@ -551,6 +556,13 @@ def sfx_events(scenes: list[dict], pages: list[dict], end_card: bool = False,
             add("scene_cut", s["start"] - WHOOSH_PEAK_S)
         for e in (s.get("stage") or {}).get("elements", []):
             add({"number": "stage_number", "highlight": "stage_highlight", "stamp": "stage_stamp"}.get(e["kind"], "stage_pop"), e["start"])
+            comp = e.get("comp")
+            for st in (comp or {}).get("steps", []):
+                if comp["kind"] == "reel":
+                    continue
+                add("stage_number" if st["count"] and comp["kind"] in ("meter", "funnel") else "stage_pop", st["t"])
+            if comp and comp["kind"] == "reel":
+                add("stage_number", round(comp["from"] + comp["dur"], 3))
         if s["template"] == "list_item":
             add("list_badge", s["start"] + 0.05)
         elif s["template"] == "myth_fact":

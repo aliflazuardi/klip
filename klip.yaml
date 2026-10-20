@@ -265,6 +265,31 @@ stage:
   icon: {bg: "#FFFFFF", color: "#15151C"}
   number: {neutral: "#15151C", up: "#1FA45B", down: "#E5484D", stroke: "#FFFFFF"}   # by `tone`; white sticker outline
   bar: {colors: ["#3B82F6", "#F59E0B", "#10B981", "#EF4444"], bg: "#FFFFFF", text: "#15151C"}
+  # Motion components: animated diagrams on the stage whose `steps` play on their own words.
+  # width = box width by size (l is the full safe width); aspect = height / width per kind (a page
+  # that also holds other props shrinks it to fit). Steps without an `at` word come step_gap_s
+  # after the previous one; the first comes first_step_s after the element appears.
+  # colors = the parts' fills (split, funnel, flow), "accent" = the style's accent colour; a step
+  # with `accent: true` always gets the accent.
+  components:
+    width: {s: 460, m: 680, l: 900}
+    pad: 0.05                       # card padding as a share of the width (kinetic has no card)
+    card: "#FFFFFF"
+    ink: "#15151C"
+    muted: "#6B7280"
+    track: "#E4E6EB"                # empty tube / unrevealed bar / flow base
+    colors: ["#2F3A4A", "#64748B", "#94A3B8", "#CBD5E1", "#475569"]
+    step_gap_s: 0.45
+    first_step_s: 0.35
+    min_step_s: 0.25
+    kinetic: {aspect: 0.75, max_px: 150}
+    split: {aspect: 0.7}
+    flow: {aspect: 1.05, min_px: 8, max_px: 46, dash: 4, gap: 30, speed_s: 0.6}   # dots: dash/gap px; speed = s per gap
+    meter: {aspect: 0.9, fill_s: 0.8}
+    cycle: {aspect: 1.0, orbit_s: 2.6}   # one lap of the dot once the loop is closed
+    timeline: {aspect: 1.25}
+    funnel: {aspect: 0.95, narrow: 0.36} # narrow = width of the bottom as a share of the top
+    reel: {aspect: 0.8, spins: 3, spin_s: 1.8}   # full turns before landing; spin length without `at`
   # Real-data and real-world elements. Card sizes follow `sizes` (s/m/l); text scales with the card.
   chart:                            # line chart that draws on
     max_points: 160                 # longer series are evenly downsampled (first and last kept)

@@ -1,0 +1,86 @@
+{# Motion component timelines; `sel` is the element, steps play at s.t (klip.yaml stage.components) #}
+{% set c = e.comp %}
+{% set k = stage.cfg.components %}
+{% set id = "#" ~ e.id %}
+tl.fromTo("{{ sel }}", { opacity: 0, scale: 0.94 }, { opacity: 1, scale: 1, duration: 0.3, ease: "power2.out" }, {{ e.start }});
+{% if c.kind == "kinetic" %}
+{% for s in c.steps %}
+// phrase slams in word by word
+tl.fromTo("{{ id }}-s{{ s.k }} .kn-w", { opacity: 0, scale: 1.7, y: -18 }, { opacity: 1, scale: 1, y: 0, duration: 0.22, stagger: 0.07, ease: "power4.out" }, {{ s.t }});
+{% if s.accent %}tl.fromTo("{{ id }}-s{{ s.k }}", { backgroundSize: "0% 100%" }, { backgroundSize: "100% 100%", duration: 0.35, ease: "power2.inOut" }, {{ (s.t + 0.1) | round(3) }});{% endif %}
+{% if not loop.first %}tl.to("{{ id }} .kn-line:not(.acc):nth-child(-n+{{ s.k }})", { opacity: 0.45, duration: 0.25, ease: "none" }, {{ s.t }});{% endif %}
+{% endfor %}
+{% elif c.kind == "split" %}
+gsap.set("{{ id }} .sp-row", { opacity: 0 });
+tl.fromTo("{{ id }} .sp-bar", { scaleX: 0 }, { scaleX: 1, duration: 0.45, ease: "power3.out" }, {{ e.start }});
+{% for s in c.steps %}
+// part {{ s.k + 1 }}: its slice takes its colour and pops; its legend row slides in
+tl.to("{{ id }}-s{{ s.k }}", { backgroundColor: "{{ s.color }}", duration: 0.25, ease: "none" }, {{ s.t }});
+tl.fromTo("{{ id }}-s{{ s.k }}", { scaleY: 1 }, { scaleY: {{ 1.28 if s.accent else 1.12 }}, duration: 0.14, yoyo: true, repeat: {{ 2 if s.accent else 1 }}, ease: "sine.inOut", immediateRender: false }, {{ s.t }});
+tl.fromTo("{{ id }}-r{{ s.k }}", { x: -40, opacity: 0 }, { x: 0, opacity: 1, duration: 0.3, ease: "power3.out" }, {{ s.t }});
+{% if s.count %}klipCount("{{ id }}-v{{ s.k }}", 0, {{ s.count | tojson }}, {{ s.t }}, 0.6);{% endif %}
+{% endfor %}
+{% elif c.kind == "flow" %}
+gsap.set("{{ id }} .cp-lab:not(.src), {{ id }} .cp-node:not(.src)", { opacity: 0 });
+{% for s in c.steps %}
+// stream {{ s.k + 1 }}: the path draws, the destination pops, dots keep flowing along it
+tl.to("{{ id }}-p{{ s.k }}", { strokeDashoffset: 0, duration: 0.55, ease: "power2.inOut" }, {{ s.t }});
+tl.fromTo("{{ id }}-n{{ s.k }}", { scale: 0, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.35, ease: "back.out(2.2)" }, {{ (s.t + 0.45) | round(3) }});
+tl.fromTo("{{ id }}-l{{ s.k }}", { y: 16, opacity: 0 }, { y: 0, opacity: 1, duration: 0.3, ease: "power3.out" }, {{ (s.t + 0.5) | round(3) }});
+{% set run = [c.end - s.t - 0.5, 0.3] | max %}
+tl.set("{{ id }}-d{{ s.k }}", { opacity: 1 }, {{ (s.t + 0.5) | round(3) }});
+tl.fromTo("{{ id }}-d{{ s.k }}", { strokeDashoffset: 0 }, { strokeDashoffset: {{ -((c.dash + c.gap) * run / k.flow.speed_s) | round(1) }}, duration: {{ run | round(3) }}, ease: "none", immediateRender: false }, {{ (s.t + 0.5) | round(3) }});
+{% if s.count %}klipCount("{{ id }}-v{{ s.k }}", 0, {{ s.count | tojson }}, {{ (s.t + 0.5) | round(3) }}, 0.7);{% endif %}
+{% endfor %}
+{% elif c.kind == "meter" %}
+gsap.set("{{ id }} .mt-val, {{ id }} .mt-tick", { opacity: 0 });
+{% for s in c.steps %}
+// level {{ s.k + 1 }}: the tube fills, the counter counts on from the last level
+tl.to("{{ id }}-fill", { height: "{{ s.pct }}%", duration: {{ k.meter.fill_s }}, ease: "power2.inOut" }, {{ s.t }});
+tl.fromTo("{{ id }}-t{{ s.k }}", { scaleX: 0, opacity: 0 }, { scaleX: 1, opacity: 1, duration: 0.25, ease: "power2.out" }, {{ (s.t + k.meter.fill_s * 0.8) | round(3) }});
+{% if not loop.first %}tl.to("{{ id }}-s{{ s.k - 1 }}", { opacity: 0, y: -30, duration: 0.2, ease: "power2.in" }, {{ s.t }});{% endif %}
+tl.fromTo("{{ id }}-s{{ s.k }}", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.25, ease: "power3.out" }, {{ (s.t + 0.12) | round(3) }});
+{% if s.count %}klipCount("{{ id }}-v{{ s.k }}", {{ s.from }}, {{ s.count | tojson }}, {{ s.t }}, {{ k.meter.fill_s }});{% endif %}
+{% endfor %}
+{% elif c.kind == "cycle" %}
+gsap.set("{{ id }} .cp-node, {{ id }} .cp-lab", { opacity: 0 });
+{% for s in c.steps %}
+// step {{ s.k + 1 }} pops; the arrow from the previous step draws to it
+tl.fromTo("{{ id }}-n{{ s.k }}", { scale: 0, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.35, ease: "back.out(2.2)" }, {{ s.t }});
+tl.fromTo("{{ id }}-l{{ s.k }}", { y: 12, opacity: 0 }, { y: 0, opacity: 1, duration: 0.25, ease: "power3.out" }, {{ (s.t + 0.1) | round(3) }});
+{% if not loop.first %}
+tl.to("{{ id }}-a{{ s.k - 1 }}", { strokeDashoffset: 0, duration: 0.4, ease: "power2.inOut" }, {{ (s.t - 0.3) | round(3) }});
+tl.set("{{ id }}-h{{ s.k - 1 }}", { opacity: 1 }, {{ (s.t + 0.1) | round(3) }});
+{% endif %}
+{% endfor %}
+{% set last = c.steps[-1].t %}
+// the loop closes and a dot keeps going round
+tl.to("{{ id }}-a{{ c.steps | length - 1 }}", { strokeDashoffset: 0, duration: 0.45, ease: "power2.inOut" }, {{ (last + 0.35) | round(3) }});
+tl.set("{{ id }}-h{{ c.steps | length - 1 }}", { opacity: 1 }, {{ (last + 0.8) | round(3) }});
+{% set run = [c.end - last - 0.8, 0.3] | max %}
+tl.set("{{ id }}-orbit", { opacity: 1 }, {{ (last + 0.8) | round(3) }});
+tl.fromTo("{{ id }}-orbit", { rotation: 0 }, { rotation: {{ (360 * run / k.cycle.orbit_s) | round(1) }}, svgOrigin: "{{ c.cx }} {{ c.cy }}", duration: {{ run | round(3) }}, ease: "none", immediateRender: false }, {{ (last + 0.8) | round(3) }});
+{% elif c.kind == "timeline" %}
+gsap.set("{{ id }} .tl-dot, {{ id }} .tl-row", { opacity: 0 });
+{% for s in c.steps %}
+// event {{ s.k + 1 }}: the line grows down to it, its dot pops, its text slides in
+tl.to("{{ id }}-line", { height: {{ s.y - c.top }}, duration: 0.4, ease: "power2.inOut" }, {{ (s.t - 0.2) | round(3) if not loop.first else s.t }});
+tl.fromTo("{{ id }}-d{{ s.k }}", { scale: 0, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.3, ease: "back.out(2.6)" }, {{ (s.t + 0.15) | round(3) }});
+tl.fromTo("{{ id }}-r{{ s.k }}", { x: 50, opacity: 0 }, { x: 0, opacity: 1, duration: 0.3, ease: "power3.out" }, {{ (s.t + 0.18) | round(3) }});
+{% endfor %}
+{% elif c.kind == "funnel" %}
+gsap.set("{{ id }} .fn-layer", { opacity: 0 });
+{% for s in c.steps %}
+// layer {{ s.k + 1 }} drops into the funnel
+tl.fromTo("{{ id }}-s{{ s.k }}", { y: -60, opacity: 0 }, { y: 0, opacity: 1, duration: 0.35, ease: "back.out(1.6)" }, {{ s.t }});
+{% if s.count %}klipCount("{{ id }}-v{{ s.k }}", 0, {{ s.count | tojson }}, {{ s.t }}, 0.6);{% endif %}
+{% endfor %}
+{% elif c.kind == "reel" %}
+// the reel spins through the options and lands on the accent one
+gsap.set("{{ id }}-mark", { opacity: 0 });
+tl.fromTo("{{ id }}-strip", { y: 0 }, { y: {{ c.y_to }}, duration: {{ c.dur }}, ease: "power3.out" }, {{ c.from }});
+tl.fromTo("{{ id }}-strip", { filter: "blur(0px)" }, { filter: "blur(3px)", duration: {{ (c.dur * 0.25) | round(3) }}, yoyo: true, repeat: 1, repeatDelay: {{ (c.dur * 0.35) | round(3) }}, ease: "sine.inOut", immediateRender: false }, {{ c.from }});
+tl.fromTo("{{ id }}-mark", { opacity: 0, scale: 1.15 }, { opacity: 1, scale: 1, duration: 0.25, ease: "back.out(2)" }, {{ (c.from + c.dur) | round(3) }});
+tl.fromTo("{{ id }} .rl-item.land", { color: "{{ k.ink }}" }, { color: "{{ c.accent }}", duration: 0.2, ease: "none" }, {{ (c.from + c.dur - 0.05) | round(3) }});
+tl.fromTo("{{ sel }}", { scale: 1 }, { scale: 1.04, duration: 0.12, yoyo: true, repeat: 1, ease: "sine.out", immediateRender: false }, {{ (c.from + c.dur) | round(3) }});
+{% endif %}

@@ -230,6 +230,95 @@
       "title": "HookVariant",
       "type": "object"
     },
+    "MotionStep": {
+      "additionalProperties": false,
+      "description": "One beat of a motion component (see StageElement.steps).",
+      "properties": {
+        "text": {
+          "description": "kinetic: the phrase; split/flow/funnel: the part's name; meter: a short caption for this level; cycle: the step; timeline: the event; reel: an option.",
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Narration word where this step plays (after the element's own `at`, in order). Unset = shortly after the previous step.",
+          "title": "At"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "split/flow/funnel: the amount (sizes the part); meter: the fill level (≤ the element's `max`).",
+          "title": "Value"
+        },
+        "show": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The value as shown, e.g. 'Rp96rb', '96%', '1,2 jt'; counts up when it's a number. Unset: split shows the share in %, flow/funnel the plain value.",
+          "title": "Show"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "timeline: the date ('2014', 'Mar 2020'); others: a small line under the step.",
+          "title": "Label"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Lucide icon for the step (flow/cycle/timeline/funnel nodes).",
+          "title": "Name"
+        },
+        "accent": {
+          "default": false,
+          "description": "Highlight this step (kinetic phrase, split/flow part, funnel layer); reel: the option the reel lands on (exactly one).",
+          "title": "Accent",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "MotionStep",
+      "type": "object"
+    },
     "Music": {
       "additionalProperties": false,
       "properties": {
@@ -570,7 +659,7 @@
           "type": "string"
         },
         "kind": {
-          "description": "cutout = stock photo with its background removed (a sticker); photo = photo card; icon = Lucide icon on a sticker disc; label = paper tag; number = big number; bar = bar chart; stack = a pile of `count` icons; highlight = yellow box around an earlier element; stamp = a rubber stamp that thumps down (a verdict: 'BERHASIL', 'PALSU'); chart = a line chart that draws on (real data: points, csv or ticker); unit = a grid of `total` squares, `filled` of them highlighted; person = a real person's card (Wikipedia photo of `who`, name, a line, a stat); news = a headline card (outlet, date, text); logo = an organisation's logo (`who`) on a sign; screenshot = a web page (`url`) in a browser window.",
+          "description": "cutout = stock photo with its background removed (a sticker); photo = photo card; icon = Lucide icon on a sticker disc; label = paper tag; number = big number; bar = bar chart; stack = a pile of `count` icons; highlight = yellow box around an earlier element; stamp = a rubber stamp that thumps down (a verdict: 'BERHASIL', 'PALSU'); chart = a line chart that draws on (real data: points, csv or ticker); unit = a grid of `total` squares, `filled` of them highlighted; person = a real person's card (Wikipedia photo of `who`, name, a line, a stat); news = a headline card (outlet, date, text); logo = an organisation's logo (`who`) on a sign; screenshot = a web page (`url`) in a browser window. Motion components (animated diagrams; their `steps` play on their own words): kinetic = big kinetic type, one phrase per step; split = a whole that breaks into shares (step values); flow = amounts flowing from a source (`text`, `name`) to 1-4 destinations; meter = a gauge filling to each step's value out of `max`, with a counter; cycle = a loop of 3-6 steps with a dot going round (a vicious circle); timeline = dated events (step `label` = the date); funnel = layers narrowing step by step; reel = a slot reel spinning through options and landing on the `accent` one.",
           "enum": [
             "cutout",
             "photo",
@@ -586,7 +675,15 @@
             "person",
             "news",
             "logo",
-            "screenshot"
+            "screenshot",
+            "kinetic",
+            "split",
+            "flow",
+            "meter",
+            "cycle",
+            "timeline",
+            "funnel",
+            "reel"
           ],
           "title": "Kind",
           "type": "string"
@@ -640,7 +737,7 @@
             }
           ],
           "default": null,
-          "description": "icon/stack: Lucide icon name, e.g. 'coins'. cutout/photo: an icon shown instead when no photo is found.",
+          "description": "icon/stack: Lucide icon name, e.g. 'coins'. cutout/photo: an icon shown instead when no photo is found. flow/meter: the source / gauge icon.",
           "title": "Name"
         },
         "brief": {
@@ -672,7 +769,7 @@
             }
           ],
           "default": null,
-          "description": "label: the tag text (1-4 words); number: the number as shown, e.g. '-7%' or 'Rp12.000'; stamp: 1-2 words; chart: its title ('IHSG'); unit: the legend ('1 kotak = 1.000 alat'); person: one small line ('2014–2024'); news: the headline.",
+          "description": "label: the tag text (1-4 words); number: the number as shown, e.g. '-7%' or 'Rp12.000'; stamp: 1-2 words; chart: its title ('IHSG'); unit: the legend ('1 kotak = 1.000 alat'); person: one small line ('2014–2024'); news: the headline; flow: the source ('Rp100rb'); meter: what's measured ('Uang hilang'); cycle: the centre; split/reel/funnel: an optional title.",
           "title": "Text"
         },
         "label": {
@@ -885,6 +982,29 @@
           "maxItems": 4,
           "title": "Bars",
           "type": "array"
+        },
+        "steps": {
+          "description": "Motion components: the beats, in narration order.",
+          "items": {
+            "$ref": "#/$defs/MotionStep"
+          },
+          "maxItems": 10,
+          "title": "Steps",
+          "type": "array"
+        },
+        "max": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "meter: the full-scale value.",
+          "title": "Max"
         },
         "count": {
           "anyOf": [
