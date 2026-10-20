@@ -249,6 +249,16 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; 
 .st-no { display: inline-block; margin-right: .35em; padding: 0 .4em; border-radius: 999px; background: var(--accent); color: var(--stroke); }
 {% endif %}
 
+/* Mascots (style.mascot): stacked pose SVGs; one shows at a time */
+.ms { position: absolute; z-index: 9; opacity: 0; }
+.ms-body, .ms-flip, .ms-pose { position: absolute; inset: 0; }
+.ms-body { transform-origin: 50% 100%; filter: drop-shadow(0 10px 10px rgba(0,0,0,.18)); }
+.ms-flip.mirror { transform: scaleX(-1); }
+.ms-flip.mirror .nomirror { transform: scaleX(-1); transform-box: fill-box; transform-origin: 50% 50%; }
+.ms-pose { opacity: 0; }
+.ms-pose svg { display: block; }
+.ms .eye { transform-box: fill-box; transform-origin: 50% 50%; }
+
 /* Captions */
 .cap { position: absolute; left: 60px; width: 900px; top: {{ style.caption.top }}px; height: {{ style.caption.height }}px;
        display: flex; flex-wrap: wrap; align-content: center; justify-content: center; gap: 0 22px;
@@ -364,6 +374,14 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; 
     </div>
   </div>
 {% endif %}
+{% for m in mascots or [] %}
+  <div id="{{ m.id }}" class="ms clip" data-start="0" data-duration="{{ total }}" data-track-index="8"
+       style="left: {{ m.x }}px; top: {{ m.y }}px; width: {{ m.w }}px; height: {{ m.h }}px;">
+    <div class="ms-body"><div class="ms-flip{{ ' mirror' if m.mirror }}">
+      {% for p in m.poses %}<div class="ms-pose" data-p="{{ p.name }}">{{ p.svg | safe }}</div>{% endfor %}
+    </div></div>
+  </div>
+{% endfor %}
 {% for p in pages %}
   <div id="{{ p.id }}" class="cap clip{{ ' st' if p.stage }}{{ ' light' if p.light }}" data-start="{{ p.start }}" data-duration="{{ p.dur }}" data-track-index="1">
     {% for w in p.words %}<span id="{{ w.id }}" class="{{ w.cls }}{{ ' ul' if p.highlight == 'underline' }}">{{ w.text }}</span>{% endfor %}
@@ -447,6 +465,35 @@ tl.set("#{{ w.id }}", { className: "{{ w.cls }}" }, {{ w.off }});
 {% endif %}
 {% endfor %}
 {% endfor %}
+{% if mascots %}
+{% set mc = style.mascot %}
+// ---- mascots: enter/leave with the stage scenes, poses, flip-book lip sync, blinks, idle bob
+{% for m in mascots %}
+{% set ms = "#" ~ m.id %}
+gsap.set("{{ ms }} .ms-pose[data-p='netral']", { opacity: 1 });
+{% for sp in m.spans %}
+tl.fromTo("{{ ms }}", { opacity: 0, y: 70 }, { opacity: 1, y: 0, duration: {{ mc.enter_s }}, ease: "back.out(1.6)", immediateRender: false }, {{ sp.start }});
+{% if sp.end < total - 0.05 %}tl.to("{{ ms }}", { opacity: 0, y: 70, duration: 0.25, ease: "power2.in" }, {{ (sp.end - 0.25) | round(3) }});{% endif %}
+{% endfor %}
+{% for sg in m.segments[1:] %}
+tl.set("{{ ms }} .ms-pose", { opacity: 0 }, {{ sg.t }});
+tl.set("{{ ms }} .ms-pose[data-p='{{ sg.pose }}']", { opacity: 1 }, {{ sg.t }});
+tl.fromTo("{{ ms }} .ms-body", { scale: 0.92 }, { scale: 1, duration: 0.22, ease: "back.out(3)", immediateRender: false }, {{ sg.t }});
+{% endfor %}
+{% for a, b in m.mouth %}
+tl.set("{{ ms }} .mouth", { opacity: 0 }, {{ a }}); tl.set("{{ ms }} .mouth-open", { opacity: 1 }, {{ a }});
+tl.set("{{ ms }} .mouth", { opacity: 1 }, {{ b }}); tl.set("{{ ms }} .mouth-open", { opacity: 0 }, {{ b }});
+{% endfor %}
+{% for t in m.blinks %}
+tl.fromTo("{{ ms }} .eye", { scaleY: 1 }, { scaleY: 0.1, duration: 0.07, yoyo: true, repeat: 1, ease: "none", immediateRender: false }, {{ t }});
+{% endfor %}
+{% set halves = (total / mc.bob_s) | int %}
+{% if halves >= 2 %}
+tl.fromTo("{{ ms }} .ms-body", { y: 0 }, { y: -{{ mc.bob_px }}, duration: {{ mc.bob_s }}, yoyo: true, repeat: {{ (halves // 2) * 2 - 1 }}, ease: "sine.inOut" }, {{ m.bob_delay }});
+tl.fromTo("{{ ms }} .wag", { rotation: 0 }, { rotation: -8, transformOrigin: "0% 100%", duration: {{ mc.bob_s * 0.6 }}, yoyo: true, repeat: {{ (halves // 2) * 2 - 1 }}, ease: "sine.inOut" }, {{ m.bob_delay }});
+{% endif %}
+{% endfor %}
+{% endif %}
 window.__timelines = window.__timelines || {};
 window.__timelines["main"] = tl;
 </script>

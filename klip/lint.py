@@ -134,6 +134,30 @@ def _lint_stage(spec: Spec, s: Scene, tokens: list[str], err, warn) -> None:
                       f"({', '.join(config.get('stage.backgrounds'))}) nor an image file")
 
 
+def _lint_mascot(spec: Spec, s: Scene, tokens: list[str], err, warn) -> None:
+    """Mascot names and poses must exist in the style's cast; pose words must be in the narration."""
+    from klip import mascot
+    try:
+        style = config.style(spec.style)
+    except KeyError:
+        return
+    cast = mascot.names(style)
+    if not cast:
+        warn(s.id, f"scene has a `mascot` but style {spec.style!r} has no mascot cast; it is ignored")
+        return
+    m = s.mascot
+    if m.speaker and m.speaker != "none" and m.speaker not in cast:
+        err(s.id, f"mascot speaker {m.speaker!r} isn't in the cast ({', '.join(cast)}, or 'none')")
+    for p in m.poses:
+        if p.who not in cast:
+            err(s.id, f"mascot {p.who!r} isn't in the cast ({', '.join(cast)})")
+        elif p.pose not in (have := mascot.poses(style, p.who)):
+            err(s.id, f"{p.who} has no pose {p.pose!r} ({', '.join(have)})")
+    _check_anchors(s.id, tokens, [p.at for p in m.poses if p.at], "mascot pose", err)
+    if s.visual.type != "stage" and s.template != "cta":
+        warn(s.id, "mascots only show on stage scenes (and say a folded cta's closing line)")
+
+
 def _lint_look(spec: Spec, err) -> None:
     """look "stage": most scenes that can hold a stage must use one."""
     if spec.look != "stage":
@@ -214,6 +238,8 @@ def lint(spec: Spec) -> list[Issue]:
         _check_anchors(s.id, tokens, [b.at for b in s.visual.beats], "beat", err)
         if s.visual.type == "stage":
             _lint_stage(spec, s, tokens, err, warn)
+        if s.mascot:
+            _lint_mascot(spec, s, tokens, err, warn)
         if s.visual.type in ("stock_video", "stock_photo") and s.visual.max_shots != 1:
             from klip.pipeline import words_per_second
             shots_n = len(s.visual.beats or s.visual.queries) + 1

@@ -230,6 +230,58 @@
       "title": "HookVariant",
       "type": "object"
     },
+    "MascotPose": {
+      "additionalProperties": false,
+      "description": "A mascot changes pose (expression) on a narration word.",
+      "properties": {
+        "who": {
+          "description": "Mascot name from the style's mascot cast, e.g. 'napa'.",
+          "minLength": 1,
+          "title": "Who",
+          "type": "string"
+        },
+        "pose": {
+          "description": "Pose file name in that mascot's folder, e.g. 'kaget', 'paham', 'kepo', 'bingung', 'tunjuk'.",
+          "minLength": 1,
+          "title": "Pose",
+          "type": "string"
+        },
+        "at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Narration word where the pose starts; unset = the scene's start.",
+          "title": "At"
+        },
+        "hold_s": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "maximum": 20,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Back to the neutral pose after this long; unset = until the next pose or the scene's end.",
+          "title": "Hold S"
+        }
+      },
+      "required": [
+        "who",
+        "pose"
+      ],
+      "title": "MascotPose",
+      "type": "object"
+    },
     "MotionStep": {
       "additionalProperties": false,
       "description": "One beat of a motion component (see StageElement.steps).",
@@ -543,6 +595,18 @@
           ],
           "default": null
         },
+        "mascot": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SceneMascot"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Mascots (only when the style has a mascot cast): who speaks and pose changes."
+        },
         "cta_type": {
           "anyOf": [
             {
@@ -569,6 +633,42 @@
         "narration"
       ],
       "title": "Scene",
+      "type": "object"
+    },
+    "SceneMascot": {
+      "additionalProperties": false,
+      "description": "The style's mascots (a brand pack's cast) in this scene.",
+      "properties": {
+        "speaker": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Who speaks this scene's narration (mouth moves with the words); unset = the style's default for the template; 'none' = nobody.",
+          "title": "Speaker"
+        },
+        "poses": {
+          "description": "Pose changes in narration order (on top of automatic reactions).",
+          "items": {
+            "$ref": "#/$defs/MascotPose"
+          },
+          "maxItems": 12,
+          "title": "Poses",
+          "type": "array"
+        },
+        "hide": {
+          "default": false,
+          "description": "No mascots in this scene.",
+          "title": "Hide",
+          "type": "boolean"
+        }
+      },
+      "title": "SceneMascot",
       "type": "object"
     },
     "Side": {

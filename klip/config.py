@@ -95,6 +95,9 @@ def _brand_style(pack: Path) -> dict:
         node = st.get(section)
         if isinstance(node, dict) and node.get(key):
             node[key] = str((pack / node[key]).resolve())
+    for m in (st.get("mascot") or {}).get("cast") or []:      # mascot folders, relative to the pack
+        if m.get("dir"):
+            m["dir"] = str((pack / m["dir"]).resolve())
     return st
 
 

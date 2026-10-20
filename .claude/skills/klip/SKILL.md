@@ -168,6 +168,13 @@ re-render; unchanged stages are cached. Tell the user about any check you couldn
     "Rp2,5 jt", "name": "house", "at": "kebutuhan"}, {"text": "Tabungan", "value": 1, "show":
     "Rp1 jt", "name": "piggy-bank", "at": "tabungan", "accent": true}]}`. Full set:
     `examples/motion-components.json`.
+    **Mascots** (only when the style's brand pack has a `mascot` cast, e.g. Warga Nalar): they
+    stand above the stage captions on every stage scene, mouth the narration of the scene's
+    speaker, point at new big props and react to stamps on their own. A scene's `"mascot"`
+    steers them: `speaker` (a cast name, or "none"), `poses` [{who, pose, at, hold_s}] (pose =
+    a file in the mascot's folder: netral, kepo, kaget, paham, bingung, tunjuk), `hide`. Use poses
+    for the beats that matter (a myth landing → `bingung`, the reveal → `paham`); leave the rest
+    automatic. They don't show on non-stage scenes.
     Rules: one element per narration subject, every ~1–2 s; `at` words in narration order.
     **Fewer, bigger props read better:** the layout is automatic and composes by count: one
     prop is a big centred hero; a photo/chart + a tag or number becomes hero + tag; three with

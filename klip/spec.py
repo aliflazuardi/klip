@@ -289,6 +289,25 @@ class Compare(_Strict):
     right: Side
 
 
+class MascotPose(_Strict):
+    """A mascot changes pose (expression) on a narration word."""
+    who: str = Field(min_length=1, description="Mascot name from the style's mascot cast, e.g. 'napa'.")
+    pose: str = Field(min_length=1, description="Pose file name in that mascot's folder, e.g. 'kaget', 'paham', "
+                                                "'kepo', 'bingung', 'tunjuk'.")
+    at: str | None = Field(None, description="Narration word where the pose starts; unset = the scene's start.")
+    hold_s: float | None = Field(None, gt=0, le=20, description="Back to the neutral pose after this long; unset "
+                                                               "= until the next pose or the scene's end.")
+
+
+class SceneMascot(_Strict):
+    """The style's mascots (a brand pack's cast) in this scene."""
+    speaker: str | None = Field(None, description="Who speaks this scene's narration (mouth moves with the words); "
+                                                  "unset = the style's default for the template; 'none' = nobody.")
+    poses: list[MascotPose] = Field(default_factory=list, max_length=12,
+                                    description="Pose changes in narration order (on top of automatic reactions).")
+    hide: bool = Field(False, description="No mascots in this scene.")
+
+
 class Scene(_Strict):
     id: str = Field(pattern=r"^[A-Za-z0-9_-]+$")
     template: TemplateName
@@ -308,6 +327,8 @@ class Scene(_Strict):
                                                     "(default: ~45% into the scene).")
     stat: Stat | None = None
     compare: Compare | None = None
+    mascot: SceneMascot | None = Field(None, description="Mascots (only when the style has a mascot cast): who "
+                                                         "speaks and pose changes.")
     cta_type: CtaType | None = Field(None, description="cta: what the outro asks for; shows an action chip "
                                                        "(icon + label). 'comment' = on_screen_text is a "
                                                        "two-sided question shown as the headline.")

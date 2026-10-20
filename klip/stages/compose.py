@@ -16,7 +16,7 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 from klip import config
-from klip import motion
+from klip import mascot, motion
 from klip import stage as stage_mod
 from klip.captions import CaptionWord, emphasis_mask, norm, paginate, tokenize
 from klip.paths import RENDERER_DIR, ROOT, TEMPLATES_DIR
@@ -168,7 +168,11 @@ def _stage_ctx(scene: Scene, t: dict, words: list[dict], media: dict, style: dic
             warnings.append(f"{scene.id}: no {'data' if els[i].kind == 'chart' else 'image'} for stage element "
                             f"at {els[i].at!r}; left out")
     times = stage_mod.entry_times(els, words, t["start_ms"], t["duration_ms"], warnings, scene.id)
-    area = (stage_title_bottom(scene) + 24, caption_style(style, True)["top"] - float(config.get("stage.caption_gap_px")))
+    cap_top = caption_style(style, True)["top"]
+    bottom = cap_top - float(config.get("stage.caption_gap_px"))
+    if mascot.active(scene, style):           # the props end above the mascots
+        bottom = min(bottom, mascot.top(style, cap_top) - float(mascot.settings(style)["clear_px"]))
+    area = (stage_title_bottom(scene) + 24, bottom)
     boxes = stage_mod.layout(scene.id, els, rows, area)
     exits: dict[int, float] = {}
     pgs = stage_mod.pages(els)
@@ -182,6 +186,8 @@ def _stage_ctx(scene: Scene, t: dict, words: list[dict], media: dict, style: dic
         if i in missing or i not in boxes:
             continue
         b = boxes[i]
+        # a text prop whose box the layout shrank (to fit or to clear its neighbours) shrinks its type too
+        fit = min(1.0, b["h"] / stage_mod.box_size(e, b["size"], rows.get(i))[1])
         el = {"id": f"st-{scene.id}-{i}", "i": i, "kind": e.kind, "start": times[i], "exit": exits.get(i),
               "col": b["slot"][1], **b, "label": e.label, "label_font": None, "text": e.text, "page": next(k for k, pg in enumerate(pgs) if i in pg)}
         if e.kind == "chart":
@@ -213,12 +219,12 @@ def _stage_ctx(scene: Scene, t: dict, words: list[dict], media: dict, style: dic
                 el["n"] = e.count or c["stack_count"]
                 el["d"] = round(c["icon_px"][b["size"]] * 0.62, 1)
         elif e.kind == "number":
-            el["font"] = c["number_px"][b["size"]]
+            el["font"] = round(c["number_px"][b["size"]] * fit, 1)
             el["color"] = c["number"][e.tone]
         elif e.kind == "label":
-            el["font"] = c["label_px"][b["size"]]
+            el["font"] = round(c["label_px"][b["size"]] * fit, 1)
         elif e.kind == "stamp":
-            el["font"] = c["stamp_px"][b["size"]]
+            el["font"] = round(c["stamp_px"][b["size"]] * fit, 1)
             el["color"] = c["stamp"][e.tone]
         elif e.kind == "bar":
             top = max(x.value for x in e.bars) or 1
@@ -341,6 +347,7 @@ def build_context(spec: Spec, timeline: dict, words: list[dict],
     for s in scenes:
         if s.get("stage"):
             stage_mod.add_motion(s)
+    mascots = mascot.plan(spec, scenes, words, style, caption_style(style, True)["top"])
 
     # Caption words per scene, with emphasis flags from the spec.
     scene_words = []
@@ -383,7 +390,7 @@ def build_context(spec: Spec, timeline: dict, words: list[dict],
     brand["outro"] = outro_badge(outro, brand, scenes)
     stage_bgs = sorted({s["stage"]["bg"] for s in scenes if s.get("stage") and s["stage"]["builtin"]})
     ctx = {
-        "total": total, "style": style, "scenes": scenes, "pages": page_ctx, "brand": brand,
+        "total": total, "style": style, "scenes": scenes, "pages": page_ctx, "brand": brand, "mascots": mascots,
         "cap": {"base": cap, "stage": caption_style(style, True)},
         "stage": {"cfg": config.get("stage"),
                   "bgs": [{"key": b, "css": stage_mod.background_css(b), "grain": stage_mod.grain_css(b)}

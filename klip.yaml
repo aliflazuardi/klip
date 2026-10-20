@@ -546,6 +546,38 @@ styles:
       shrink: 0.85                  # overlay: a stage scene's props shrink to this (towards the
       lift_px: 40                   # title) and move up this far, to make room for the badge
       bg_opacity: 0.9               # overlay: shade_color behind the badge
+    # Mascots: characters standing just above the captions who "explain" the video. A brand pack
+    # lists its cast; each mascot is a folder of pose SVGs (<pose>.svg, `netral` required), drawn
+    # facing the viewer and pointing to the viewer's right. Inside a pose: class "mouth" (closed) and
+    # "mouth-open" (hidden) swap on each spoken word of the speaker, "eye" blinks, "wag" sways (a tail),
+    # "nomirror" stays readable when the mascot is mirrored (text). The props area shrinks to make
+    # room. A scene's "mascot" in the spec picks the speaker and adds poses on words.
+    mascot:
+      cast: []                      # [{name, dir (relative to the brand pack), side: left|right}]
+      height: 240                   # px
+      gap_px: 6                     # above the stage captions
+      inset_px: 10                  # from the safe zone's left/right edge
+      clear_px: 44                  # the stage props end this far above the mascots (room for the
+                                    # camera push-in and hanging label tags)
+      speaker: {default: null}      # template → who speaks (e.g. hook: napa); default for the rest
+      # Automatic reactions (spec poses come on top): the speaker points at each new big prop or
+      # motion component (no more often than point_gap_s), everyone reacts to a stamp, and the
+      # hook can open on a pose per mascot.
+      auto:
+        point: tunjuk               # pose name; null = off
+        point_hold_s: 1.3
+        point_gap_s: 3.0
+        stamp: {down: kaget, up: paham, neutral: kepo}   # stamp tone → pose; null = off
+        stamp_hold_s: 1.5
+        hook: {}                    # {mascot: pose} at the hook's start
+        cta: {}                     # {mascot: pose} when the closing line starts (outro overlay/none)
+      # Lip sync, flip-book style: on each spoken word of the speaker the pose's "mouth" hides and
+      # its "mouth-open" shows for a share of the word (max open_s), twice for long words.
+      mouth: {share: 0.6, open_s: 0.16, double_s: 0.42}
+      blink_s: [2.6, 4.8]           # a blink every this many seconds (picked per blink)
+      bob_px: 5                     # idle up/down
+      bob_s: 1.4                    # half a bob
+      enter_s: 0.35
     # "Simpan dulu biar nggak lupa" pill on list videos, shown when list item `at_item` starts
     # (first run of list_item scenes only). A spec can override with "save_nudge": true/false.
     save_nudge:

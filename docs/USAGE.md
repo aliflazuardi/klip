@@ -96,6 +96,15 @@ dot going round), `timeline`, `funnel` and `reel` (a slot reel landing on the an
 `show` count up. See `examples/motion-components.json` (one of each) and `stage.components` in
 `klip.yaml` for sizes, colours and timing.
 
+### Mascots
+
+A brand pack can bring characters who "explain" the video: `mascot.cast` in its `brand.yaml` lists
+them, each a folder of pose SVGs (`netral.svg` required; `brands/example/mascot/bulat/` shows the
+format). On stage scenes they stand above the captions: the scene's speaker mouths each word
+(flip-book lip sync between the pose's `mouth` and `mouth-open`), they blink and sway, point at
+new big props, and react to stamps. A scene's `"mascot"` picks the speaker and adds poses on
+words. Settings: `styles.default.mascot` in `klip.yaml`.
+
 ### Photos on the stage: stock first, then a photo brief for you
 
 Stage props are mostly real photos cut out with scissors. For each `cutout`/`photo`/`person`/`logo`

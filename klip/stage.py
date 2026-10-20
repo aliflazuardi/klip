@@ -261,7 +261,7 @@ def fit(x: float, y: float, w: float, h: float, top: float, bottom: float) -> tu
 
 def separate(boxes: dict[int, dict], below: dict[int, float], top: float, bottom: float) -> None:
     """Push overlapping boxes apart (in place) along the axis that overlaps least, keeping them in the
-    stage area; if they still overlap after that, shrink them all a little and try again.
+    stage area; if some still overlap after that, shrink the bigger box of each such pair and try again.
     `below`: extra px a box needs under it (its hanging label tag)."""
     from itertools import combinations
     gap, keys = float(cfg("layout_gap_px")), sorted(boxes)
@@ -278,7 +278,7 @@ def separate(boxes: dict[int, dict], below: dict[int, float], top: float, bottom
 
     for i in keys:
         boxes[i]["_i"] = i
-    for _ in range(5):
+    for _ in range(8):
         for _ in range(40):
             moved = False
             for i, j in combinations(keys, 2):
@@ -295,11 +295,13 @@ def separate(boxes: dict[int, dict], below: dict[int, float], top: float, bottom
                 clamp(b)
             if not moved:
                 break
-        if not any(min(overlap(boxes[i], boxes[j])) > 0 for i, j in combinations(keys, 2)):
+        clashes = [(i, j) for i, j in combinations(keys, 2) if min(overlap(boxes[i], boxes[j])) > 0]
+        if not clashes:
             break
-        for i in keys:
-            boxes[i]["w"] *= 0.9
-            boxes[i]["h"] *= 0.9
+        # shrink the bigger box of each clashing pair (a photo gives way before a tag's text does)
+        for i in {max(pair, key=lambda k: boxes[k]["w"] * boxes[k]["h"]) for pair in clashes}:
+            boxes[i]["w"] *= 0.88
+            boxes[i]["h"] *= 0.88
             clamp(boxes[i])
     for i in keys:
         boxes[i].pop("_i")
