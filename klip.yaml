@@ -131,17 +131,11 @@ stage:
   bg_drift_px: 40                   # the background pans this far across a run of stage scenes
   zoom: 1.04                        # the props layer slowly pushes in to this scale per scene
   # Layout: the stage area sits between the title strip and the captions (caption.top 1180).
-  # Slot centres (x, y) on the 1080x1920 canvas: t/m/b row + l/c/r column.
-  slots:
-    tl: [290, 560]
-    tc: [510, 560]
-    tr: [730, 560]
-    ml: [290, 790]
-    mc: [510, 790]
-    mr: [730, 790]
-    bl: [290, 1010]
-    bc: [510, 1010]
-    br: [730, 1010]
+  # A slot is a t/m/b row + l/c/r column (e.g. tl, mc, br). Columns are x centres on the canvas;
+  # rows are y centres as a share of the free area under the title strip, so a two-line title
+  # pushes the props down instead of crowding them against it.
+  columns: {l: 290, c: 510, r: 730}
+  rows: {t: 0.2, m: 0.5, b: 0.8}
   # Automatic slots by how many elements share the stage (highlights don't take a slot).
   layouts:
     1: [mc]

@@ -149,6 +149,12 @@ def box_size(e: StageElement, size: str, media: dict | None) -> tuple[float, flo
     return bw, bh                                   # bar
 
 
+def slot_centre(slot: str, area: tuple[float, float]) -> tuple[float, float]:
+    """Centre (x, y) of a slot like "tl": column x from stage.columns, row y spread over the area."""
+    top, bottom = area
+    return float(cfg("columns")[slot[1]]), top + float(cfg("rows")[slot[0]]) * (bottom - top)
+
+
 def fit(x: float, y: float, w: float, h: float, top: float, bottom: float) -> tuple[float, float, float, float]:
     """Shrink a box to fit the stage area, then shift it inside."""
     s = min(1.0, (SAFE_X[1] - SAFE_X[0]) / w, (bottom - top) / h)
@@ -161,7 +167,6 @@ def fit(x: float, y: float, w: float, h: float, top: float, bottom: float) -> tu
 def layout(scene_id: str, elements: list[StageElement], media: dict[int, dict],
            area: tuple[float, float]) -> dict[int, dict]:
     """Box (x, y = centre; w, h; rot; size) per element, highlights boxing their target."""
-    slots = cfg("slots")
     out: dict[int, dict] = {}
     for page in pages(elements):
         on_stage = [i for i in page if elements[i].kind != "highlight"]
@@ -169,7 +174,7 @@ def layout(scene_id: str, elements: list[StageElement], media: dict[int, dict],
             e = elements[i]
             size = e.size or default_size(len(on_stage))
             w, h = box_size(e, size, media.get(i))
-            x, y, w, h = fit(*slots[slot], w, h, *area)
+            x, y, w, h = fit(*slot_centre(slot, area), w, h, *area)
             out[i] = {"x": x, "y": y, "w": w, "h": h, "rot": tilt(scene_id, i, e.kind), "size": size, "slot": slot}
         for i in page:
             e = elements[i]

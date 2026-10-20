@@ -6,6 +6,11 @@ All notable changes to Klip are listed here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Stage scenes: props spread over the free area under the title strip (`stage.rows` /
+  `stage.columns`) instead of fixed rows, so a two-line title no longer crowds them at the top.
+
 ## [0.2.0] - 2026-10-20
 
 ### Added
