@@ -76,6 +76,9 @@ All notable changes to Klip are listed here. The format follows
 - Stage props on one page no longer overlap (a label under an icon, a trophy over a tag): boxes
   are pushed apart, then shrunk if needed (`stage.layout_gap_px`). Stamps may still overlap what
   they judge.
+- Uppercase stage labels no longer run off the right edge (their width was underestimated), and
+  the stage area keeps `stage.caption_gap_px` clear above the captions. Photo props get a bigger
+  box (`stage.photos.grow`).
 
 ## [0.2.1] - 2026-10-20
 

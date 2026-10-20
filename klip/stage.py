@@ -201,6 +201,8 @@ def box_size(e: StageElement, size: str, media: dict | None) -> tuple[float, flo
         s = min(bw / iw, (bh - bar) / ih)
         return iw * s, ih * s + bar
     if e.kind in ("cutout", "photo"):
+        g = float(cfg("photos.grow"))              # real photos are the heroes: a bigger box
+        bw, bh = bw * g, bh * g
         iw, ih = (media or {}).get("w") or 1, (media or {}).get("h") or 1
         fl, ft, fr, fb = PHOTO_FRAME if media and media.get("render") == "photo" else (0, 0, 0, 0)
         s = min((bw - fl - fr) / iw, (bh - ft - fb) / ih)
@@ -213,7 +215,7 @@ def box_size(e: StageElement, size: str, media: dict | None) -> tuple[float, flo
         return len(e.text) * 0.62 * f + 30, f * 1.15
     if e.kind == "label":
         f = cfg("label_px")[size]
-        return len(e.text) * (0.68 if cfg("label.uppercase") else 0.56) * f + 56, f * 1.65
+        return len(e.text) * (0.78 if cfg("label.uppercase") else 0.6) * f + 56, f * 1.65
     if e.kind == "stamp":
         f = cfg("stamp_px")[size]
         return len(e.text) * 0.74 * f + 2.4 * f, f * 1.9

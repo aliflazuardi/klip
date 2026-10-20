@@ -232,6 +232,8 @@ stage:
   label_px: {s: 44, m: 54, l: 66}  # label (tag) font size
   stamp_px: {s: 64, m: 84, l: 110} # stamp font size
   tilt_deg: 4                       # props are rotated up to ± this (deterministic per element)
+  caption_gap_px: 50                # the stage area ends this far above the captions (room for the
+                                    # camera push-in and hanging label tags)
   layout_gap_px: 16                 # props on one page keep at least this apart (overlaps are pushed
                                     # apart, then shrunk); stamps may overlap what they judge
   lead_s: 0.06                      # an element lands this long before its word
@@ -309,6 +311,7 @@ stage:
     # (minute-long waits) stalls a fetch that searches every prop; add it back if you have few keys.
     providers: [local, unsplash, pexels, pixabay, commons]
     per_provider: 4                 # candidates per provider and query shown to the vision check
+    grow: 1.25                      # cutout/photo boxes are this much bigger than stage.sizes
     enough: 8                       # stop asking further providers once this many relevant photos are found
     brief_below: 3                  # stock photos rated below this go under "bisa lebih bagus"
     min_share: 0.6                  # validate warns when real pictures are fewer than this share of a

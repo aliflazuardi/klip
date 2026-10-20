@@ -167,7 +167,7 @@ def _stage_ctx(scene: Scene, t: dict, words: list[dict], media: dict, style: dic
             warnings.append(f"{scene.id}: no {'data' if els[i].kind == 'chart' else 'image'} for stage element "
                             f"at {els[i].at!r}; left out")
     times = stage_mod.entry_times(els, words, t["start_ms"], t["duration_ms"], warnings, scene.id)
-    area = (stage_title_bottom(scene) + 24, caption_style(style, True)["top"] - 10)
+    area = (stage_title_bottom(scene) + 24, caption_style(style, True)["top"] - float(config.get("stage.caption_gap_px")))
     boxes = stage_mod.layout(scene.id, els, rows, area)
     exits: dict[int, float] = {}
     pgs = stage_mod.pages(els)
