@@ -87,6 +87,17 @@ def test_layout_slots_sizes_and_highlight_box():
         assert 450 <= b["y"] - b["h"] / 2 + (pad if b is hl else 0)
 
 
+def test_rows_follow_the_free_area_under_the_title():
+    v = Visual(**stage(*({"at": w, "kind": "icon", "name": "coins"} for w in "abcd")))
+    short = stage_mod.layout("s1", v.elements, {}, (450, 1170))
+    tall = stage_mod.layout("s1", v.elements, {}, (560, 1170))          # two-line title
+    assert [b["slot"] for b in short.values()] == ["tl", "tr", "bl", "br"]
+    assert all(tall[i]["y"] > short[i]["y"] for i in tall)              # props move down with the title
+    gap_top = tall[0]["y"] - tall[0]["h"] / 2 - 560
+    gap_bottom = 1170 - (tall[2]["y"] + tall[2]["h"] / 2)
+    assert gap_top > 20 and gap_bottom > 20                             # breathing room both ends
+
+
 def test_photo_boxes_keep_aspect_and_fit_the_stage():
     v = Visual(**stage({"at": "a", "kind": "cutout", "query": "x"}))
     [b] = stage_mod.layout("s1", v.elements, {0: {"w": 2000, "h": 500, "render": "cutout"}}, (450, 1170)).values()
