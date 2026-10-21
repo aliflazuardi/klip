@@ -1,5 +1,7 @@
 // ---- scene kit `k` for code scenes (contract: docs/CODE-SCENES.md)
 const KLIP_LOOK = {{ code_look | tojson }};
+const KLIP_CAST = {{ (code.cast or none) | tojson }};
+let klipMascotN = 0;
 const klipNorm = (s) => String(s).toLowerCase().replace(/[^\p{L}\p{N}_]/gu, "");
 function klipScene(meta, body) {
   const root = document.getElementById("sc-" + meta.id);
@@ -45,6 +47,56 @@ function klipScene(meta, body) {
       if (parent) parent.appendChild(e);
       return e;
     },
+  };
+  // a brand mascot (style mascot cast) as a rig: k.mascot("napa", {x, y, h, parent, mirror, bob})
+  // .el (the wrapper), .pose("kaget", at, hold), .hide(at) / .show(at). The scene's speaker mouths
+  // its narration and everyone blinks, on their own.
+  k.mascot = function (name, o = {}) {
+    const c = KLIP_CAST && KLIP_CAST.cast[name];
+    if (!c) throw new Error(`no mascot ${name} in this style`);
+    const n = ++klipMascotN, h = o.h || 300, w = h * c.aspect;
+    const el = k.el("div", { class: "k-ms" }, o.parent || root.querySelector(".k-world"));
+    Object.assign(el.style, { position: "absolute", left: (o.x ?? 60) + "px", top: (o.y ?? 1000) + "px",
+                              width: w + "px", height: h + "px" });
+    const ol = KLIP_CAST.outline;
+    const body = k.el("div", { class: "k-ms-body" }, el);
+    if (ol) body.style.filter = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([a, b]) =>
+      `drop-shadow(${a * ol.px / 2}px ${b * ol.px / 2}px 0 ${ol.color})`).join(" ") + " drop-shadow(0 10px 10px rgba(0,0,0,.18))";
+    const flip = k.el("div", { class: "k-ms-flip" + ((o.mirror ?? c.mirror) ? " mirror" : "") }, body);
+    const poses = {};
+    for (const [p, svg] of Object.entries(c.poses)) {
+      const d = k.el("div", { class: "k-ms-pose", "data-p": p }, flip);
+      d.innerHTML = svg.replace(/(id="|url\(#|href="#)ms-/g, `$1k${n}-ms-`);
+      d.style.opacity = p === "netral" ? 1 : 0;
+      poses[p] = d;
+    }
+    const all = Object.values(poses);
+    const rig = {
+      el, w, h, name,
+      pose(p, at = 0, hold = null) {
+        if (!poses[p]) throw new Error(`mascot ${name} has no pose ${p}`);
+        sub.set(all, { opacity: 0 }, at); sub.set(poses[p], { opacity: 1 }, at);
+        sub.fromTo(body, { scale: 0.92 }, { scale: 1, duration: 0.22, ease: "back.out(3)", immediateRender: false }, at);
+        if (hold) { sub.set(all, { opacity: 0 }, at + hold); sub.set(poses.netral, { opacity: 1 }, at + hold); }
+        return rig;
+      },
+      hide(at) { sub.set(el, { autoAlpha: 0 }, at); return rig; },
+      show(at) { sub.set(el, { autoAlpha: 1 }, at); return rig; },
+    };
+    const mm = meta.mascots || { mouth: {}, blinks: {} };
+    for (const [a, b] of mm.mouth[name] || []) {
+      sub.set(el.querySelectorAll(".mouth"), { opacity: 0 }, a); sub.set(el.querySelectorAll(".mouth-open"), { opacity: 1 }, a);
+      sub.set(el.querySelectorAll(".mouth"), { opacity: 1 }, b); sub.set(el.querySelectorAll(".mouth-open"), { opacity: 0 }, b);
+    }
+    for (const t of mm.blinks[name] || []) {
+      sub.fromTo(el.querySelectorAll(".eye"), { scaleY: 1 }, { scaleY: 0.1, duration: 0.07, yoyo: true, repeat: 1,
+        ease: "none", immediateRender: false, transformOrigin: "50% 50%" }, t);
+    }
+    if (o.bob !== false) {
+      const half = KLIP_CAST.bob_s, reps = Math.max(1, Math.floor(meta.dur / half));
+      sub.fromTo(body, { y: 0 }, { y: -KLIP_CAST.bob_px, duration: half, yoyo: true, repeat: reps - 1, ease: "sine.inOut" }, (n % 3) * 0.3);
+    }
+    return rig;
   };
   const tex = root.querySelector(".k-tex");
   if (tex && meta.texture === "grain") {           // film grain jumps 12 times a second

@@ -331,7 +331,7 @@ def _link_stages(scenes: list[dict]) -> None:
         i = j + 1
 
 
-def _scene_ctx(scene: Scene, idx: int, t: dict, style: dict, warnings: list[str],
+def _scene_ctx(spec: Spec, scene: Scene, idx: int, t: dict, style: dict, warnings: list[str],
                media: dict | None, words: list[dict], numbers: dict, look: dict | None = None) -> dict:
     template = scene.template
     if template not in IMPLEMENTED_TEMPLATES:
@@ -363,24 +363,29 @@ def _scene_ctx(scene: Scene, idx: int, t: dict, style: dict, warnings: list[str]
         "t": _template_ctx(scene, t, words, numbers, style) if template == scene.template else {},
         "stage": _stage_ctx(scene, t, words, media, style, warnings, numbers.get(scene.id))
                  if v.type == "stage" else None,
-        "code": _code_ctx(scene, t, words, look, style) if v.type == "code" else None,
+        "code": _code_ctx(spec, scene, t, words, look, style) if v.type == "code" else None,
     }
 
 
-def _code_ctx(scene: Scene, t: dict, words: list[dict], look: dict, style: dict) -> dict:
+def _code_ctx(spec: Spec, scene: Scene, t: dict, words: list[dict], look: dict, style: dict) -> dict:
     try:
-        return codescene.scene_ctx(scene, t, words, look, caption_style(style, True)["top"])
+        ctx = codescene.scene_ctx(scene, t, words, look, caption_style(style, True)["top"])
     except codescene.CodeSceneError as e:
         raise ComposeError(str(e)) from None
+    if codescene.uses_mascots(str(ctx["js"])) and mascot.names(style):
+        ctx["meta"]["mascots"] = codescene.mascot_meta(spec, scene, style, words, t["start_ms"])
+    return ctx
 
 
-def code_ctx(look: dict | None, scenes: list[dict]) -> dict | None:
+def code_ctx(look: dict | None, scenes: list[dict], style: dict) -> dict | None:
     """Head context for code scenes: look-bible CSS vars, @font-face rows, caption font, three.js."""
     if not look:
         return None
     return {"vars": codescene.css_vars(look), "faces": codescene.font_faces(),
             "caption_font": look["families"].get("caption"),
-            "three": any("three" in s["code"]["libs"] for s in scenes if s.get("code"))}
+            "three": any("three" in s["code"]["libs"] for s in scenes if s.get("code")),
+            "cast": codescene.cast_ctx(style) if any((s.get("code") or {}).get("meta", {}).get("mascots")
+                                                      for s in scenes) else None}
 
 
 def build_context(spec: Spec, timeline: dict, words: list[dict],
@@ -403,12 +408,17 @@ def build_context(spec: Spec, timeline: dict, words: list[dict],
             look = codescene.look(spec, style)
         except codescene.CodeSceneError as e:
             raise ComposeError(str(e)) from None
-    scenes = [_scene_ctx(s, i, tmap[s.id], style, warnings, media.get(s.id), by_scene.get(s.id, []), numbers, look)
+    scenes = [_scene_ctx(spec, s, i, tmap[s.id], style, warnings, media.get(s.id), by_scene.get(s.id, []), numbers, look)
               for i, s in enumerate(spec.scenes)]
     outro = fold_outro(spec, scenes, style)
     for s in scenes:
         if s.get("code"):                     # the outro may have stretched the scene before the cta
             s["code"]["meta"]["dur"] = s["dur"]
+    if outro and outro["mode"] != "card" and (prev := scenes[-2].get("code")) and prev["meta"].get("mascots"):
+        cta = spec.scenes[-1]                 # the cta's speaker says the closing line over that scene
+        if who := mascot.speaker(spec, cta, style):
+            m = prev["meta"]["mascots"]["mouth"]
+            m[who] = m.get(who, []) + codescene.flaps(style, by_scene.get(cta.id, []), scenes[-2]["start"])
     _link_stages(scenes)
     for s in scenes:
         if s.get("stage"):
@@ -464,7 +474,7 @@ def build_context(spec: Spec, timeline: dict, words: list[dict],
         "stage": {"cfg": config.get("stage"),
                   "bgs": [{"key": b, "css": stage_mod.background_css(b), "grain": stage_mod.grain_css(b)}
                           for b in stage_bgs]} if any(s.get("stage") for s in scenes) else None,
-        "code": code_ctx(look, scenes), "code_look": look,
+        "code": code_ctx(look, scenes, style), "code_look": look,
         "font_files": FONT_FILES, "slug": spec.slug, "cut_zoom": config.get("cuts.cut_zoom", 1.12),
         "sfx": sfx_events(scenes, page_ctx, end_card=bool(brand["end_card"]), nudge=brand["save_nudge"],
                           outro=brand["outro"])

@@ -306,6 +306,13 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; 
 {% for s in scenes if s.code %}
 #sc-{{ s.id }} .k-tex { {{ s.code.texture_css }} }
 {% endfor %}
+.k-ms-body, .k-ms-flip, .k-ms-pose { position: absolute; inset: 0; }
+.k-ms-body { transform-origin: 50% 100%; }
+.k-ms-flip.mirror { transform: scaleX(-1); }
+.k-ms-flip.mirror .nomirror { transform: scaleX(-1); transform-box: fill-box; transform-origin: 50% 50%; }
+.k-ms-pose svg { display: block; width: 100%; height: 100%; }
+.k-ms .eye { transform-box: fill-box; transform-origin: 50% 50%; }
+.k-ms .mouth-open { opacity: 0; }
 .k-error { position: absolute; left: 40px; right: 40px; top: 300px; padding: 24px; z-index: 99; background: #D7263D; color: #fff;
            font: 700 34px/1.3 monospace; white-space: pre-wrap; }
 {% for s in scenes if s.code %}

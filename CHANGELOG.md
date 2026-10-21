@@ -18,6 +18,8 @@ All notable changes to Klip are listed here. The format follows
 - `klip preview`: stills of each code scene at its start, cue words, middle and end, as contact
   sheets in `projects/<slug>/preview/`.
 - `libs: ["three"]` on a code scene loads Three.js (renderer dependency `three`).
+- Code scenes: `include` (shared scripts for several scenes) and `k.mascot(name)`, a brand
+  mascot rig with poses, lip sync on the scene's narration and blinks.
 
 ## [0.4.0] - 2026-10-21
 

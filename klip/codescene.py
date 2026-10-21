@@ -25,6 +25,8 @@ from klip.stage import _noise_svg
 STYLE_RE = re.compile(r"<style\b[^>]*>(.*?)</style>", re.S | re.I)
 SCRIPT_RE = re.compile(r"<script\b([^>]*)>(.*?)</script>", re.S | re.I)
 CUE_RE = re.compile(r"""\bk\.at\(\s*(["'`])(.+?)\1""")
+MASCOT_RE = re.compile(r"""\bk\.mascot\(\s*(["'`])(.+?)\1""")
+POSE_RE = re.compile(r"""\.pose\(\s*(["'`])(.+?)\1""")
 ASSET = "@asset/"
 
 # Script patterns that break frame-exact rendering (every frame is a seek of the timeline).
@@ -78,10 +80,17 @@ def parse(text: str) -> Fragment:
 
 
 def load(scene: Scene) -> Fragment:
+    """The scene file, with its `include` scripts in front of its own script."""
     p = path_of(scene)
     if not p.is_file():
         raise CodeSceneError(f"{scene.id}: code scene file not found: {scene.visual.code.file}")
-    return parse(p.read_text(encoding="utf-8"))
+    frag = parse(p.read_text(encoding="utf-8"))
+    libs = []
+    for inc in scene.visual.code.include:
+        if not (ROOT / inc).is_file():
+            raise CodeSceneError(f"{scene.id}: include not found: {inc}")
+        libs.append(f"// ---- {inc}\n" + (ROOT / inc).read_text(encoding="utf-8"))
+    return Fragment(frag.markup, frag.css, "\n".join([*libs, frag.js]))
 
 
 def cues(js: str) -> list[str]:
@@ -113,6 +122,11 @@ def lint_scene(scene: Scene, spec: Spec | None = None) -> list[tuple[str, str]]:
         frag = parse(text)
     except CodeSceneError as e:
         return out + [("error", f"{c.file}: {e}")]
+    for inc in c.include:
+        if not inc.endswith(".js") or not (ROOT / inc).is_file():
+            out.append(("error", f"visual.code.include: {inc} is not a .js file in the repo"))
+        else:
+            frag = Fragment(frag.markup, frag.css, (ROOT / inc).read_text(encoding="utf-8") + "\n" + frag.js)
     js = re.sub(r"//[^\n]*|/\*.*?\*/", "", frag.js, flags=re.S)
     for pat, what in FORBIDDEN:
         if re.search(pat, js, flags=re.M):
@@ -133,6 +147,18 @@ def lint_scene(scene: Scene, spec: Spec | None = None) -> list[tuple[str, str]]:
     for ref in sorted(set(re.findall(re.escape(ASSET) + r"([\w.\-]+)", text))):
         if ref not in names:
             out.append(("error", f"{c.file}: {ASSET}{ref} is not in visual.code.assets"))
+    if MASCOT_RE.search(js):
+        from klip import mascot
+        style = mascot.video_style(spec) if spec else config.style()
+        cast = {m["name"]: m for m in mascot.settings(style).get("cast") or []}
+        for _, name in MASCOT_RE.findall(js):
+            if name not in cast:
+                out.append(("error", f"{c.file}: k.mascot({name!r}): not in the style's mascot cast "
+                                     f"({', '.join(cast) or 'none'})"))
+        poses = {p for m in cast.values() for p in mascot._poses(m["dir"])}
+        for _, pose in POSE_RE.findall(js):
+            if cast and pose not in poses:
+                out.append(("error", f"{c.file}: pose {pose!r} is not a mascot pose ({', '.join(sorted(poses))})"))
     if "three" in c.libs and not (RENDERER_DIR / "node_modules" / "three").is_dir():
         out.append(("error", "libs ['three'] needs three in renderer/ (run npm ci there)"))
     return out
@@ -252,6 +278,41 @@ def scene_ctx(scene: Scene, t: dict, words: list[dict], lk: dict, caption_top: f
                  "text": scene.on_screen_text or "", "emphasis": scene.emphasis, "texture": texture,
                  "safe": safe_area(caption_top)},
     }
+
+
+def uses_mascots(js: str) -> bool:
+    return bool(MASCOT_RE.search(js))
+
+
+def cast_ctx(style: dict) -> dict:
+    """The style's mascot cast for k.mascot: {name: {poses: {pose: svg}, aspect, mirror, voice}, outline}."""
+    from klip import mascot
+    c = mascot.settings(style)
+    out = {}
+    for m in c.get("cast") or []:
+        svgs = mascot._poses(m["dir"])
+        out[m["name"]] = {"poses": {p: mascot._scoped(svg, f"ms-{m['name']}-{p}") for p, svg in svgs.items()},
+                          "aspect": round(mascot._aspect(svgs["netral"]), 4), "mirror": m.get("side") == "right",
+                          "voice": m.get("voice")}
+    return {"cast": out, "outline": c.get("outline"), "bob_px": c["bob_px"], "bob_s": c["bob_s"]}
+
+
+def mascot_meta(spec: Spec, scene: Scene, style: dict, words: list[dict], start_ms: float) -> dict:
+    """Per scene: who mouths the narration, their mouth flaps and everyone's blinks (scene seconds)."""
+    from klip import mascot
+    c = mascot.settings(style)
+    s0 = start_ms / 1000
+    who = mascot.speaker(spec, scene, style)
+    end = max([w["endMs"] / 1000 - s0 for w in words], default=0) + 1
+    blinks = {n: [round(t, 3) for t in mascot._blinks([(0.0, end)], f"{n}-{scene.id}", c["blink_s"])]
+              for n in mascot.names(style)}
+    return {"speaker": who, "mouth": {who: flaps(style, words, s0)} if who else {}, "blinks": blinks}
+
+
+def flaps(style: dict, words: list[dict], s0: float) -> list[list[float]]:
+    """Mouth (open, close) pairs for these words, in seconds from s0."""
+    from klip import mascot
+    return [[round(a - s0, 3), round(b - s0, 3)] for a, b in mascot._flaps(words, mascot.settings(style)["mouth"])]
 
 
 def cue_times(scene: Scene, words: list[dict]) -> list[tuple[float, str]]:

@@ -129,3 +129,29 @@ def test_cue_times_come_from_the_voice(repo):
     spec = _spec({"id": "s1", "template": "hook", "narration": "matahari terbit", "visual": code()})
     ws = words(("matahari", 1200), ("terbit", 1700))
     assert codescene.cue_times(spec.scenes[0], ws) == [(1.2, "matahari")]
+
+
+def test_include_runs_before_the_scene_script_and_is_linted(repo):
+    (repo / "specs" / "lib.js").write_text("function sun() { return k.$('#sun'); }\n")
+    (repo / "specs" / "bad.js").write_text("const t = Date.now();\n")
+    spec = _spec({"id": "s1", "template": "hook", "narration": "matahari terbit",
+                  "visual": code(assets=["specs/farm.png"], include=["specs/lib.js"])})
+    js = codescene.load(spec.scenes[0]).js
+    assert js.index("function sun") < js.index("k.tl.from")
+    assert not [i for i in lint(spec) if i.where == "s1" and i.level == "error"]
+    bad = _spec({"id": "s1", "template": "hook", "narration": "matahari terbit",
+                 "visual": code(assets=["specs/farm.png"], include=["specs/bad.js"])})
+    assert any("no Date" in str(i) for i in lint(bad))
+
+
+def test_mascot_names_and_poses_are_checked_against_the_cast(repo, monkeypatch):
+    from klip import mascot
+    style = {"mascot": {"cast": [{"name": "napa", "dir": "x", "voice": "female"}]}}
+    monkeypatch.setattr(mascot, "video_style", lambda spec: style)
+    monkeypatch.setattr(mascot, "_poses", lambda d: {"netral": "<svg/>", "kaget": "<svg/>"})
+    (repo / "specs" / "m.html").write_text('<div></div><script>const n = k.mascot("napa"); n.pose("kaget", 0);'
+                                           'k.mascot("budi"); n.pose("joget", 1);</script>')
+    spec = _spec({"id": "s1", "template": "hook", "narration": "a b c", "visual": code("specs/m.html")})
+    msgs = [i.message for i in lint(spec) if i.where == "s1"]
+    assert any("k.mascot('budi')" in m for m in msgs) and any("pose 'joget'" in m for m in msgs)
+    assert not any("k.mascot('napa')" in m or "pose 'kaget'" in m for m in msgs)

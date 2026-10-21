@@ -277,6 +277,9 @@ class CodeScene(_Strict):
     assets: list[str] = Field(default_factory=list, max_length=20,
                               description="Repo-relative files the scene uses (images, SVGs); reference them as "
                                           "'@asset/<file name>' in markup, CSS or JS.")
+    include: list[str] = Field(default_factory=list, max_length=8,
+                               description="Repo-relative .js files run before the scene's script, inside it "
+                                           "(with `k`): helpers and motifs shared by several scenes.")
     libs: list[CodeLib] = Field(default_factory=list, description="Extra libraries: 'three' = Three.js as "
                                                                   "k.lib.THREE.")
     captions: bool = Field(True, description="false = no captions on this scene (it shows its own words, e.g. "

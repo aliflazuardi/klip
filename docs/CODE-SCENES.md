@@ -40,6 +40,8 @@ One HTML fragment: markup, any `<style>` blocks and exactly one inline `<script>
   referenced as `@asset/barn.png` in markup, CSS or JS.
 - `"captions": false` turns the captions off for the scene (when it shows its own words).
 - `"libs": ["three"]` makes Three.js available as `k.lib.THREE`.
+- `"include": ["specs/<slug>/lib.js"]` runs shared scripts before the scene's own, inside it (with
+  `k`): drawing helpers and motifs several scenes use. Includes are linted like the scene.
 - `"texture": "grain"` overrides the look bible's texture for this scene.
 
 ## The scene kit `k`
@@ -58,6 +60,7 @@ One HTML fragment: markup, any `<style>` blocks and exactly one inline `<script>
 | `k.safe` | `{x, y, w, h, captionTop}`: the area clear of the TikTok UI and the captions. |
 | `k.text`, `k.emphasis` | The scene's `on_screen_text` and `emphasis`. |
 | `k.W`, `k.H`, `k.id` | 1080, 1920, the scene id. |
+| `k.mascot("napa", {x, y, h, parent, mirror, bob})` | A brand mascot (the style's mascot cast) as a rig: `.pose("kaget", at, hold)`, `.hide(at)`, `.show(at)`, `.el`, `.w`, `.h`. The scene's speaker mouths its narration, everyone blinks and bobs on their own. Names and poses are checked at validate time. |
 
 CSS variables: `--k-<colour>` for every palette entry (`--k-bg`, `--k-ink`, `--k-accent`, …),
 `--k-display`, `--k-body`, `--k-mono`, `--k-font-<key>` for every bundled font, `--k-line`.

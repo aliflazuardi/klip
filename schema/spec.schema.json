@@ -282,6 +282,15 @@
           "title": "Assets",
           "type": "array"
         },
+        "include": {
+          "description": "Repo-relative .js files run before the scene's script, inside it (with `k`): helpers and motifs shared by several scenes.",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 8,
+          "title": "Include",
+          "type": "array"
+        },
         "libs": {
           "description": "Extra libraries: 'three' = Three.js as k.lib.THREE.",
           "items": {
