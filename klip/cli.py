@@ -80,6 +80,8 @@ def print_preview(spec, issues) -> None:
         t.add_column(col, overflow="fold")
     for s in spec.scenes:
         vis = s.visual.type + (f":{s.visual.query or s.visual.name or s.visual.path or ''}" if s.visual.type != "solid" else "")
+        if s.visual.type == "code":
+            vis = f"code:{Path(s.visual.code.file).name}" + (f" +{','.join(s.visual.code.libs)}" if s.visual.code.libs else "")
         if s.visual.type == "stage":
             vis = f"stage:{('backdrop:' + s.visual.backdrop.kind) if s.visual.backdrop else s.visual.background or 'default'} " + ", ".join(
                 e.kind if e.kind != "highlight" else "▭" for e in s.visual.elements)
@@ -339,6 +341,31 @@ def photos(spec_path: Path, out: Optional[Path] = OutOpt) -> None:
     if b and b.get("props"):
         console.print(Path(b["path"]).read_text(encoding="utf-8"))
     _print_brief(b)
+
+
+@app.command()
+def preview(spec_path: Path, scene: Optional[list[str]] = typer.Option(None, "--scene", "-s",
+                                                                       help="Scene id (repeatable); default: the code scenes"),
+            voice: Optional[str] = VoiceOpt, out: Optional[Path] = OutOpt) -> None:
+    """Stills of scenes at their key moments (start, each k.at cue, middle, end) as contact sheets in
+    projects/<slug>/preview/, for checking code scenes before the full render."""
+    from klip import preview as preview_mod
+    from klip.engines.render.base import RenderError
+    from klip.stages.compose import ComposeError
+    from klip.lint import errors, lint
+    spec, project_dir = _load_or_exit(spec_path, voice, out)
+    if errs := errors(lint(spec)):
+        for i in errs:
+            console.print(f"[red]✗[/] {i}")
+        raise typer.Exit(1)
+    try:
+        with console.status("voice, assets, compose, stills…"):
+            rows = preview_mod.run(spec, project_dir, scene)
+    except (ValueError, ComposeError, RenderError) as e:
+        console.print(f"[red]preview failed:[/] {e}")
+        raise typer.Exit(1) from None
+    for r in rows:
+        console.print(f"[bold]{r['scene']}[/]: {r['sheet']}  ({len(r['frames'])} stills)")
 
 
 def _print_qa(report: dict) -> None:

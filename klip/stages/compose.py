@@ -16,7 +16,7 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 from klip import config
-from klip import mascot, motion
+from klip import codescene, mascot, motion
 from klip import stage as stage_mod
 from klip.captions import CaptionWord, emphasis_mask, norm, paginate, tokenize
 from klip.paths import RENDERER_DIR, ROOT, TEMPLATES_DIR
@@ -332,7 +332,7 @@ def _link_stages(scenes: list[dict]) -> None:
 
 
 def _scene_ctx(scene: Scene, idx: int, t: dict, style: dict, warnings: list[str],
-               media: dict | None, words: list[dict], numbers: dict) -> dict:
+               media: dict | None, words: list[dict], numbers: dict, look: dict | None = None) -> dict:
     template = scene.template
     if template not in IMPLEMENTED_TEMPLATES:
         warnings.append(f"{scene.id}: template {template!r} not implemented yet; using 'explain'")
@@ -363,7 +363,24 @@ def _scene_ctx(scene: Scene, idx: int, t: dict, style: dict, warnings: list[str]
         "t": _template_ctx(scene, t, words, numbers, style) if template == scene.template else {},
         "stage": _stage_ctx(scene, t, words, media, style, warnings, numbers.get(scene.id))
                  if v.type == "stage" else None,
+        "code": _code_ctx(scene, t, words, look, style) if v.type == "code" else None,
     }
+
+
+def _code_ctx(scene: Scene, t: dict, words: list[dict], look: dict, style: dict) -> dict:
+    try:
+        return codescene.scene_ctx(scene, t, words, look, caption_style(style, True)["top"])
+    except codescene.CodeSceneError as e:
+        raise ComposeError(str(e)) from None
+
+
+def code_ctx(look: dict | None, scenes: list[dict]) -> dict | None:
+    """Head context for code scenes: look-bible CSS vars, @font-face rows, caption font, three.js."""
+    if not look:
+        return None
+    return {"vars": codescene.css_vars(look), "faces": codescene.font_faces(),
+            "caption_font": look["families"].get("caption"),
+            "three": any("three" in s["code"]["libs"] for s in scenes if s.get("code"))}
 
 
 def build_context(spec: Spec, timeline: dict, words: list[dict],
@@ -380,9 +397,18 @@ def build_context(spec: Spec, timeline: dict, words: list[dict],
 
     media = (assets or {}).get("scenes", {})
     numbers = _list_numbers(spec)
-    scenes = [_scene_ctx(s, i, tmap[s.id], style, warnings, media.get(s.id), by_scene.get(s.id, []), numbers)
+    look = None
+    if any(s.visual.type == "code" for s in spec.scenes):
+        try:
+            look = codescene.look(spec, style)
+        except codescene.CodeSceneError as e:
+            raise ComposeError(str(e)) from None
+    scenes = [_scene_ctx(s, i, tmap[s.id], style, warnings, media.get(s.id), by_scene.get(s.id, []), numbers, look)
               for i, s in enumerate(spec.scenes)]
     outro = fold_outro(spec, scenes, style)
+    for s in scenes:
+        if s.get("code"):                     # the outro may have stretched the scene before the cta
+            s["code"]["meta"]["dur"] = s["dur"]
     _link_stages(scenes)
     for s in scenes:
         if s.get("stage"):
@@ -394,13 +420,16 @@ def build_context(spec: Spec, timeline: dict, words: list[dict],
     for s in spec.scenes:
         if outro and s.id == outro["scene"] and not outro["captions"]:
             continue                          # the outro's words are already on screen
+        if s.visual.type == "code" and not s.visual.code.captions:
+            continue                          # the scene shows its own words
         ws = by_scene.get(s.id, [])
         mask = emphasis_mask([w["text"].strip() for w in ws], s.emphasis)
         scene_words.append((s.id, [CaptionWord(w["text"].strip(), w["startMs"], w["endMs"], e)
                                    for w, e in zip(ws, mask)]))
     cap = caption_style(style, False)
-    staged = {s.id for s in spec.scenes if s.visual.type == "stage"}
+    staged = {s.id for s in spec.scenes if s.visual.type in ("stage", "code")}
     tones = {s["id"]: s["stage"]["tone"] for s in scenes if s.get("stage")}
+    tones |= {s["id"]: look["tone"] for s in scenes if s.get("code")}
     per_scene = {sid: {k: caption_style(style, True)[k] for k in ("max_words", "max_page_ms", "hide_gap_ms")}
                  for sid in staged}
     scene_ends = {s["id"]: s["start_ms"] + s["duration_ms"] for s in timeline["scenes"]}
@@ -435,6 +464,7 @@ def build_context(spec: Spec, timeline: dict, words: list[dict],
         "stage": {"cfg": config.get("stage"),
                   "bgs": [{"key": b, "css": stage_mod.background_css(b), "grain": stage_mod.grain_css(b)}
                           for b in stage_bgs]} if any(s.get("stage") for s in scenes) else None,
+        "code": code_ctx(look, scenes), "code_look": look,
         "font_files": FONT_FILES, "slug": spec.slug, "cut_zoom": config.get("cuts.cut_zoom", 1.12),
         "sfx": sfx_events(scenes, page_ctx, end_card=bool(brand["end_card"]), nudge=brand["save_nudge"],
                           outro=brand["outro"])
@@ -676,7 +706,15 @@ def run(spec: Spec, project_dir: Path) -> dict:
         if f:
             (out / "brand").mkdir(exist_ok=True)
             shutil.copyfile(f["path"], out / f["src"])
+    if ctx["code"]:
+        for f in ctx["code"]["faces"]:
+            shutil.copyfile(f["src"], out / "fonts" / f["file"])
+        if ctx["code"]["three"]:
+            (out / "three.min.js").write_text(codescene.three_script(), encoding="utf-8")
     for s in ctx["scenes"]:
+        for a in (s.get("code") or {}).get("assets", []):
+            (out / a["src"]).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(a["path"], out / a["src"])
         st = s.get("stage") or {}
         files = [(project_dir / e["src"], out / e["src"]) for e in st.get("elements", []) if e.get("src")]
         if st.get("image"):

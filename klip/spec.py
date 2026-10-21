@@ -14,7 +14,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 TemplateName = Literal["hook", "explain", "list_item", "myth_fact", "stat", "compare", "cta"]
-VisualType = Literal["stock_video", "stock_photo", "ai_image", "icon", "solid", "local", "stage"]
+VisualType = Literal["stock_video", "stock_photo", "ai_image", "icon", "solid", "local", "stage", "code"]
 StageKind = Literal["cutout", "photo", "icon", "label", "number", "bar", "stack", "highlight", "stamp",
                     "chart", "unit", "person", "news", "logo", "screenshot", "notif",
                     "kinetic", "split", "flow", "meter", "cycle", "timeline", "funnel", "reel"]
@@ -29,7 +29,7 @@ CtaType = Literal["follow", "save", "comment", "share"]
 # Templates and visual types the current build can render. Others are accepted by
 # the schema (so specs stay forward-compatible) but fall back with a warning.
 IMPLEMENTED_TEMPLATES = {"hook", "explain", "list_item", "myth_fact", "stat", "compare", "cta"}
-IMPLEMENTED_VISUALS = {"icon", "solid", "stock_video", "stock_photo", "local", "stage"}
+IMPLEMENTED_VISUALS = {"icon", "solid", "stock_video", "stock_photo", "local", "stage", "code"}
 STAGE_TEMPLATES = {"hook", "explain", "list_item"}   # templates whose layout leaves room for a stage
 
 
@@ -265,6 +265,25 @@ class Backdrop(_Strict):
         return self
 
 
+CodeLib = Literal["three"]
+Texture = Literal["none", "paper", "watercolor", "halftone", "grain", "hud", "riso"]
+
+
+class CodeScene(_Strict):
+    """A scene whose look and motion are code Claude writes (see docs/CODE-SCENES.md): markup, <style>
+    and one <script> that animates on the scene kit `k` (a GSAP timeline at the scene's start, the
+    narration's word times, the look bible)."""
+    file: str = Field(pattern=r"\.html$", description="Repo-relative scene file, e.g. 'specs/<slug>/s1.html'.")
+    assets: list[str] = Field(default_factory=list, max_length=20,
+                              description="Repo-relative files the scene uses (images, SVGs); reference them as "
+                                          "'@asset/<file name>' in markup, CSS or JS.")
+    libs: list[CodeLib] = Field(default_factory=list, description="Extra libraries: 'three' = Three.js as "
+                                                                  "k.lib.THREE.")
+    captions: bool = Field(True, description="false = no captions on this scene (it shows its own words, e.g. "
+                                             "kinetic type).")
+    texture: Texture | None = Field(None, description="This scene's texture instead of the look bible's.")
+
+
 class Visual(_Strict):
     type: VisualType = "solid"
     query: str | None = Field(None, description="English keywords for stock search (the scene's first shot).")
@@ -290,11 +309,12 @@ class Visual(_Strict):
     elements: list[StageElement] = Field(default_factory=list, max_length=12,
                                          description="type=stage: props that build up on the background, each "
                                                      "popping in on its narration word, in narration order.")
+    code: CodeScene | None = Field(None, description="type=code: the scene file and its options.")
 
     @model_validator(mode="after")
     def _required_fields(self) -> Visual:
         need = {"icon": "name", "stock_video": "query", "stock_photo": "query",
-                "local": "path", "ai_image": "prompt"}.get(self.type)
+                "local": "path", "ai_image": "prompt", "code": "code"}.get(self.type)
         if need and not getattr(self, need):
             raise ValueError(f"visual.type={self.type!r} requires visual.{need}")
         if self.beats and self.queries:
@@ -309,6 +329,8 @@ class Visual(_Strict):
                 raise ValueError("use either visual.background or visual.backdrop, not both")
         elif self.elements or self.background or self.backdrop:
             raise ValueError("visual.elements / visual.background / visual.backdrop are only for visual.type='stage'")
+        if self.code and self.type != "code":
+            raise ValueError("visual.code is only for visual.type='code'")
         return self
 
     def _check_stage(self) -> None:
@@ -328,6 +350,41 @@ class Visual(_Strict):
             if on_stage > 6:
                 raise ValueError(f"elements[{i}]: at most 6 elements on the stage at once; set clear: true "
                                  f"on one to start a fresh stage")
+
+
+class LookFonts(_Strict):
+    """Font keys from klip.yaml code.fonts (e.g. 'jakarta', 'fraunces', 'fredoka', 'anton', 'mono')."""
+    display: str | None = Field(None, description="Headlines and big type.")
+    body: str | None = Field(None, description="Labels and small text.")
+    mono: str | None = Field(None, description="Numbers, HUD readouts, code.")
+    caption: str | None = Field(None, description="The word-synced captions (all scenes).")
+
+
+class LookBible(_Strict):
+    """Art direction shared by every code scene so the video reads as one film. Unset fields come from
+    the style's look_bible (brand pack), then klip.yaml code.look."""
+    palette: dict[str, str] = Field(default_factory=dict, description="Named colours ('bg', 'ink', 'accent', "
+                                                                      "'paper', 'sky', …) → CSS vars --k-<name> "
+                                                                      "and k.look.palette. 'bg' fills the scene.")
+    fonts: LookFonts = Field(default_factory=LookFonts)
+    texture: Texture | None = Field(None, description="Overlay on every code scene: paper (fibres + vignette), "
+                                                      "watercolor (wash blotches), halftone (dot screen), grain "
+                                                      "(film grain), hud (scanlines + corner marks), riso (misprint "
+                                                      "grain), none.")
+    texture_strength: float | None = Field(None, ge=0, le=1, description="0-1; unset = the texture's default.")
+    line: float | None = Field(None, ge=0.5, le=24, description="Stroke width (px) for drawn art: k.look.line.")
+    motion: Literal["snappy", "smooth", "bouncy"] | None = Field(None, description="Default eases in k.look.ease.")
+    notes: str | None = Field(None, description="Art direction in prose for whoever writes the scenes (style, "
+                                                "characters, camera, motifs). Not rendered.")
+
+    @model_validator(mode="after")
+    def _colours(self) -> LookBible:
+        for k, v in self.palette.items():
+            if not re.fullmatch(r"[a-z][a-z0-9-]*", k):
+                raise ValueError(f"look_bible.palette key {k!r}: use lowercase letters, digits and '-'")
+            if not re.fullmatch(r"#[0-9a-fA-F]{6}", v):
+                raise ValueError(f"look_bible.palette.{k} must be a #RRGGBB colour")
+        return self
 
 
 class Stat(_Strict):
@@ -473,6 +530,8 @@ class Spec(_Strict):
     look: LookName = Field("mixed", description="'stage' = illustrated explainer look: most hook/explain/"
                                                  "list_item scenes use visual.type 'stage' (share in klip.yaml "
                                                  "stage.look_min_share). 'mixed' = pick per scene.")
+    look_bible: LookBible | None = Field(None, description="Art direction for code scenes (palette, fonts, "
+                                                           "texture, motion); unset = the style's.")
     mascots: bool | list[str] | None = Field(None, description="Which of the style's mascots appear: unset/true = "
                                                                "the whole cast, false = none, or a list of names "
                                                                "(e.g. ['napa']).")

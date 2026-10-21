@@ -1,0 +1,62 @@
+// ---- scene kit `k` for code scenes (contract: docs/CODE-SCENES.md)
+const KLIP_LOOK = {{ code_look | tojson }};
+const klipNorm = (s) => String(s).toLowerCase().replace(/[^\p{L}\p{N}_]/gu, "");
+function klipScene(meta, body) {
+  const root = document.getElementById("sc-" + meta.id);
+  const sub = gsap.timeline();
+  sub.set({}, {}, meta.dur);                       // the scene timeline spans the whole scene
+  tl.add(sub, meta.start);
+  const words = meta.words.map((w) => ({ ...w, n: klipNorm(w.text) }));
+  const k = {
+    id: meta.id, root, tl: sub, dur: meta.dur, W: 1080, H: 1920, words: meta.words, text: meta.text,
+    emphasis: meta.emphasis, look: KLIP_LOOK, safe: meta.safe, lib: { THREE: window.THREE },
+    $: (sel) => root.querySelector(sel),
+    $$: (sel) => Array.from(root.querySelectorAll(sel)),
+    // when the voice says `phrase` (scene seconds), at or after `after`
+    at(phrase, after = 0) {
+      const want = String(phrase).split(/\s+/).map(klipNorm).filter(Boolean);
+      for (let i = 0; i + want.length <= words.length; i++) {
+        if (words[i].t + 1e-3 < after) continue;
+        if (want.every((w, j) => words[i + j].n === w)) return words[i].t;
+      }
+      console.warn(`klip ${meta.id}: k.at(${JSON.stringify(phrase)}) not in the narration`);
+      return Math.min(after, meta.dur);
+    },
+    // fn(t) on every frame of the scene (canvas, Three.js): a pure function of scene time t
+    frame(fn) {
+      const p = { t: 0 };
+      sub.fromTo(p, { t: 0 }, { t: meta.dur, duration: meta.dur, ease: "none", immediateRender: false,
+                                onUpdate: () => fn(p.t) }, 0);
+      fn(0);
+    },
+    // seeded PRNG (mulberry32): k.rand(7)() -> [0, 1)
+    rand(seed = 1) {
+      let a = seed >>> 0;
+      return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    },
+    // create an element (SVG when the parent is SVG or tag is "svg"): k.el("circle", {cx: 5, r: 3}, parent)
+    el(tag, attrs = {}, parent = null) {
+      const svg = tag === "svg" || (parent && parent.namespaceURI === "http://www.w3.org/2000/svg");
+      const e = svg ? document.createElementNS("http://www.w3.org/2000/svg", tag) : document.createElement(tag);
+      for (const [a, v] of Object.entries(attrs)) {
+        if (a === "text") e.textContent = v; else if (a === "html") e.innerHTML = v; else e.setAttribute(a, v);
+      }
+      if (parent) parent.appendChild(e);
+      return e;
+    },
+  };
+  const tex = root.querySelector(".k-tex");
+  if (tex && meta.texture === "grain") {           // film grain jumps 12 times a second
+    k.frame((t) => { const f = Math.floor(t * 12); tex.style.backgroundPosition = `${(f * 137) % 600}px ${(f * 311) % 1020}px`; });
+  }
+  try {
+    body(k);
+  } catch (e) {
+    console.error(`klip ${meta.id}:`, e);
+    const box = document.createElement("div");
+    box.className = "k-error";
+    box.textContent = `scene ${meta.id}: ${e && e.message ? e.message : e}`;
+    root.appendChild(box);
+  }
+}

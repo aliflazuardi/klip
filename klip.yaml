@@ -370,6 +370,44 @@ stage:
     min_share: 0.6                  # validate warns when real pictures are fewer than this share of a
                                     # stage scene's object props (pictures + icons/stacks)
 
+# ── Code scenes (visual.type "code", director mode) ─────────────────────────
+# A scene whose look and motion are a file Claude writes against the scene kit `k`
+# (docs/CODE-SCENES.md). The look bible (spec look_bible ← style look_bible ← code.look below) keeps
+# every code scene in one art direction.
+code:
+  max_kb: 120                       # a scene file over this fails validation (keep scenes lean)
+  # Fonts a look bible can name (fonts.display/body/mono/caption). package = @fontsource package in
+  # renderer/, weights = files bundled into the composition, italic = also the italic files.
+  fonts:
+    jakarta:  {family: "Plus Jakarta Sans", package: plus-jakarta-sans, weights: [400, 600, 700, 800], italic: false}
+    fraunces: {family: "Fraunces", package: fraunces, weights: [400, 700, 900], italic: true}
+    fredoka:  {family: "Fredoka", package: fredoka, weights: [500, 600, 700], italic: false}
+    anton:    {family: "Anton", package: anton, weights: [400], italic: false}
+    mono:     {family: "JetBrains Mono", package: jetbrains-mono, weights: [400, 700], italic: false}
+  # The base look bible (a style's look_bible and the spec's are merged over it). accent / emph
+  # default to the style's accent_color / emphasis_color.
+  look:
+    palette: {bg: "#F3EDE2", paper: "#FFFBF2", ink: "#1D1B19", muted: "#8C8377", line: "#1D1B19"}
+    fonts: {display: jakarta, body: jakarta, mono: mono, caption: null}   # caption null = the style's font
+    texture: paper
+    texture_strength: null
+    line: 6
+    motion: snappy
+  # Default strength (0-1) per texture, and what each eases set holds (GSAP ease names).
+  textures: {none: 0, paper: 0.55, watercolor: 0.6, halftone: 0.35, grain: 0.5, hud: 0.6, riso: 0.5}
+  eases:
+    snappy: {in: "power3.in", out: "power3.out", inOut: "power3.inOut", pop: "back.out(2.2)"}
+    smooth: {in: "sine.in", out: "sine.out", inOut: "sine.inOut", pop: "power2.out"}
+    bouncy: {in: "back.in(1.6)", out: "back.out(1.8)", inOut: "back.inOut(1.4)", pop: "elastic.out(1, 0.5)"}
+  safe_top: 230                     # k.safe: below the TikTok top bar / branding strip
+  safe_gap: 40                      # px kept clear above the captions
+  # klip preview: stills per code scene (its start, each k.at cue, the middle, the end), at most
+  # max_frames, each min_gap_s apart; sheet_width = px per still on the contact sheet.
+  preview:
+    max_frames: 8
+    min_gap_s: 0.3
+    sheet_width: 360
+
 # ── Real-world sources for stage elements ────────────────────────────────────
 # person / logo (and cutout / photo with `who`) take a Wikipedia article's image; the licence and
 # author go into credits.json and post.txt.
@@ -512,6 +550,7 @@ styles:
     shade_color: "#000000"          # tint of that darkening and of the myth/fact and compare cards
     myth_color: "#F43F5E"
     fact_color: "#22C55E"
+    look_bible: {}                  # code scenes: this style's look bible (palette, fonts, texture…; see code.look)
     # Branding strip at the top of the safe zone: progress bar (left) + watermark (right).
     # Kept above y 250, where headlines/cards start, and below TikTok's top tabs.
     progress_bar:

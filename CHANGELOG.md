@@ -6,6 +6,19 @@ All notable changes to Klip are listed here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **Director mode: code scenes.** `visual.type: "code"` renders a scene from an HTML/CSS/JS file
+  written against the scene kit `k` (GSAP timeline, `k.at("word")` cues, `k.frame` for canvas and
+  Three.js, seeded random). Validation lints the files (no clock, random, network or rAF; cue words
+  must be in the narration). See `docs/CODE-SCENES.md`.
+- `look_bible` in the spec (and a style's `look_bible`): palette, fonts, texture (paper,
+  watercolor, halftone, grain, hud, riso), line weight and motion shared by every code scene.
+  Bundled fonts: Fraunces, Fredoka, Anton and JetBrains Mono, next to Plus Jakarta Sans.
+- `klip preview`: stills of each code scene at its start, cue words, middle and end, as contact
+  sheets in `projects/<slug>/preview/`.
+- `libs: ["three"]` on a code scene loads Three.js (renderer dependency `three`).
+
 ## [0.4.0] - 2026-10-21
 
 ### Added

@@ -263,6 +263,69 @@
       "title": "ChartPoint",
       "type": "object"
     },
+    "CodeScene": {
+      "additionalProperties": false,
+      "description": "A scene whose look and motion are code Claude writes (see docs/CODE-SCENES.md): markup, <style>\nand one <script> that animates on the scene kit `k` (a GSAP timeline at the scene's start, the\nnarration's word times, the look bible).",
+      "properties": {
+        "file": {
+          "description": "Repo-relative scene file, e.g. 'specs/<slug>/s1.html'.",
+          "pattern": "\\.html$",
+          "title": "File",
+          "type": "string"
+        },
+        "assets": {
+          "description": "Repo-relative files the scene uses (images, SVGs); reference them as '@asset/<file name>' in markup, CSS or JS.",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 20,
+          "title": "Assets",
+          "type": "array"
+        },
+        "libs": {
+          "description": "Extra libraries: 'three' = Three.js as k.lib.THREE.",
+          "items": {
+            "const": "three",
+            "type": "string"
+          },
+          "title": "Libs",
+          "type": "array"
+        },
+        "captions": {
+          "default": true,
+          "description": "false = no captions on this scene (it shows its own words, e.g. kinetic type).",
+          "title": "Captions",
+          "type": "boolean"
+        },
+        "texture": {
+          "anyOf": [
+            {
+              "enum": [
+                "none",
+                "paper",
+                "watercolor",
+                "halftone",
+                "grain",
+                "hud",
+                "riso"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "This scene's texture instead of the look bible's.",
+          "title": "Texture"
+        }
+      },
+      "required": [
+        "file"
+      ],
+      "title": "CodeScene",
+      "type": "object"
+    },
     "Compare": {
       "additionalProperties": false,
       "properties": {
@@ -410,6 +473,168 @@
         "narration"
       ],
       "title": "HookVariant",
+      "type": "object"
+    },
+    "LookBible": {
+      "additionalProperties": false,
+      "description": "Art direction shared by every code scene so the video reads as one film. Unset fields come from\nthe style's look_bible (brand pack), then klip.yaml code.look.",
+      "properties": {
+        "palette": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Named colours ('bg', 'ink', 'accent', 'paper', 'sky', …) → CSS vars --k-<name> and k.look.palette. 'bg' fills the scene.",
+          "title": "Palette",
+          "type": "object"
+        },
+        "fonts": {
+          "$ref": "#/$defs/LookFonts"
+        },
+        "texture": {
+          "anyOf": [
+            {
+              "enum": [
+                "none",
+                "paper",
+                "watercolor",
+                "halftone",
+                "grain",
+                "hud",
+                "riso"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Overlay on every code scene: paper (fibres + vignette), watercolor (wash blotches), halftone (dot screen), grain (film grain), hud (scanlines + corner marks), riso (misprint grain), none.",
+          "title": "Texture"
+        },
+        "texture_strength": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "0-1; unset = the texture's default.",
+          "title": "Texture Strength"
+        },
+        "line": {
+          "anyOf": [
+            {
+              "maximum": 24,
+              "minimum": 0.5,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Stroke width (px) for drawn art: k.look.line.",
+          "title": "Line"
+        },
+        "motion": {
+          "anyOf": [
+            {
+              "enum": [
+                "snappy",
+                "smooth",
+                "bouncy"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Default eases in k.look.ease.",
+          "title": "Motion"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Art direction in prose for whoever writes the scenes (style, characters, camera, motifs). Not rendered.",
+          "title": "Notes"
+        }
+      },
+      "title": "LookBible",
+      "type": "object"
+    },
+    "LookFonts": {
+      "additionalProperties": false,
+      "description": "Font keys from klip.yaml code.fonts (e.g. 'jakarta', 'fraunces', 'fredoka', 'anton', 'mono').",
+      "properties": {
+        "display": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Headlines and big type.",
+          "title": "Display"
+        },
+        "body": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Labels and small text.",
+          "title": "Body"
+        },
+        "mono": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Numbers, HUD readouts, code.",
+          "title": "Mono"
+        },
+        "caption": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The word-synced captions (all scenes).",
+          "title": "Caption"
+        }
+      },
+      "title": "LookFonts",
       "type": "object"
     },
     "MascotPose": {
@@ -1474,7 +1699,8 @@
             "icon",
             "solid",
             "local",
-            "stage"
+            "stage",
+            "code"
           ],
           "title": "Type",
           "type": "string"
@@ -1606,6 +1832,18 @@
           "maxItems": 12,
           "title": "Elements",
           "type": "array"
+        },
+        "code": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CodeScene"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "type=code: the scene file and its options."
         }
       },
       "title": "Visual",
@@ -1702,6 +1940,18 @@
       ],
       "title": "Look",
       "type": "string"
+    },
+    "look_bible": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/LookBible"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Art direction for code scenes (palette, fonts, texture, motion); unset = the style's."
     },
     "mascots": {
       "anyOf": [

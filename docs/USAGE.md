@@ -69,6 +69,24 @@ the schema and the linter (durations, icons, template fields), and errors are se
 a fix, up to `llm.max_retries` times. The output is always a spec you can read and edit
 before rendering.
 
+## Director mode: code scenes
+
+For videos designed shot by shot (an illustrated story, characters acting out each line,
+kinetic type, Three.js), a scene can be code: `"visual": {"type": "code", "code": {"file":
+"specs/<slug>/s1.html"}}`. The file is markup, CSS and one script that animates on the scene kit
+`k` (a GSAP timeline at the scene's start, `k.at("word")` for when the voice says it, `k.frame`
+for canvas/3D, seeded random). A spec-level `look_bible` (palette, fonts, texture, motion, art
+notes) keeps all the scenes in one style. Voice, captions, music, SFX and QA work as for any scene.
+
+```bash
+uv run klip validate specs/<slug>.json      # also lints the scene files
+uv run klip preview specs/<slug>.json       # contact sheets per code scene in projects/<slug>/preview/
+uv run klip preview specs/<slug>.json -s s3 # just one scene again after a fix
+```
+
+The contract and craft notes are in [CODE-SCENES.md](CODE-SCENES.md); settings in `klip.yaml`
+`code` (fonts, base look, textures, preview).
+
 ## The stage look (illustrated explainer)
 
 `stage` scenes build an illustrated collage on a persistent background (desk, paper, kraft,
