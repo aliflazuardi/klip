@@ -17,6 +17,7 @@ All notable changes to Klip are listed here. The format follows
   dialogue makes one per narrator turn) instead of failing after short retries.
 - The mascots' closing pose waits for a held reaction to finish (Gulung's roll at a "hoaks" stamp
   was cut short), and the mascots rise when the outro badge slides up under them.
+- `post.txt` credits every narrator voice of a dialogue video, not just the first.
 
 ## [0.3.0] - 2026-10-21
 
