@@ -288,7 +288,10 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; 
 /* Mascots (style.mascot): stacked pose SVGs; one shows at a time */
 .ms { position: absolute; z-index: 9; opacity: 0; }
 .ms-body, .ms-flip, .ms-pose { position: absolute; inset: 0; }
-.ms-body { transform-origin: 50% 100%; filter: drop-shadow(0 10px 10px rgba(0,0,0,.18)); }
+{% set mo = (style.mascot or {}).get("outline") %}
+.ms-body { transform-origin: 50% 100%; filter: {% if mo %}url(#ms-outline) {% endif %}drop-shadow(0 10px 10px rgba(0,0,0,.18)); }
+.ms-ground { position: absolute; left: 14%; right: 14%; bottom: -10px; height: 26px; border-radius: 50%;
+             background: radial-gradient(closest-side, #000, rgba(0,0,0,0)); opacity: {{ (style.mascot or {}).get("ground") or 0 }}; }
 .ms-flip.mirror { transform: scaleX(-1); }
 .ms-flip.mirror .nomirror { transform: scaleX(-1); transform-box: fill-box; transform-origin: 50% 50%; }
 .ms-pose { opacity: 0; }
@@ -410,9 +413,16 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; 
     </div>
   </div>
 {% endif %}
+{% if mascots and (style.mascot or {}).get("outline") %}{% set mo = style.mascot.outline %}
+<svg width="0" height="0" style="position: absolute;" aria-hidden="true"><filter id="ms-outline" x="-10%" y="-10%" width="120%" height="120%">
+  <feMorphology in="SourceAlpha" operator="dilate" radius="{{ mo.px }}" result="d" /><feFlood flood-color="{{ mo.color }}" />
+  <feComposite in2="d" operator="in" result="o" /><feMerge><feMergeNode in="o" /><feMergeNode in="SourceGraphic" /></feMerge>
+</filter></svg>
+{% endif %}
 {% for m in mascots or [] %}
   <div id="{{ m.id }}" class="ms clip" data-start="0" data-duration="{{ total }}" data-track-index="8"
        style="left: {{ m.x }}px; top: {{ m.y }}px; width: {{ m.w }}px; height: {{ m.h }}px; transform-origin: {{ m.origin }};">
+    {% if (style.mascot or {}).get("ground") %}<div class="ms-ground"></div>{% endif %}
     <div class="ms-body"><div class="ms-flip{{ ' mirror' if m.mirror }}">
       {% for p in m.poses %}<div class="ms-pose" data-p="{{ p.name }}">{{ p.svg | safe }}</div>{% endfor %}
     </div></div>

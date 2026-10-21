@@ -174,6 +174,10 @@ def plan(spec: Spec, scenes: list[dict], words: list[dict], style: dict, caption
             for e in els:
                 if (e["kind"] in _BIG or e.get("comp")) and e["start"] - last_point >= float(auto["point_gap_s"]):
                     events[who].append((e["start"], auto["point"], float(auto["point_hold_s"])))
+                    if last_point < -1e8 and (listen := auto.get("listen")):    # the scene's first point:
+                        for name in here:                                       # the others lean in
+                            if name != who and name in events:
+                                events[name].append((e["start"] + 0.15, listen, float(auto["point_hold_s"])))
                     last_point = e["start"]
         stamp = auto.get("stamp") or {}
         for e in els:
@@ -227,7 +231,7 @@ def plan(spec: Spec, scenes: list[dict], words: list[dict], style: dict, caption
     return out
 
 
-_BIG = ("cutout", "photo", "person", "logo", "screenshot", "chart", "bar", "unit", "news")
+_BIG = ("cutout", "photo", "person", "logo", "screenshot", "chart", "bar", "unit", "news", "notif")
 
 
 def _flaps(words: list[dict], m: dict) -> list[tuple[float, float]]:

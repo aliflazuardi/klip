@@ -140,3 +140,33 @@ def test_scene_shows_some_mascots_bigger():
 def test_closing_pose_waits_for_a_held_reaction():
     segs = mascot._segments([(11.9, "tunjuk", 1.5), (12.2, "netral", mascot.SOFT)], {"netral", "tunjuk"})
     assert segs == [{"t": 0.0, "pose": "netral"}, {"t": 11.9, "pose": "tunjuk"}, {"t": 13.4, "pose": "netral"}]
+
+
+def test_listener_leans_in_when_the_speaker_first_points_at_a_notif():
+    c = STYLE["mascot"]
+    duo = {**STYLE, "mascot": {**c, "cast": [{**c["cast"][0], "name": "a", "voice": "female"},
+                                              {**c["cast"][0], "name": "b", "side": "right", "voice": "male"}],
+                               "auto": {**c["auto"], "point": "tunjuk", "listen": "tunjuk"}}}
+    sp = Spec.model_validate({"slug": "t", "voice": "male", "scenes": [
+        {"id": "s1", "template": "explain", "narration": "notif masuk lagi",
+         "visual": stage({"at": "notif", "kind": "notif", "text": "x"}, {"at": "lagi", "kind": "notif", "text": "y"})}]})
+    scenes = [{"id": "s1", "start": 0.0, "end": 6.0, "stage": {"elements": [
+        {"kind": "notif", "start": 0.5, "i": 0}, {"kind": "notif", "start": 4.0, "i": 1}]}}]
+    a, b = mascot.plan(sp, scenes, words(("notif", 500), ("lagi", 4000)), duo, 1400)
+    assert [s["pose"] for s in b["segments"] if s["t"] in (0.5, 4.0)] == ["tunjuk", "tunjuk"]   # b speaks and points
+    assert [(s["t"], s["pose"]) for s in a["segments"]][:2] == [(0.0, "netral"), (0.65, "tunjuk")]  # a once, at the first
+
+
+@needs_renderer
+def test_mascots_get_a_sticker_outline_and_ground_shadow():
+    sp = spec({"id": "s1", "template": "hook", "narration": "bandar menang",
+               "visual": stage({"at": "bandar", "kind": "stamp", "text": "x"}, backdrop={"kind": "phone"})})
+    ctx, _ = compose.build_context(sp, _timeline(("s1", 3000)), words(("bandar", 100), ("menang", 500)), {"scenes": {}})
+    assert ctx["scenes"][0]["stage"]["elements"][0]["color"] == config.get("stage.stamp.neutral_dark")   # dark set
+    from jinja2 import Environment, FileSystemLoader, StrictUndefined
+    from klip.paths import TEMPLATES_DIR
+    env = Environment(loader=FileSystemLoader(TEMPLATES_DIR / "default"), undefined=StrictUndefined,
+                      autoescape=True, trim_blocks=True, lstrip_blocks=True)
+    env.filters["rgba"] = compose.rgba
+    html = env.get_template("index.html.j2").render(**ctx)
+    assert '<filter id="ms-outline"' in html and "url(#ms-outline)" in html and 'class="ms-ground"' in html

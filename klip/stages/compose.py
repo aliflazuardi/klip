@@ -249,6 +249,10 @@ def _stage_ctx(scene: Scene, t: dict, words: list[dict], media: dict, style: dic
                                f"({', '.join(config.get('stage.backgrounds'))}) nor an image file")
         image = {"src": f"stage/{path.name}", "path": str(path)}
     tone = stage_mod.tone(bg, v if backdrop else None)
+    if tone == "dark":                         # a dark neutral stamp would vanish on a dark set
+        for el in out:
+            if el["kind"] == "stamp" and els[el["i"]].tone == "neutral":
+                el["color"] = c["stamp"]["neutral_dark"]
     title_style = (backdrop or {}).get("title") or config.get("stage.title.style")
     return {"bg": bg, "builtin": stage_mod.is_builtin(bg), "image": image, "backdrop": backdrop, "elements": out,
             "tone": tone, "area": area, "title_style": title_style,

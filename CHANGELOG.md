@@ -19,9 +19,14 @@ All notable changes to Klip are listed here. The format follows
 - `notif` stage element: a phone notification card (app, line, big amount, time) that slides down;
   several stack down the screen.
 - `validate` suggests switching sets when five or more stage scenes all use one.
+- Mascots read on every set: a sticker outline (`mascot.outline`, the cut-out props' language) and a
+  contact shadow under the feet (`mascot.ground`) keep a dark character visible on dark or busy sets.
+- Mascots point at `notif` cards, and with `mascot.auto.listen` the other mascots lean in (a pose)
+  when the speaker first points in a scene, so a duet reacts to each other.
 
 ### Fixed
 
+- A neutral stamp on a dark set is drawn light (`stage.stamp.neutral_dark`) instead of vanishing.
 - Gemini TTS waits as long as a rate limit asks (the free tier allows 3 requests a minute, and a
   dialogue makes one per narrator turn) instead of failing after short retries.
 - The mascots' closing pose waits for a held reaction to finish (Gulung's roll at a "hoaks" stamp

@@ -284,7 +284,7 @@ stage:
     light: {bg: "#15151C", color: "#FFFFFF"}
     dark: {bg: "#FFFFFF", color: "#15151C"}
     uppercase: true
-  stamp: {neutral: "#15151C", up: "#1FA45B", down: "#D93A3F", border_px: 9}
+  stamp: {neutral: "#15151C", neutral_dark: "#F6F1E7", up: "#1FA45B", down: "#D93A3F", border_px: 9}   # neutral_dark: on dark sets
   shadow:                           # prop drop shadow by the background's tone
     light: "0 16px 18px rgba(0,0,0,.20)"
     dark: "0 18px 22px rgba(0,0,0,.42)"
@@ -599,6 +599,8 @@ styles:
         point: tunjuk               # pose name; null = off
         point_hold_s: 1.3
         point_gap_s: 3.0
+        listen: null                # pose the other mascots take when the speaker first points in a
+                                    # scene (a duet's listener leaning in); null = off
         stamp: {down: kaget, up: paham, neutral: kepo}   # stamp tone → pose; null = off
         stamp_hold_s: 1.5
         hook: {}                    # {mascot: pose} at the hook's start
@@ -607,6 +609,12 @@ styles:
       # its "mouth-open" shows for a share of the word (max open_s), twice for long words.
       mouth: {share: 0.6, open_s: 0.16, double_s: 0.42}
       blink_s: [2.6, 4.8]           # a blink every this many seconds (picked per blink)
+      # Sticker look so the cast reads on every set (dark boards, phone screens, busy pages), in the
+      # same cut-out language as the props: an outline of px in color around the whole character
+      # (null = none), and a soft contact shadow under the feet (opacity; 0 = none) that stays put
+      # while the body bobs.
+      outline: {px: 6, color: "#FFFFFF"}
+      ground: 0.32
       bob_px: 5                     # idle up/down
       bob_s: 1.4                    # half a bob
       enter_s: 0.35
