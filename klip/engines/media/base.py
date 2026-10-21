@@ -38,6 +38,7 @@ class Candidate:
     local_path: str | None = None    # set for the local provider
     tags: list[str] = field(default_factory=list)
     thumb_url: str = ""              # small preview image (for the vision relevance check)
+    nonfree: bool = False            # Wikipedia marks the file non-free (fair use, e.g. a corporate logo)
 
     @property
     def key(self) -> str:
@@ -65,7 +66,9 @@ class MediaProvider(Protocol):
 
     def enabled(self) -> bool: ...
 
-    def search(self, query: str, kind: Kind, per_page: int = 15) -> list[Candidate]: ...
+    def search(self, query: str, kind: Kind, per_page: int = 15, shape: str = "portrait") -> list[Candidate]:
+        """`shape`: "portrait" for full-screen b-roll, "any" for stage props (cut out or framed)."""
+        ...
 
     def fetch(self, c: Candidate) -> Path:
         """Return a local file for the candidate (downloading into the cache if needed)."""

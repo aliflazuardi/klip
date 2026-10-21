@@ -16,7 +16,7 @@ from rich.logging import RichHandler
 from rich.table import Table
 
 from klip import __version__, config, env, pipeline
-from klip.paths import RENDERER_DIR, SCHEMA_PATH
+from klip.paths import PROJECTS_DIR, RENDERER_DIR, SCHEMA_PATH
 from klip.spec import load_spec, write_schema
 
 app = typer.Typer(help="Klip — prompt → TikTok video pipeline.", no_args_is_help=True, add_completion=False)
@@ -24,6 +24,21 @@ console = Console()
 
 VoiceOpt = typer.Option(None, "--voice", "-v", help="male | female (overrides the spec)")
 OutOpt = typer.Option(None, "--out", "-o", help="Project dir (default: projects/<slug>)")
+MascotsOpt = typer.Option(None, "--mascots", help="Which mascots appear: all, none, or names (napa,gulung); "
+                                                   "default: the spec's \"mascots\" (else the whole cast)")
+
+
+def parse_mascots(value: str | None) -> bool | list[str] | None:
+    if value is None:
+        return None
+    v = value.strip().lower()
+    if v in ("none", "off", "no", "false", "0"):
+        return False
+    if v in ("all", "on", "yes", "true"):
+        return True
+    return [n.strip() for n in v.split(",") if n.strip()]
+
+
 ProgressOpt = typer.Option(None, "--progress-bar/--no-progress-bar",
                            help="Show the progress bar at the top (default: the style's setting)")
 
@@ -43,11 +58,12 @@ def _main(verbose: bool = typer.Option(False, "--verbose", help="Debug logging")
                         handlers=[RichHandler(console=Console(stderr=True), show_path=False, show_time=False)])
 
 
-def _load_or_exit(spec_path: Path, voice: str | None, out: Path | None, progress_bar: bool | None = None):
+def _load_or_exit(spec_path: Path, voice: str | None, out: Path | None, progress_bar: bool | None = None,
+                  mascots: bool | list[str] | None = None):
     if voice and voice not in ("male", "female"):
         raise typer.BadParameter("voice must be 'male' or 'female'")
     try:
-        return pipeline.resolve(spec_path, voice, out, progress_bar)
+        return pipeline.resolve(spec_path, voice, out, progress_bar, mascots)
     except ValidationError as e:
         console.print(f"[red]Invalid spec {spec_path}:[/red]\n{e}")
         raise typer.Exit(2)
@@ -56,6 +72,10 @@ def _load_or_exit(spec_path: Path, voice: str | None, out: Path | None, progress
 def print_preview(spec, issues) -> None:
     """The review gate: what the video will say and show, plus anything to fix or verify."""
     t = Table(title=f"{spec.slug} · voice={spec.voice} · style={spec.style}", show_lines=True)
+    from klip import mascot as _m
+    ms_style = _m.video_style(spec)
+    if _m.names(ms_style):
+        t.title += f" · mascots={','.join(_m.names(ms_style))}"
     for col in ("id", "template", "visual", "on-screen", "narration"):
         t.add_column(col, overflow="fold")
     for s in spec.scenes:
@@ -71,7 +91,12 @@ def print_preview(spec, issues) -> None:
         elif s.template == "compare":
             on = f"{s.compare.left.label} vs {s.compare.right.label}"
         from klip import prosody
-        t.add_row(s.id, f"{s.template}\n[dim]{prosody.delivery_name(s)}[/dim]", vis, on, s.narration)
+        from klip import mascot
+        who = mascot.speaker(spec, s, ms_style) if mascot.names(ms_style) else None
+        voice = mascot.scene_voice(spec, s, ms_style)
+        t.add_row(s.id, f"{s.template}\n[dim]{prosody.delivery_name(s)}[/dim]"
+                        + (f"\n[dim]{voice}{' · ' + who if who else ''}[/dim]" if voice != spec.voice or who else ""),
+                  vis, on, s.narration)
     for i, v in enumerate(spec.hook_variants):
         t.add_row(f"s1·{chr(ord('B') + i)}", "hook variant", "", v.on_screen_text or "", v.narration)
     console.print(t)
@@ -89,7 +114,8 @@ def print_preview(spec, issues) -> None:
         for f in spec.facts:
             console.print(f"  • {f.claim}\n    {f.source}")
     if spec.post.caption:
-        console.print(f"[bold]TikTok caption:[/bold] {spec.post.caption} {' '.join(spec.post.hashtags)}")
+        from klip.stages.post import hashtags_lower
+        console.print(f"[bold]TikTok caption:[/bold] {hashtags_lower(spec.post.caption + ' ' + ' '.join(spec.post.hashtags))}")
 
 
 @app.command()
@@ -182,7 +208,7 @@ def say(text: str = typer.Argument(..., help="Text to speak, e.g. a tricky word"
                             rate or config.default_rate(voice))
     engine = get_engine(config.get("voices.engine", "edge"))
     src, _ = synthesize_cached(engine, spoken, config.voice_id(voice, engine.name), pro.rate, pro.pitch, pro.volume)
-    out = PROJECTS_DIR / "_say" / f"say-{voice}.mp3"
+    out = PROJECTS_DIR / "_say" / f"say-{voice}{src.suffix}"
     out.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(src, out)
     console.print(f"spoken: “{spoken}”" + ("" if spoken == text else "  [dim](lexicon applied)[/dim]"))
@@ -195,12 +221,58 @@ def say(text: str = typer.Argument(..., help="Text to speak, e.g. a tricky word"
 VariantsOpt = typer.Option(False, "--variants", help="Also render every hook variant (A/B test) into variants/<letter>/")
 
 
+@app.command("ab-voice")
+def ab_voice(spec_path: Path,
+             variant: list[str] = typer.Option(["edge:scene", "edge:whole", "elevenlabs:whole", "gemini:whole"],
+                                               "--variant", help="engine:take (take = scene | whole); repeat"),
+             voice: Optional[str] = VoiceOpt,
+             full: bool = typer.Option(False, "--render", help="Render a full video per variant, not just the voice")) -> None:
+    """Read one script with several TTS engines / takes, to compare by ear (voice.wav per variant)."""
+    from klip.stages import voice as voice_stage
+    spec, project_dir = _load_or_exit(spec_path, voice, None)
+    need = {"elevenlabs": "ELEVENLABS_API_KEY", "gemini": "GEMINI_API_KEY"}
+    t = Table(title=f"voice A/B: {spec.slug}", show_lines=True)
+    for col in ("variant", "length", "words/s", "file"):
+        t.add_column(col, overflow="fold")
+    for v in variant:
+        engine, _, take = v.partition(":")
+        take = take or "whole"
+        if engine not in voice_stage.ENGINES or take not in ("scene", "whole"):
+            console.print(f"[red]bad variant {v!r}[/] (engine: {', '.join(voice_stage.ENGINES)}; take: scene | whole)")
+            raise typer.Exit(2)
+        if engine in need and not env.get(need[engine]):
+            t.add_row(v, "", "", f"[yellow]skipped: set {need[engine]} in .env[/]")
+            continue
+        config.override("voices.engine", engine)
+        config.override("voices.take", take)
+        name = f"{engine}-{take}"
+        try:
+            if full:
+                with console.status(f"{name}: rendering…"):
+                    out = PROJECTS_DIR / f"{spec.slug}-{name}"
+                    _, vdir = _load_or_exit(spec_path, voice, out)
+                    res = pipeline.run_all(spec, vdir)
+                tl, file = res["voice"], res["post"]["final"]
+            else:
+                vdir = project_dir / "ab-voice" / name
+                vdir.mkdir(parents=True, exist_ok=True)
+                with console.status(f"{name}: voice…"):
+                    tl = voice_stage.run(spec, vdir)
+                file = project_dir / "ab-voice" / f"{name}.wav"
+                shutil.copyfile(vdir / "voice.wav", file)
+            t.add_row(v, f"{tl['total_ms'] / 1000:.1f}s", f"{tl['words_per_second']:.2f}", str(file))
+        except Exception as e:  # one engine failing shouldn't lose the others
+            t.add_row(v, "", "", f"[red]{type(e).__name__}: {e}[/]")
+    console.print(t)
+
+
 @app.command()
 def render(spec_path: Path, voice: Optional[str] = VoiceOpt, out: Optional[Path] = OutOpt,
            force: bool = typer.Option(False, help="Re-render even if the composition is unchanged"),
-           variants: bool = VariantsOpt, progress_bar: Optional[bool] = ProgressOpt) -> None:
+           variants: bool = VariantsOpt, progress_bar: Optional[bool] = ProgressOpt,
+           mascots: Optional[str] = MascotsOpt) -> None:
     """Render a spec to final.mp4 (voice → assets → compose → render → post → qa)."""
-    _render(spec_path, voice, out, force, variants, progress_bar)
+    _render(spec_path, voice, out, force, variants, progress_bar, parse_mascots(mascots))
 
 
 def _print_variants(rows: list[dict]) -> None:
@@ -215,8 +287,8 @@ def _print_variants(rows: list[dict]) -> None:
 
 
 def _render(spec_path: Path, voice: str | None, out: Path | None, force: bool, variants: bool = False,
-            progress_bar: bool | None = None) -> None:
-    spec, project_dir = _load_or_exit(spec_path, voice, out, progress_bar)
+            progress_bar: bool | None = None, mascots: bool | list[str] | None = None) -> None:
+    spec, project_dir = _load_or_exit(spec_path, voice, out, progress_bar, mascots)
     with console.status("starting…") as status:
         results = pipeline.run_all(spec, project_dir, force=force,
                                    on_stage=lambda s: status.update(f"[bold]{s}[/bold]…"))
@@ -228,6 +300,7 @@ def _render(spec_path: Path, voice: str | None, out: Path | None, force: bool, v
     warnings = results["compose"]["warnings"] + results["assets"].get("warnings", [])
     if warnings:
         console.print(f"[yellow]{len(warnings)} warning(s):[/yellow] " + "; ".join(warnings))
+    _print_brief(results["assets"].get("photo_brief"))
     _print_qa(results["qa"])
     if variants:
         if not spec.hook_variants:
@@ -241,6 +314,31 @@ def _render(spec_path: Path, voice: str | None, out: Path | None, force: bool, v
                 raise typer.Exit(1)
     if not results["qa"]["passed"]:
         raise typer.Exit(1)
+
+
+def _print_brief(b: dict | None) -> None:
+    """One line on the photo brief (props that want a photo from you)."""
+    if not b or not b.get("props"):
+        return
+    if b["need"] or b["better"]:
+        console.print(f"[bold]Photo brief:[/] {b['need']} prop(s) need a photo, {b['better']} could be better "
+                      f"({b['provided']} of yours used) → {b['path']}\n  drop files in {b['folder']}/ and re-render")
+    else:
+        console.print(f"[green]Photo brief:[/] all {b['props']} photo props are fine ({b['provided']} of yours) → {b['path']}")
+
+
+@app.command()
+def photos(spec_path: Path, out: Optional[Path] = OutOpt) -> None:
+    """Find the stage props' photos (no voice, no render) and write the photo brief: which props
+    need a photo from you, and the file names to save in the photo folder."""
+    from klip.stages import assets
+    spec, project_dir = _load_or_exit(spec_path, None, out)
+    with console.status("searching photos (and the vision check)…"):
+        result = assets.fetch(spec, project_dir)
+    b = result.get("photo_brief")
+    if b and b.get("props"):
+        console.print(Path(b["path"]).read_text(encoding="utf-8"))
+    _print_brief(b)
 
 
 def _print_qa(report: dict) -> None:
@@ -441,8 +539,16 @@ def doctor() -> None:
     from klip.stages.assets import default_providers
     names = [p.name for p in default_providers() if p.enabled()]
     console.print(f"[green]✓[/] media providers: {', '.join(names)}")
-    for key in ("PIXABAY_API_KEY", "PEXELS_API_KEY"):
+    for key in ("PIXABAY_API_KEY", "PEXELS_API_KEY", "ELEVENLABS_API_KEY", "GEMINI_API_KEY"):
         console.print(f"{'[green]✓' if env.get(key) else '[dim]-'}[/] {key}{'' if env.get(key) else ' (optional, not set)'}")
+    engine = config.get("voices.engine", "edge")
+    need = {"elevenlabs": "ELEVENLABS_API_KEY", "gemini": "GEMINI_API_KEY"}.get(engine)
+    if need:
+        check(f"voices.engine {engine}", bool(env.get(need)), "" if env.get(need) else f"set {need} in .env")
+    if engine == "gemini":
+        import importlib.util
+        has = importlib.util.find_spec("faster_whisper") is not None
+        check("aligner (faster-whisper)", has, "" if has else "run: uv sync --extra align")
     raise typer.Exit(0 if ok else 1)
 
 

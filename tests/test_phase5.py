@@ -122,7 +122,7 @@ def test_mcp_lists_all_tools():
         async with Client(mcp_server.server) as c:
             return {t.name for t in (await c.list_tools()).tools}
     assert asyncio.run(go()) == {"get_spec_schema", "list_voices", "list_templates", "list_styles",
-                                 "validate_spec", "render_spec", "job_status", "list_jobs"}
+                                 "validate_spec", "render_spec", "photo_brief", "job_status", "list_jobs"}
 
 
 def test_mcp_schema_and_lists():

@@ -113,3 +113,13 @@ def test_untyped_cta_keeps_the_old_layout(project):  # noqa: F811
     compose.run(spec, project)
     html = (project / "composition" / "index.html").read_text()
     assert 'class="ec-tag"' in html and 'class="cta-chip"' not in html and 'id="nudge"' not in html
+
+
+def test_hashtags_are_lowercased_and_linted():
+    from klip.stages.post import hashtags_lower
+    assert hashtags_lower("Cek ini #WargaNalar #IHSG #edukasi, ya") == "Cek ini #warganalar #ihsg #edukasi, ya"
+    spec = _list_spec()
+    spec = spec.model_copy(update={"post": spec.post.model_copy(update={"caption": "Halo #WargaNalar",
+                                                                        "hashtags": ["#LiterasiKeuangan", "#edukasi"]})})
+    msgs = [str(i) for i in lint(spec)]
+    assert any("#LiterasiKeuangan, #WargaNalar" in m and "#literasikeuangan" in m for m in msgs)

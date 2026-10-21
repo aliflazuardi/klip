@@ -21,6 +21,18 @@ from klip.stages.compose import ComposeError
 
 log = logging.getLogger(__name__)
 
+HASHTAG = re.compile(r"#\w+")
+
+
+def hashtags_lower(text: str) -> str:
+    """Every #hashtag in lowercase when post.lowercase_hashtags is on (#WargaNalar → #warganalar)."""
+    if not config.get("post.lowercase_hashtags", True):
+        return text
+    return HASHTAG.sub(lambda m: m.group(0).lower(), text)
+
+
+ENGINE_NAMES = {"edge": "Microsoft Edge TTS", "elevenlabs": "ElevenLabs", "gemini": "Google Gemini TTS"}
+
 TARGET_LUFS = config.get("loudness.target_lufs", -14.0)
 TARGET_TP = config.get("loudness.true_peak_db", -1.5)
 TARGET_LRA = config.get("loudness.lra", 11.0)
@@ -191,8 +203,9 @@ def run(spec: Spec, project_dir: Path) -> dict:
 
     cover_kind = make_cover(spec, project_dir, timeline, final)
 
-    lines = [spec.post.caption.strip(), "", " ".join(spec.post.hashtags).strip(), "",
-             f"Suara: AI (Microsoft Edge TTS, {timeline['voice_id']})."]
+    lines = [hashtags_lower(spec.post.caption.strip()), "", hashtags_lower(" ".join(spec.post.hashtags).strip()), "",
+             f"Suara: AI ({ENGINE_NAMES.get(timeline.get('engine', 'edge'), timeline.get('engine'))}, "
+             f"{timeline['voice_id']})."]
     if track:
         lines.append(f"Musik: {track.stem}")
     credits_path = project_dir / "credits.json"

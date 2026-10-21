@@ -31,9 +31,16 @@ edge-tts (free), and stock media comes from free sources.
 ## Features
 
 - 7 scene templates (hook, explain, stat, numbered list, myth/fact, compare, CTA) plus
-  illustrated `stage` scenes; TikTok safe-zone layout.
+  illustrated `stage` scenes: cut-out photos, real people, logos, charts from real data, news
+  cards, screenshots, and 8 animated **motion components** (kinetic type, split, flow, meter,
+  cycle, timeline, funnel, reel); TikTok safe-zone layout.
+- **Photo brief:** stage props come from your photo folder first, then Unsplash, Pexels, Pixabay
+  and Wikimedia Commons; `klip photos` lists the props that still want a photo from you.
+- **Mascots** from a brand pack that lip-sync the narration, point at props and react; scenes can
+  alternate female and male narrators, and each mascot speaks its own voice.
 - Word-synced, TikTok-style captions with emphasis words and a pronunciation lexicon.
-- Livelier TTS: per-scene delivery presets (rate / pitch / volume).
+- Natural TTS: edge-tts (free), Gemini or ElevenLabs, whole-script takes with forced alignment,
+  per-scene delivery presets.
 - Stock b-roll from your own library, Pexels, Pixabay and Openverse, with a Claude **vision
   check** that rates candidates against the narration; fast cuts, never repeated footage.
 - Music with ducking, automatic sound effects, -14 LUFS loudness.
@@ -67,6 +74,8 @@ To use a tagged release instead of `main`: `git checkout v0.1.0` (see [Releases]
 | [Claude Code](https://docs.claude.com/en/docs/claude-code) | `/klip` skill, script writing, vision check | install, then `claude` → `/login` |
 | `PEXELS_API_KEY`, `PIXABAY_API_KEY` | more and better stock video | free keys, put them in `.env` |
 | `assets/broll/` | your own clips, searched first | [how to name them](assets/broll/README.md) |
+| `ELEVENLABS_API_KEY` | most natural voice (paid; 10k chars/month free) | `.env`, then `voices.engine: elevenlabs` |
+| `GEMINI_API_KEY` + `uv sync --extra align` | natural, style-prompted voice | `.env`, then `voices.engine: gemini` |
 | `assets/music/<mood>/` | background music | royalty-free tracks, check each licence |
 
 If `node` on your PATH is older than 22, Klip finds an nvm-installed 22 on its own, or set
@@ -120,7 +129,8 @@ uv run klip batch examples/batch.yaml                           # many videos in
 OpenRouter…) with `llm.provider: openai` and `LLM_BASE_URL` / `LLM_MODEL` in `.env`.
 Add `--stage` for the illustrated [stage look](docs/USAGE.md#the-stage-look-illustrated-explainer) on most scenes.
 
-Other commands: `validate`, `say` (hear a line through the TTS + lexicon), `run <stage>`,
+Other commands: `validate`, `photos` (the photo brief), `say` (hear a line through the TTS +
+lexicon), `ab-voice`, `run <stage>`,
 `voices`, `styles`, `report`, `schema`, `doctor`, `--version`. See `uv run klip --help`.
 
 A 45 s video takes about 2–2.5 minutes on an Apple Silicon laptop, mostly the headless Chrome

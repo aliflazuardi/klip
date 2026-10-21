@@ -14,7 +14,11 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 TemplateName = Literal["hook", "explain", "list_item", "myth_fact", "stat", "compare", "cta"]
 VisualType = Literal["stock_video", "stock_photo", "ai_image", "icon", "solid", "local", "stage"]
-StageKind = Literal["cutout", "photo", "icon", "label", "number", "bar", "stack", "highlight"]
+StageKind = Literal["cutout", "photo", "icon", "label", "number", "bar", "stack", "highlight", "stamp",
+                    "chart", "unit", "person", "news", "logo", "screenshot",
+                    "kinetic", "split", "flow", "meter", "cycle", "timeline", "funnel", "reel"]
+# Motion components: animated diagrams whose `steps` play out on their own narration words.
+COMPONENTS = ("kinetic", "split", "flow", "meter", "cycle", "timeline", "funnel", "reel")
 StagePos = Literal["tl", "tc", "tr", "ml", "mc", "mr", "bl", "bc", "br"]
 VoiceName = Literal["male", "female"]
 LookName = Literal["mixed", "stage"]
@@ -39,16 +43,56 @@ class Beat(_Strict):
     query: str = Field(min_length=1, description="English keywords for this shot's stock clip.")
 
 
+class MotionStep(_Strict):
+    """One beat of a motion component (see StageElement.steps)."""
+    text: str = Field(min_length=1, description="kinetic: the phrase; split/flow/funnel: the part's name; "
+                                                "meter: a short caption for this level; cycle: the step; "
+                                                "timeline: the event; reel: an option.")
+    at: str | None = Field(None, description="Narration word where this step plays (after the element's own "
+                                             "`at`, in order). Unset = shortly after the previous step.")
+    value: float | None = Field(None, ge=0, description="split/flow/funnel: the amount (sizes the part); "
+                                                        "meter: the fill level (≤ the element's `max`).")
+    show: str | None = Field(None, description="The value as shown, e.g. 'Rp96rb', '96%', '1,2 jt'; counts up "
+                                               "when it's a number. Unset: split shows the share in %, flow/"
+                                               "funnel the plain value.")
+    label: str | None = Field(None, description="timeline: the date ('2014', 'Mar 2020'); others: a small line "
+                                                "under the step.")
+    name: str | None = Field(None, description="Lucide icon for the step (flow/cycle/timeline/funnel nodes).")
+    accent: bool = Field(False, description="Highlight this step (kinetic phrase, split/flow part, funnel "
+                                            "layer); reel: the option the reel lands on (exactly one).")
+
+
 class StageBar(_Strict):
     label: str = Field(min_length=1, description="Bar label under the bar, e.g. '2023'.")
     value: float = Field(ge=0, description="Bar height (bars are scaled to the largest).")
     text: str | None = Field(None, description="Value shown on top of the bar, e.g. 'Rp12rb'; unset = no text.")
 
 
+class ChartPoint(_Strict):
+    x: str = Field(min_length=1, description="X value as shown/compared: an ISO date ('2024-10-16') or a label "
+                                             "('2019').")
+    y: float
+
+
+class ChartBand(_Strict):
+    start: str = Field(min_length=1, description="First x value of the shaded span (same form as the data's x).")
+    end: str = Field(min_length=1, description="Last x value of the span.")
+    label: str | None = Field(None, description="Short text in the band, e.g. 'SBY'.")
+
+
 # what each stage element kind needs (one of a tuple is enough)
-_STAGE_NEEDS = {"cutout": (("query", "path"),), "photo": (("query", "path"),), "icon": (("name",),),
+_STAGE_NEEDS = {"cutout": (("query", "path", "who"),), "photo": (("query", "path", "who"),), "icon": (("name",),),
                 "label": (("text",),), "number": (("text",),), "bar": (("bars",),), "stack": (("name",),),
-                "highlight": (("target",),)}
+                "highlight": (("target",),), "stamp": (("text",),), "chart": (("points", "csv", "ticker"),),
+                "unit": (("total",),), "person": (("who", "path", "query"),), "news": (("text",),),
+                "logo": (("who", "path"),), "screenshot": (("url",),), "kinetic": (("steps",),),
+                "split": (("steps",),), "flow": (("steps",), ("text",)), "meter": (("steps",), ("max",)),
+                "cycle": (("steps",),), "timeline": (("steps",),), "funnel": (("steps",),), "reel": (("steps",),)}
+# steps each component takes (min, max) and whether every step needs a `value`
+STEP_RULES = {"kinetic": (1, 6, False), "split": (2, 5, True), "flow": (1, 4, True), "meter": (1, 5, True),
+              "cycle": (3, 6, False), "timeline": (2, 6, False), "funnel": (2, 5, True), "reel": (3, 10, False)}
+LABELLED = ("cutout", "photo", "icon", "person", "logo", "screenshot")
+MEDIA = ("cutout", "photo", "person", "logo")          # an image file: stock, Wikipedia or the user's photo
 
 
 class StageElement(_Strict):
@@ -58,17 +102,70 @@ class StageElement(_Strict):
     kind: StageKind = Field(description="cutout = stock photo with its background removed (a sticker); "
                                         "photo = photo card; icon = Lucide icon on a sticker disc; label = paper "
                                         "tag; number = big number; bar = bar chart; stack = a pile of `count` "
-                                        "icons; highlight = yellow box around an earlier element.")
+                                        "icons; highlight = yellow box around an earlier element; stamp = a "
+                                        "rubber stamp that thumps down (a verdict: 'BERHASIL', 'PALSU'); "
+                                        "chart = a line chart that draws on (real data: points, csv or ticker); "
+                                        "unit = a grid of `total` squares, `filled` of them highlighted; person = a "
+                                        "real person's card (Wikipedia photo of `who`, name, a line, a stat); news = "
+                                        "a headline card (outlet, date, text); logo = an organisation's logo "
+                                        "(`who`) on a sign; screenshot = a web page (`url`) in a browser window. "
+                                        "Motion components (animated diagrams; their `steps` play on their own "
+                                        "words): kinetic = big kinetic type, one phrase per step; split = a whole "
+                                        "that breaks into shares (step values); flow = amounts flowing from a "
+                                        "source (`text`, `name`) to 1-4 destinations; meter = a gauge filling to "
+                                        "each step's value out of `max`, with a counter; cycle = a loop of 3-6 "
+                                        "steps with a dot going round (a vicious circle); timeline = dated events "
+                                        "(step `label` = the date); funnel = layers narrowing step by step; "
+                                        "reel = a slot reel spinning through options and landing on the "
+                                        "`accent` one.")
     query: str | None = Field(None, description="cutout/photo: English keywords for the stock photo, naming one "
                                                 "object or person (e.g. 'tempeh block', 'businessman shrugging').")
-    path: str | None = Field(None, description="cutout/photo: your own image instead of `query` (a transparent "
-                                               "PNG is used as-is).")
-    name: str | None = Field(None, description="icon/stack: Lucide icon name, e.g. 'coins'.")
+    path: str | None = Field(None, description="cutout/photo/person/logo: your own image instead of `query` / "
+                                               "`who` (a transparent PNG is used as-is).")
+    who: str | None = Field(None, description="person/logo/cutout/photo: the Wikipedia article title of a real "
+                                              "person or organisation (e.g. 'Joko Widodo', 'SoftBank Group'); its "
+                                              "lead image is used, with the licence in the credits.")
+    name: str | None = Field(None, description="icon/stack: Lucide icon name, e.g. 'coins'. cutout/photo: an "
+                                               "icon shown instead when no photo is found. flow/meter: the source / gauge icon.")
+    brief: str | None = Field(None, description="cutout/photo/person/logo: the ideal photo in a few words, in "
+                                                "Indonesian, for the photo brief the user may shoot or find ('tangan "
+                                                "memegang HP dengan aplikasi slot, malam hari').")
+    own: bool = Field(False, description="cutout/photo/person/logo: this prop must be exactly right (a local "
+                                         "product, a specific place): always listed in the photo brief; stock "
+                                         "is only a placeholder until the user's photo is in the photo folder.")
     text: str | None = Field(None, description="label: the tag text (1-4 words); number: the number as shown, "
-                                               "e.g. '-7%' or 'Rp12.000'.")
-    label: str | None = Field(None, description="cutout/photo/icon: a short tag stuck under the element.")
-    tone: Literal["up", "down", "neutral"] = Field("neutral", description="number: colour (up = green, down = red).")
+                                               "e.g. '-7%' or 'Rp12.000'; stamp: 1-2 words; chart: its title "
+                                               "('IHSG'); unit: the legend ('1 kotak = 1.000 alat'); person: one "
+                                               "small line ('2014–2024'); news: the headline; flow: the source "
+                                               "('Rp100rb'); meter: what's measured ('Uang hilang'); cycle: the "
+                                               "centre; split/reel/funnel: an optional title.")
+    label: str | None = Field(None, description="cutout/photo/icon/logo/screenshot: a short tag stuck under the "
+                                                "element; person: the name (default: from `who`).")
+    tone: Literal["up", "down", "neutral"] = Field("neutral", description="number/stamp/person stat/chart line: "
+                                                                          "colour (up = green, down = red; a "
+                                                                          "neutral chart follows its trend).")
+    points: list[ChartPoint] = Field(default_factory=list, max_length=400, description="chart: inline data.")
+    csv: str | None = Field(None, description="chart: repo-relative CSV with a header; first column x, second y.")
+    ticker: str | None = Field(None, description="chart: a Yahoo Finance symbol, e.g. '^JKSE' (IHSG), 'BBCA.JK', "
+                                                 "'IDR=X' (USD/IDR); needs `start`.")
+    start: str | None = Field(None, description="chart ticker: first date, YYYY-MM-DD.")
+    end: str | None = Field(None, description="chart ticker: last date, YYYY-MM-DD (unset = today).")
+    bands: list[ChartBand] = Field(default_factory=list, max_length=6,
+                                   description="chart: shaded spans with a label (eras, terms of office).")
+    total: int | None = Field(None, ge=2, le=400, description="unit: how many squares.")
+    filled: int | None = Field(None, ge=0, le=400, description="unit: how many are highlighted (default all).")
+    outlet: str | None = Field(None, description="news: the outlet, e.g. 'Katadata'.")
+    date: str | None = Field(None, description="news: the date as shown, e.g. 'Jumat, 16 Okt 2026'.")
+    url: str | None = Field(None, description="screenshot: the page to capture (http/https).")
+    wayback: str | None = Field(None, description="screenshot: capture the Wayback Machine copy from this date "
+                                                  "(YYYY or YYYYMMDD), for pages as they looked back then.")
+    selector: str | None = Field(None, description="screenshot: CSS selector of the part to capture (unset = the "
+                                                   "top of the page).")
+    stat: str | None = Field(None, description="person: a short stat under the name, e.g. '+499,50%'.")
     bars: list[StageBar] = Field(default_factory=list, max_length=4, description="bar: 2-4 bars, left to right.")
+    steps: list[MotionStep] = Field(default_factory=list, max_length=10,
+                                    description="Motion components: the beats, in narration order.")
+    max: float | None = Field(None, gt=0, description="meter: the full-scale value.")
     count: int | None = Field(None, ge=2, le=8, description="stack: how many icons pile up (default 4).")
     target: int | None = Field(None, ge=1, description="highlight: number (1-based) of the earlier element in "
                                                        "this scene to box.")
@@ -82,10 +179,34 @@ class StageElement(_Strict):
         for opts in _STAGE_NEEDS[self.kind]:
             if not any(getattr(self, f) for f in opts):
                 raise ValueError(f"stage element kind={self.kind!r} requires {' or '.join(opts)}")
+        if self.steps and self.kind not in COMPONENTS:
+            raise ValueError(f"`steps` are for motion components ({', '.join(COMPONENTS)})")
+        if self.kind in COMPONENTS:
+            lo, hi, valued = STEP_RULES[self.kind]
+            if not lo <= len(self.steps) <= hi:
+                raise ValueError(f"a {self.kind} takes {lo}-{hi} steps")
+            if valued and any(st.value is None for st in self.steps):
+                raise ValueError(f"every {self.kind} step needs a `value`")
+            if self.kind == "meter" and any(st.value > self.max for st in self.steps):
+                raise ValueError("meter step values can't be more than `max`")
+            if self.kind == "reel" and sum(st.accent for st in self.steps) != 1:
+                raise ValueError("a reel needs exactly one `accent` step (the option it lands on)")
         if self.kind == "bar" and len(self.bars) < 2:
             raise ValueError("a bar element needs 2-4 bars")
-        if self.label and self.kind not in ("cutout", "photo", "icon"):
-            raise ValueError("`label` is for cutout/photo/icon elements (use kind=label for a lone tag)")
+        if (self.brief or self.own) and self.kind not in MEDIA:
+            raise ValueError(f"`brief` / `own` are for {'/'.join(MEDIA)} elements")
+        if self.label and self.kind not in LABELLED:
+            raise ValueError(f"`label` is for {'/'.join(LABELLED)} elements (use kind=label for a lone tag)")
+        if self.ticker and not self.start:
+            raise ValueError("a chart `ticker` needs `start` (YYYY-MM-DD)")
+        if self.kind == "chart" and sum(map(bool, (self.points, self.csv, self.ticker))) > 1:
+            raise ValueError("a chart takes one of points, csv or ticker")
+        if self.kind == "chart" and self.points and len(self.points) < 2:
+            raise ValueError("a chart needs at least 2 points")
+        if self.kind == "unit" and self.filled is not None and self.filled > self.total:
+            raise ValueError("unit `filled` can't be more than `total`")
+        if self.url and not self.url.startswith(("http://", "https://")):
+            raise ValueError("screenshot `url` must start with http:// or https://")
         return self
 
 
@@ -103,8 +224,10 @@ class Visual(_Strict):
     bg: Literal["solid", "gradient"] = "gradient"
     path: str | None = Field(None, description="Local clip/photo path (type=local).")
     prompt: str | None = Field(None, description="Image prompt (type=ai_image).")
-    background: str | None = Field(None, description="type=stage: 'desk', 'paper', 'kraft', 'board' (see klip.yaml "
-                                                     "stage.backgrounds) or a repo-relative image path. "
+    background: str | None = Field(None, description="type=stage: 'grid' (dot-grid paper), 'studio' (wall over a "
+                                                     "light desk), 'spotlight' (dark desk under a light), or the "
+                                                     "older 'desk', 'paper', 'kraft', 'board' (see klip.yaml "
+                                                     "stage.backgrounds), or a repo-relative image path. "
                                                      "Unset = stage.default_background.")
     elements: list[StageElement] = Field(default_factory=list, max_length=12,
                                          description="type=stage: props that build up on the background, each "
@@ -166,6 +289,25 @@ class Compare(_Strict):
     right: Side
 
 
+class MascotPose(_Strict):
+    """A mascot changes pose (expression) on a narration word."""
+    who: str = Field(min_length=1, description="Mascot name from the style's mascot cast, e.g. 'napa'.")
+    pose: str = Field(min_length=1, description="Pose file name in that mascot's folder, e.g. 'kaget', 'paham', "
+                                                "'kepo', 'bingung', 'tunjuk'.")
+    at: str | None = Field(None, description="Narration word where the pose starts; unset = the scene's start.")
+    hold_s: float | None = Field(None, gt=0, le=20, description="Back to the neutral pose after this long; unset "
+                                                               "= until the next pose or the scene's end.")
+
+
+class SceneMascot(_Strict):
+    """The style's mascots (a brand pack's cast) in this scene."""
+    speaker: str | None = Field(None, description="Who speaks this scene's narration (mouth moves with the words); "
+                                                  "unset = the style's default for the template; 'none' = nobody.")
+    poses: list[MascotPose] = Field(default_factory=list, max_length=12,
+                                    description="Pose changes in narration order (on top of automatic reactions).")
+    hide: bool = Field(False, description="No mascots in this scene.")
+
+
 class Scene(_Strict):
     id: str = Field(pattern=r"^[A-Za-z0-9_-]+$")
     template: TemplateName
@@ -174,6 +316,10 @@ class Scene(_Strict):
     on_screen_text: str | None = None
     visual: Visual = Field(default_factory=Visual)
     emphasis: list[str] = Field(default_factory=list, description="Words/phrases to color with the emphasis color.")
+    voice: VoiceName | None = Field(None, description="This scene's narrator when it differs from the video's "
+                                                      "`voice` (a dialogue: alternate male and female). Unset = "
+                                                      "the voice of the scene's mascot speaker if one is set, "
+                                                      "else the video's voice.")
     delivery: Delivery | None = Field(None, description="Voice style for this scene (rate/pitch preset in "
                                                         "klip.yaml prosody); unset = by template.")
     # Template-specific data
@@ -185,6 +331,8 @@ class Scene(_Strict):
                                                     "(default: ~45% into the scene).")
     stat: Stat | None = None
     compare: Compare | None = None
+    mascot: SceneMascot | None = Field(None, description="Mascots (only when the style has a mascot cast): who "
+                                                         "speaks and pose changes.")
     cta_type: CtaType | None = Field(None, description="cta: what the outro asks for; shows an action chip "
                                                        "(icon + label). 'comment' = on_screen_text is a "
                                                        "two-sided question shown as the headline.")
@@ -260,6 +408,9 @@ class Spec(_Strict):
     look: LookName = Field("mixed", description="'stage' = illustrated explainer look: most hook/explain/"
                                                  "list_item scenes use visual.type 'stage' (share in klip.yaml "
                                                  "stage.look_min_share). 'mixed' = pick per scene.")
+    mascots: bool | list[str] | None = Field(None, description="Which of the style's mascots appear: unset/true = "
+                                                               "the whole cast, false = none, or a list of names "
+                                                               "(e.g. ['napa']).")
     progress_bar: bool | None = Field(None, description="Thin progress bar at the top; unset = the style's setting. "
                                                         "Set false/true to A/B test it.")
     save_nudge: bool | None = Field(None, description="'Simpan dulu' pill when the 2nd list_item starts; "

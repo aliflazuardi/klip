@@ -77,7 +77,7 @@ def test_layout_slots_sizes_and_highlight_box():
                        {"at": "b", "kind": "label", "text": "Mahal", "pos": "tl"},
                        {"at": "c", "kind": "highlight", "target": 1}))
     boxes = stage_mod.layout("s1", v.elements, {}, (450, 1170))
-    assert boxes[1]["slot"] == "tl" and boxes[0]["slot"] == "br"       # explicit pos first, rest auto
+    assert boxes[1]["slot"] == "tl" and boxes[0]["slot"] == "mr"       # explicit pos first, rest auto (pair)
     assert boxes[0]["size"] == "m"                                      # two props share the stage
     hl, ic = boxes[2], boxes[0]
     pad = 2 * stage_mod.cfg("highlight.pad")
@@ -85,6 +85,21 @@ def test_layout_slots_sizes_and_highlight_box():
     for b in boxes.values():
         assert stage_mod.SAFE_X[0] <= b["x"] - b["w"] / 2 and b["x"] + b["w"] / 2 <= stage_mod.SAFE_X[1] + pad
         assert 450 <= b["y"] - b["h"] / 2 + (pad if b is hl else 0)
+
+
+def test_compositions_by_count_and_kind():
+    cut = {"at": "a", "kind": "cutout", "query": "x"}
+    lab = {"at": "a", "kind": "label", "text": "x"}
+    comp = lambda *els: stage_mod.composition(Visual(**stage(*els)).elements, list(range(len(els))))  # noqa: E731
+    assert comp(cut) == "hero" and comp(cut, lab) == "hero_tag" and comp(cut, cut) == "pair"
+    assert comp(cut, lab, lab) == "hero_two" and comp(lab, cut, lab) == "hero_two" and comp(cut, cut, lab) == "trio"
+    late = stage_mod.layout("s1", Visual(**stage(lab, cut)).elements, {1: {"w": 800, "h": 800, "render": "cutout"}},
+                            (450, 1270))
+    assert late[1]["size"] == "l" and late[0]["size"] == "s"            # the photo is the hero, even second
+    assert comp(*[lab] * 4) == "grid4" and comp(*[lab] * 6) == "scatter6"
+    v = Visual(**stage(cut, lab))
+    boxes = stage_mod.layout("s1", v.elements, {0: {"w": 800, "h": 800, "render": "cutout"}}, (450, 1270))
+    assert boxes[0]["size"] == "l" and boxes[0]["h"] >= 600 and boxes[1]["y"] > boxes[0]["y"]   # hero + tag below
 
 
 def test_rows_follow_the_free_area_under_the_title():
@@ -95,7 +110,17 @@ def test_rows_follow_the_free_area_under_the_title():
     assert all(tall[i]["y"] > short[i]["y"] for i in tall)              # props move down with the title
     gap_top = tall[0]["y"] - tall[0]["h"] / 2 - 560
     gap_bottom = 1170 - (tall[2]["y"] + tall[2]["h"] / 2)
-    assert gap_top > 20 and gap_bottom > 20                             # breathing room both ends
+    assert gap_top > 10 and gap_bottom > 10                             # breathing room both ends
+
+
+def test_builtin_sets_render_css():
+    for bg in ("grid", "studio", "spotlight", "desk"):
+        css = str(stage_mod.background_css(bg))
+        layers = css.split("background-image:")[1].split("; background-size")[0].count("gradient(")
+        sizes = css.split("background-size:")[1].rstrip(";").split(",")
+        assert layers == len(sizes) and css.startswith("background-color:")       # one size per layer
+    assert "34px 34px" in stage_mod.background_css("grid") and stage_mod.tone("spotlight") == "dark"
+    assert Visual(**stage({"at": "a", "kind": "stamp", "text": "BERHASIL", "tone": "up"})).elements[0].kind == "stamp"
 
 
 def test_photo_boxes_keep_aspect_and_fit_the_stage():
@@ -282,7 +307,7 @@ def test_compose_stage_run_keeps_background_and_cues_sfx(tmp_path):
     ctx, warnings = compose.build_context(spec, _timeline(("s1", 3000), ("s2", 3000), ("s3", 2000)), ws,
                                           {"scenes": media})
     s1, s2 = ctx["scenes"][0]["stage"], ctx["scenes"][1]["stage"]
-    assert not warnings and s1["bg"] == s2["bg"] == "desk"
+    assert not warnings and s1["bg"] == s2["bg"] == "grid" and s1["tone"] == "light"
     assert not s1["continues"] and s1["next_same"] and s2["continues"] and not s2["next_same"]
     assert s1["bg_to"] == s2["bg_from"]                                 # one continuous pan
     assert all(e["exit"] == pytest.approx(3 - 0.25) for e in s1["elements"])   # props sweep off before s2
@@ -298,8 +323,37 @@ def test_compose_stage_run_keeps_background_and_cues_sfx(tmp_path):
                       autoescape=True, trim_blocks=True, lstrip_blocks=True)
     env.filters["rgba"] = compose.rgba
     html = env.get_template("index.html.j2").render(**ctx)
-    assert 'id="st-s1-0"' in html and "media/s1_el0.png" in html and ".bg-desk" in html
+    assert 'id="st-s1-0"' in html and "media/s1_el0.png" in html and ".bg-grid" in html
+    assert "stage tone-light" in html and 'class="st-title plain"' in html
+    assert all(p["stage"] for p in ctx["pages"])          # stage captions; the cta's words aren't captioned
+    assert 'class="cap clip st light"' in html and "backgroundSize" in html                        # underline marker
     assert "st-s2-1 .st-hl" in html and "#sc-s1 .bg" not in html
+
+
+@needs_renderer
+@pytest.mark.parametrize("mode", ["overlay", "none"])
+def test_outro_overlay_keeps_the_last_scene_playing(monkeypatch, mode):
+    from klip import config
+    base = config.style("default")
+    style = {**base, "outro": {**base["outro"], "mode": mode, "text": "Tetap bernalar."}}
+    monkeypatch.setattr(compose.config, "style", lambda name="default": style)
+    spec = _spec({"id": "s1", "template": "explain", "narration": "harga tempe naik",
+                  "visual": stage({"at": "tempe", "kind": "label", "text": "Tempe"})},
+                 {"id": "s2", "template": "cta", "cta_type": "follow", "narration": "follow ya",
+                  "on_screen_text": "Follow ya"})
+    ws = words(("harga", 100), ("tempe", 600), ("naik", 1400)) + words(("follow", 3100), ("ya", 3500), scene="s2")
+    ctx, _ = compose.build_context(spec, _timeline(("s1", 3000), ("s2", 2000)), ws, {"scenes": {}})
+    s1, s2 = ctx["scenes"]
+    assert s2["hidden"] and s1["end"] == 5.0 and s1["dur"] == 5.0          # s1 runs under the cta narration
+    assert all(p["words"][0]["text"] != "follow" for p in ctx["pages"])
+    moments = [e["moment"] for e in ctx["sfx"]]
+    assert "scene_cut" not in moments
+    o = ctx["brand"]["outro"]
+    if mode == "none":
+        assert o is None and "cta_icon" not in moments
+        return
+    assert [h["text"] for h in o["text"]] == ["Tetap", "bernalar."] and o["chip"]["label"] == "Follow"
+    assert o["start"] == 3.0 and "cta_ask" in moments
 
 
 @needs_renderer

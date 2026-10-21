@@ -1,6 +1,6 @@
 [project]
 name = "klip"
-version = "0.2.1"
+version = "0.3.0"
 description = "Prompt -> short vertical video pipeline: scene spec JSON -> Indonesian voiceover, word-synced captions, b-roll, HyperFrames render."
 readme = "README.md"
 license = "Apache-2.0"
@@ -25,6 +25,11 @@ Changelog = "https://github.com/aliflazuardi/klip/blob/main/CHANGELOG.md"
 [project.scripts]
 klip = "klip.cli:app"
 klip-mcp = "klip.mcp_server:main"
+
+[project.optional-dependencies]
+align = [
+    "faster-whisper>=1.1",
+]
 
 [dependency-groups]
 dev = ["pytest>=8"]

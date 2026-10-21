@@ -28,6 +28,7 @@ def ticks_to_ms(ticks: int | float) -> float:
 
 class EdgeTTS:
     name = "edge"
+    ext = ".mp3"
 
     def __init__(self, retries: int = 3, backoff_s: float = 1.5):
         self.retries = retries

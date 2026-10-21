@@ -1,0 +1,70 @@
+{# Motion components (klip/motion.py builds `e.comp`; coordinates are the card's inner area) #}
+{% set c = e.comp %}
+{% set k = stage.cfg.components %}
+{% if c.kind == "kinetic" %}
+<div class="cp-kin" style="font-size: {{ c.fs }}px;">
+  {% for s in c.steps %}<div class="kn-line{{ ' acc' if s.accent }}" id="{{ e.id }}-s{{ s.k }}">{% for w in s.words %}<span class="kn-w">{{ w }}</span>{{ ' ' if not loop.last }}{% endfor %}</div>{% endfor %}
+</div>
+{% else %}
+<div class="cp-card" style="padding: {{ c.pad }}px;"><div class="cp-in" style="width: {{ c.iw }}px; height: {{ c.ih }}px;">
+{% if c.kind == "split" %}
+  <div class="sp-wrap" style="font-size: {{ c.fs }}px;">
+    {% if c.title %}<div class="cp-title">{{ c.title }}</div>{% endif %}
+    <div class="sp-bar" style="height: {{ c.bar_h }}px;">{% for s in c.steps %}<div class="sp-seg" id="{{ e.id }}-s{{ s.k }}" style="width: {{ s.width }}%;"></div>{% endfor %}</div>
+    <div class="sp-legend">{% for s in c.steps %}<div class="sp-row{{ ' acc' if s.accent }}" id="{{ e.id }}-r{{ s.k }}"><i style="background: {{ s.color }};"></i><span>{{ s.text }}</span><b id="{{ e.id }}-v{{ s.k }}">{{ s.show }}</b></div>{% endfor %}</div>
+  </div>
+{% elif c.kind == "flow" %}
+  <svg class="cp-svg" width="{{ c.iw }}" height="{{ c.ih }}" viewBox="0 0 {{ c.iw }} {{ c.ih }}">
+    {% for s in c.steps %}
+    <path id="{{ e.id }}-p{{ s.k }}" d="{{ s.path }}" fill="none" stroke="{{ k.track }}" stroke-width="{{ s.stroke }}" stroke-linecap="round" stroke-dasharray="{{ s.len }}" stroke-dashoffset="{{ s.len }}" />
+    <path id="{{ e.id }}-d{{ s.k }}" d="{{ s.path }}" fill="none" stroke="{{ c.accent if s.accent else k.ink }}" stroke-width="{{ (s.stroke * 0.55) | round(1) }}" stroke-linecap="round" stroke-dasharray="{{ c.dash }} {{ c.gap }}" opacity="0" />
+    {% endfor %}
+  </svg>
+  <div class="cp-node src" style="left: {{ c.sx - c.r }}px; top: {{ c.sy - c.r }}px; width: {{ c.r * 2 }}px; height: {{ c.r * 2 }}px;">{{ (c.svg or '') | safe }}</div>
+  <div class="cp-lab src" style="left: {{ c.sx + c.r + 16 }}px; top: {{ c.sy }}px; font-size: {{ (c.fs * 1.15) | round(1) }}px;"><b>{{ c.title }}</b></div>
+  {% for s in c.steps %}
+  <div class="cp-node{{ ' acc' if s.accent }}" id="{{ e.id }}-n{{ s.k }}" style="left: {{ s.x - c.r }}px; top: {{ s.y - c.r }}px; width: {{ c.r * 2 }}px; height: {{ c.r * 2 }}px;">{{ (s.svg or '') | safe }}</div>
+  <div class="cp-lab" id="{{ e.id }}-l{{ s.k }}" style="left: {{ s.x }}px; top: {{ s.y + c.r + 8 }}px; font-size: {{ c.fs }}px;"><span>{{ s.text }}</span><b class="{{ 'acc' if s.accent }}" id="{{ e.id }}-v{{ s.k }}">{{ s.show }}</b></div>
+  {% endfor %}
+{% elif c.kind == "meter" %}
+  <div class="mt-tube" style="left: {{ c.x }}px; top: {{ c.top }}px; width: {{ c.tube_w }}px; height: {{ c.bottom - c.top }}px;"><div class="mt-fill" id="{{ e.id }}-fill"></div></div>
+  {% for s in c.steps %}<div class="mt-tick" id="{{ e.id }}-t{{ s.k }}" style="left: {{ c.x - 14 }}px; top: {{ s.y }}px; width: {{ c.tube_w + 28 }}px;"></div>{% endfor %}
+  {% if c.svg %}<div class="mt-icon" style="left: 0; top: 0; width: {{ c.small * 2.2 }}px; height: {{ c.small * 2.2 }}px;">{{ c.svg | safe }}</div>{% endif %}
+  {% if c.title %}<div class="mt-title" style="left: {{ c.small * 2.6 if c.svg else 0 }}px; top: 0; font-size: {{ c.small }}px; line-height: {{ c.small * 2.2 }}px;">{{ c.title }}</div>{% endif %}
+  {% for s in c.steps %}
+  <div class="mt-val" id="{{ e.id }}-s{{ s.k }}" style="width: {{ c.col }}px; font-size: {{ c.fs }}px;"><b id="{{ e.id }}-v{{ s.k }}">{{ s.show or '' }}</b><span style="font-size: {{ c.small }}px;">{{ s.text }}</span></div>
+  {% endfor %}
+{% elif c.kind == "cycle" %}
+  <svg class="cp-svg" width="{{ c.iw }}" height="{{ c.ih }}" viewBox="0 0 {{ c.iw }} {{ c.ih }}">
+    {% for a in c.arcs %}
+    <path id="{{ e.id }}-a{{ loop.index0 }}" d="{{ a.d }}" fill="none" stroke="{{ k.ink }}" stroke-width="6" stroke-linecap="round" stroke-dasharray="{{ a.len }}" stroke-dashoffset="{{ a.len }}" />
+    <polygon id="{{ e.id }}-h{{ loop.index0 }}" points="{{ a.head }}" fill="{{ k.ink }}" opacity="0" />
+    {% endfor %}
+    <g id="{{ e.id }}-orbit" opacity="0"><circle cx="{{ c.cx }}" cy="{{ c.cy - c.R }}" r="15" fill="{{ c.accent }}" stroke="#fff" stroke-width="4" /></g>
+  </svg>
+  {% if c.title %}<div class="cy-center" style="left: {{ c.cx }}px; top: {{ c.cy }}px; font-size: {{ c.center_fs }}px; max-width: {{ (c.R * 1.2) | round(1) }}px;">{{ c.title }}</div>{% endif %}
+  {% for s in c.steps %}
+  <div class="cp-node{{ ' acc' if s.accent }}" id="{{ e.id }}-n{{ s.k }}" style="left: {{ s.x - c.r }}px; top: {{ s.y - c.r }}px; width: {{ c.r * 2 }}px; height: {{ c.r * 2 }}px;">{% if s.svg %}{{ s.svg | safe }}{% else %}<b style="font-size: {{ c.r * 0.8 }}px;">{{ s.k + 1 }}</b>{% endif %}</div>
+  <div class="cp-lab cy" id="{{ e.id }}-l{{ s.k }}" style="left: {{ s.x }}px; top: {{ s.y + c.r + 6 }}px; font-size: {{ c.fs }}px;"><b>{{ s.text }}</b></div>
+  {% endfor %}
+{% elif c.kind == "timeline" %}
+  <div class="tl-track" style="left: {{ c.x - 3 }}px; top: {{ c.top }}px; height: {{ c.steps[-1].y - c.top }}px;"></div>
+  <div class="tl-line" id="{{ e.id }}-line" style="left: {{ c.x - 3 }}px; top: {{ c.top }}px; height: 0;"></div>
+  {% for s in c.steps %}
+  <div class="tl-dot{{ ' acc' if s.accent }}" id="{{ e.id }}-d{{ s.k }}" style="left: {{ c.x - 15 }}px; top: {{ s.y - 15 }}px;"></div>
+  <div class="tl-row" id="{{ e.id }}-r{{ s.k }}" style="left: {{ c.x + 38 }}px; top: {{ s.y }}px; font-size: {{ c.fs }}px;">{% if s.label %}<b class="{{ 'acc' if s.accent }}">{{ s.label }}</b>{% endif %}<span>{{ s.text }}</span></div>
+  {% endfor %}
+{% elif c.kind == "funnel" %}
+  {% for s in c.steps %}
+  <div class="fn-layer" id="{{ e.id }}-s{{ s.k }}" style="top: {{ s.y }}px; height: {{ s.h }}px; clip-path: {{ s.clip }}; background: {{ s.color }}; font-size: {{ c.fs }}px;"><b id="{{ e.id }}-v{{ s.k }}">{{ s.show }}</b><span>{{ s.text }}</span></div>
+  {% endfor %}
+{% elif c.kind == "reel" %}
+  {% if c.title %}<div class="cp-title rl-title" style="height: {{ c.title_h }}px; font-size: {{ (c.title_h * 0.5) | round(1) }}px;">{{ c.title }}</div>{% endif %}
+  <div class="rl-win" style="top: {{ c.title_h }}px; height: {{ c.rh * 3 }}px;">
+    <div class="rl-strip" id="{{ e.id }}-strip">{% for o in c.strip %}<div class="rl-item{{ ' land' if loop.index0 == c.land }}" style="height: {{ c.rh }}px; font-size: {{ c.fs }}px;">{{ o }}</div>{% endfor %}</div>
+    <div class="rl-shade"></div>
+    <div class="rl-mark" id="{{ e.id }}-mark" style="top: {{ c.rh }}px; height: {{ c.rh }}px;"></div>
+  </div>
+{% endif %}
+</div></div>
+{% endif %}

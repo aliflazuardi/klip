@@ -25,3 +25,11 @@ style:
     disc_color: "#1E293B"         # disc behind the logo; null = none
     wordmark: assets/wordmark.svg
     tagline: stay curious
+  outro:                          # how the video ends (all keys: klip.yaml styles.default.outro)
+    mode: card                    # card = the end card above; overlay = the last scene keeps
+                                  # playing and a small logo + text + chip badge slides up;
+                                  # none = no outro visual (the ask lives in post.txt)
+  mascot:                         # characters above the stage captions (all keys: klip.yaml styles.default.mascot)
+    cast:
+      - {name: bulat, dir: mascot/bulat, side: left}   # a folder of pose SVGs; netral.svg required
+    speaker: {default: bulat}     # who speaks per template (hook: …, cta: …), default for the rest

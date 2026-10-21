@@ -6,6 +6,95 @@ All notable changes to Klip are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-21
+
+### Added
+
+- Mascots: a brand pack's `mascot.cast` (folders of pose SVGs) stand above the stage captions,
+  lip-sync the scene's speaker word by word, blink and sway, point at new props and react to
+  stamps; a scene's `"mascot"` picks the speaker and adds poses on words. Example cast in
+  `brands/example/mascot/`. A spec picks who appears with `"mascots"` (or `--mascots`).
+- Dialogue: a scene can set its own `"voice"`, so a video can alternate female and male narrators.
+  Each narrator's turn is recorded as its own take, and a mascot with that `voice` speaks it.
+- Motion components for stage scenes: `kinetic`, `split`, `flow`, `meter`, `cycle`, `timeline`,
+  `funnel` and `reel`, animated diagrams whose `steps` play on their own narration words, with
+  count-up values, accent steps and SFX (`stage.components` in klip.yaml). Example:
+  `examples/motion-components.json`.
+- Stage props lean on real photos: `klip photos <spec>` (and the MCP tool `photo_brief`) finds
+  photos for every stage prop and writes `projects/<slug>/photo-brief.md`, listing the props that
+  have no photo, are marked `"own": true` or got a weak stock match, with what to shoot or find
+  (`brief`) and the file name to save. Photos dropped in `specs/photos/<slug>/` (`<scene>-<n>…`)
+  win over stock on the next render.
+- Stock photo sources for stage props: Unsplash (`UNSPLASH_ACCESS_KEY`) and Wikimedia Commons
+  (free licences only). Props search every source in any orientation and stop once
+  `stage.photos.enough` photos are found; the vision check compares them all.
+- A `cutout`/`photo` prop with `name` falls back to that icon when no photo is found (it used to
+  be left out), and `klip validate` warns when a stage scene has more icons than real pictures.
+- Livelier stage motion (`stage.motion`): props sway gently once they land, cut-outs drop in with
+  a squash and photo cards are tossed in, labels wipe in, numbers count up, props sweep off to
+  their side, and the camera eases toward each new prop as it pushes in.
+
+- Hashtags are written in lowercase in `post.txt` and the validate preview (`post.lowercase_hashtags`),
+  and `klip validate` warns about capitalised hashtags in the spec.
+
+- Natural voices: `voices.engine: elevenlabs` (ELEVENLABS_API_KEY; word timings from the API) and
+  `voices.engine: gemini` (GEMINI_API_KEY; Gemini 3.8 Flash TTS with a style prompt in
+  `gemini_tts.style`).
+- `voices.take: whole` reads the whole script in one TTS call and cuts it into scenes at the
+  pauses, so intonation doesn't restart at every scene.
+- Forced alignment for engines without word timings (`klip/align.py`, faster-whisper word
+  timestamps mapped onto the script; optional: `uv sync --extra align`). Measured against
+  edge-tts's own timings: median start error 23 ms after `align.offset_ms`.
+- The first word after a pause now starts where the speech resumes even when its timing runs
+  late (`voices.snap_late_ms`); with Gemini this took caption sync from up to 215 ms late to a
+  mean of +5 ms after pauses.
+- `klip ab-voice <spec>` reads one script with several engine/take variants (voice.wav each, or
+  full videos with `--render`) to compare by ear.
+
+- Real-world stage elements: `chart` (a line chart that draws on, from a Yahoo Finance `ticker`,
+  a `csv` or inline `points`, with shaded `bands`), `unit` (a waffle of squares), `person` (a real
+  person's card from Wikipedia via `who`), `logo` (an organisation's logo via Wikidata), `news`
+  (a headline card) and `screenshot` (a web page, or its Wayback Machine copy, captured with the
+  headless Chrome HyperFrames already installs). `cutout` / `photo` also take `who`.
+- Wikimedia source: images come with their licence and author in `credits.json` / `post.txt`;
+  non-free photos are never used, non-free logos only with `wikimedia.allow_nonfree_logos`.
+- Hero compositions pick the one big prop as the hero, whatever its position in the list.
+
+- Clean stage sets: `grid` (dot-grid paper, now the default), `studio` (a wall over a light desk)
+  and `spotlight` (a dark desk under a light). Title, tag and shadow colours follow each set's `tone`.
+- Stage `stamp` element: a rubber-stamp verdict ("BERHASIL", "PALSU") that thumps down with a hit.
+- Configurable outro (`outro` in klip.yaml styles / brand.yaml): `card` (the end card), `overlay`
+  (the previous scene keeps playing under the sign-off while a small logo + text + action chip
+  badge slides up) or `none`.
+- Caption options: `caption.highlight: underline` (an accent marker sweeps under the active word),
+  `caption.shadow`, `caption.hide_gap_ms` (no caption during pauses), and `caption.stage` to
+  restyle captions on stage scenes.
+
+### Changed
+
+- The progress bar is off by default (`styles.default.progress_bar.enabled: false`); turn it on
+  per video with `"progress_bar": true` or `--progress-bar`.
+- Stage layout composes by count and kind (`stage.compositions`): one big hero prop, hero + tag,
+  pair, hero + two, grid, scatter. Props are larger.
+- Stage titles are left-aligned type with a marker on emphasis words (`stage.title.style: plain`);
+  `strip` keeps the old paper strip.
+- Captions on stage scenes are phrase pages (up to 6 words), lower, without a stroke, with the
+  underline marker, and hidden during pauses.
+- The cta narration is no longer captioned by default (`outro.captions`), so the sign-off doesn't
+  appear twice.
+- Stage props search Unsplash, Pexels, Pixabay and Wikimedia Commons (`stage.photos.providers`);
+  Openverse stays for b-roll only (its rate limit stalled prop searches).
+- Renderer: gsap 3.15.0. GitHub Actions: astral-sh/setup-uv 7.
+
+### Fixed
+
+- Stage props on one page no longer overlap (a label under an icon, a trophy over a tag): boxes
+  are pushed apart, then shrunk if needed (`stage.layout_gap_px`). Stamps may still overlap what
+  they judge.
+- Uppercase stage labels no longer run off the right edge (their width was underestimated), and
+  the stage area keeps `stage.caption_gap_px` clear above the captions. Photo props get a bigger
+  box (`stage.photos.grow`).
+
 ## [0.2.1] - 2026-10-20
 
 ### Fixed
@@ -52,7 +141,8 @@ First public release.
 - `klip.local.yaml` for personal overrides, deep-merged over `klip.yaml`.
 - `klip --version`.
 
-[Unreleased]: https://github.com/aliflazuardi/klip/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/aliflazuardi/klip/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/aliflazuardi/klip/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/aliflazuardi/klip/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/aliflazuardi/klip/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/aliflazuardi/klip/releases/tag/v0.1.0

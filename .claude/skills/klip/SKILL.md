@@ -25,6 +25,11 @@ pipeline renders it. The spec is the contract: re-rendering the same spec gives 
 6. **Review gate — stop and show the user** the script: each scene's narration and on-screen
    text, the estimated duration, and the facts with sources. Ask for approval or edits.
    Do not render before the user says yes (skip only if they explicitly said not to review).
+   **Stage videos: also send the photo brief.** Run `uv run klip photos specs/<slug>.json`
+   (~1–3 min: stock search + vision check, no voice or render) and show the user the props under
+   "Perlu foto" and "Bisa lebih bagus" in `projects/<slug>/photo-brief.md`: what each photo
+   should show and the file name to save in `specs/photos/<slug>/`. They can drop photos in
+   (or say "pakai stock saja"); the render picks the files up automatically.
 7. **Render** (about 2–2.5 min for 45 s; run it in the background):
    `uv run klip render specs/<slug>.json --voice <voice>`
    Outputs land in `projects/<slug>/`: `final.mp4`, `cover.png` (designed cover), `post.txt` (with b-roll
@@ -60,7 +65,10 @@ re-render; unchanged stages are cached. Tell the user about any check you couldn
   - `cta`: always the last scene. Set `cta_type` to pick the ask (see the writing guide):
     `follow` | `save` | `comment` | `share`. It adds an action chip (icon + "Follow" / "Simpan" /
     "Komen di bawah" / "Kirim ke teman") under the headline; for `comment`, `on_screen_text` is
-    the question and becomes the headline.
+    the question and becomes the headline. How the cta looks is the style's `outro.mode`
+    (klip.yaml / brand.yaml): `card` (an end card), `overlay` (the previous scene keeps playing
+    and a small logo + text + chip badge slides up) or `none`. The cta narration isn't
+    captioned (its text is already on screen) unless `outro.captions` is on.
 - Look: `"look": "stage"` (set when the user asks for it, or `klip new --stage`) means the
   illustrated explainer look for the whole video: use `visual.type: "stage"` for at least 70%
   (klip.yaml `stage.look_min_share`) of the hook/explain/list_item scenes, keep them on one
@@ -95,27 +103,99 @@ re-render; unchanged stages are cached. Tell the user about any check you couldn
     on a timer into as many shots as it has distinct clips. (`queries` is the older, timer-cut
     form; prefer `beats`.) `max_shots: 1` keeps one continuous shot (rarely needed).
   - `stage` (illustrated explainer, 90secondslab style): no stock footage. A persistent
-    `background` (`desk`, `paper`, `kraft`, `board`, or an image path) on which `elements`
-    build up, each popping in on its `at` word and staying. Use it for scenes about money,
+    `background` on which `elements` build up, each popping in on its `at` word and staying.
+    Backgrounds: `grid` (dot-grid paper, the default and the calmest), `studio` (a wall over a
+    light desk), `spotlight` (a dark desk under a light, for tense or "investigation" beats), the
+    older textured `desk`, `paper`, `kraft`, `board`, or an image path. Use it for scenes about money,
     numbers, causes and effects, or things stock footage shows badly (local food, Indonesian
     institutions). Kinds: `cutout` (`query` = one English object/person, e.g. "soybeans",
     "stressed businessman"; background removed, sticker look), `photo` (photo card), `icon`
     (Lucide `name`), `label` (`text`, 1–4 words), `number` (`text` as shown, ≤ 9 chars, e.g.
     "-11%", "Rp18rb"; `tone` up/down colours it), `bar` (2–4 `bars` `{label, value, text}`),
     `stack` (`name` × `count`, e.g. coins piling up), `highlight` (yellow box around element
-    number `target`). `cutout`/`photo`/`icon` take a short `label` tag. Rules: one element per
-    narration subject, every ~1–2 s; `at` words in narration order; at most 6 on the stage at
-    once (`"clear": true` on an element wipes the stage first); layout is automatic (`pos`
-    tl…br only to force a slot). Works with `hook`, `explain` and `list_item` (the
-    on_screen_text becomes a paper title strip). Keep consecutive stage scenes on the same
+    number `target`), `stamp` (`text`, 1–2 words, a rubber-stamp verdict like "BERHASIL" or
+    "PALSU"; `tone` up/down colours it). `cutout`/`photo`/`icon`/`logo`/`screenshot` take a short
+    `label` tag.
+    **Real photos dominate, icons are the exception.** The look is a collage of real things cut
+    out with scissors: most object props (≥ 60%, `validate` warns below) are `cutout`/`photo`/
+    `person`/`logo`/`screenshot`; keep `icon` for abstract ideas with no photographable object
+    ("bisa diatur", "nggak dicek"). Every stage page should have one real photo as its hero.
+    For each photo prop also write `brief` (the ideal photo in a few Indonesian words, for the
+    photo brief), `name` (a fallback Lucide icon if no photo is found), and `"own": true` when it
+    must be exactly right (an Indonesian product, place or app screen) so the user is asked for
+    it. Stock search covers Unsplash (with a key), Pexels, Pixabay and Wikimedia Commons (good for
+    rupiah, Indonesian places and objects); `query` stays English and short (2–3 words: long
+    queries miss the stock tags).
+    **Real things beat stock** (90secondslab uses real people, logos, pages and data):
+    - `person`: a real person's card: `who` = their Wikipedia article title ("Joko Widodo",
+      "Sri Mulyani Indrawati"), `text` = one small line ("2014–2024"), optional `stat` ("+53,95%")
+      with `tone`. The photo is the article's lead image, with its licence in the credits. Only
+      public figures, in an editorial context; never pair a face with a claim the facts don't
+      support. `cutout`/`photo` also take `who` (a cut-out of the real person).
+    - `logo`: an organisation's logo on a sign: `who` = its Wikipedia title ("SoftBank Group",
+      "Bank Indonesia"). If Wikipedia has no logo the prop is left out (use `path` then).
+    - `chart`: a line chart that draws on, from real data: `ticker` (Yahoo Finance: "^JKSE" IHSG,
+      "BBCA.JK", "IDR=X" USD/IDR, "BTC-USD") with `start` (and `end`), or `csv` (your file), or
+      inline `points` [{x, y}]. `text` = title ("IHSG"); `bands` [{start, end, label}] shade eras
+      (terms of office, crises). Line colour follows the trend unless `tone` is set. Cite the data
+      source in `facts`.
+    - `unit`: `total` squares with `filled` of them highlighted and a legend `text`
+      ("1 kotak = 1.000 alat"): for counts and shares people can't picture. Keep total ≤ 200.
+    - `news`: a headline card: `outlet`, `date`, `text` (the headline, ≤ 14 words). Only real
+      headlines, quoted as published, with the article in `facts`.
+    - `screenshot`: a web page in a browser window: `url`, optional `wayback` (YYYY or YYYYMMDD:
+      the Wayback Machine copy, for "remember Kaskus in 2010?") and `selector` (capture one part).
+    **Motion components** (animated diagrams for the *explaining* beats: numbers, shares, causes,
+    processes; they beat a solid background or generic stock). One component usually fills a
+    stage page on its own (`"clear": true` before it). Each takes `steps`; a step plays on its own
+    `at` word (searched from the element's word on, in order; unset = 0.45 s after the previous)
+    and has `text`, optional `value` (sizes it), `show` (the value as shown, "Rp2,5 jt", "30%";
+    counts up), `label`, `name` (Lucide icon) and `accent` (the one that matters). Pick by shape:
+    - `kinetic`: big type, 1–6 short phrases slamming in (a hook, a punchline). `accent` = marker.
+    - `split`: one whole breaking into 2–5 shares (`value`s; `show` defaults to the %): budgets,
+      "96% balik, 4% ke bandar", market share. `text` = the whole ("Gaji kamu").
+    - `flow`: an amount (`text`, `name`) flowing to 1–4 destinations (`value` = stream width):
+      where money/time/goods go.
+    - `meter`: a gauge filling to each step's `value` out of `max`, counter showing `show`:
+      something accumulating (savings, losses, debt, days). `text` = what's measured.
+    - `cycle`: 3–6 steps in a loop with a dot going round: habits, vicious circles, seasons.
+    - `timeline`: 2–6 dated events (`label` = date): history, a month's schedule, a story.
+    - `funnel`: 2–5 layers narrowing (`value`s): from many to few (applicants → hired, gaji → sisa).
+    - `reel`: a slot reel spinning through 3–10 options and landing on the `accent` one (its
+      `at` = the word of the answer): "which one is it?" moments.
+    Keep step texts to 1–3 words (kinetic phrases ≤ 5). Example: `{"at": "gajimu", "kind": "flow",
+    "text": "Rp5 juta", "name": "wallet", "steps": [{"text": "Kebutuhan", "value": 2.5, "show":
+    "Rp2,5 jt", "name": "house", "at": "kebutuhan"}, {"text": "Tabungan", "value": 1, "show":
+    "Rp1 jt", "name": "piggy-bank", "at": "tabungan", "accent": true}]}`. Full set:
+    `examples/motion-components.json`.
+    **Mascots** (only when the style's brand pack has a `mascot` cast, e.g. Warga Nalar): they
+    stand above the stage captions on every stage scene, mouth the narration of the scene's
+    speaker, point at new big props and react to stamps on their own. The spec's `"mascots"`
+    picks who appears (`false` = none, `["napa"]` = one; unset = the whole cast; the user may say
+    "tanpa maskot" or "cuma Napa"). Each mascot has a voice: a scene narrated in that voice is
+    theirs. **Dialogue:** set `"voice": "female"` / `"male"` per scene (or `"mascot": {"speaker":
+    "napa"}`, which picks that mascot's voice) so the narration alternates and the mascots take
+    turns; consecutive scenes with the same voice are recorded as one natural take. A scene's
+    `"mascot"` also takes `poses` [{who, pose, at, hold_s}] (pose =
+    a file in the mascot's folder: netral, kepo, kaget, paham, bingung, tunjuk), `hide`. Use poses
+    for the beats that matter (a myth landing → `bingung`, the reveal → `paham`); leave the rest
+    automatic. They don't show on non-stage scenes.
+    Rules: one element per narration subject, every ~1–2 s; `at` words in narration order.
+    **Fewer, bigger props read better:** the layout is automatic and composes by count: one
+    prop is a big centred hero; a photo/chart + a tag or number becomes hero + tag; three with
+    one photo first become hero + two small; 4–6 shrink to a grid. Aim for 1–3 props per stage
+    page and `"clear": true` to start the next page rather than piling up 6 small ones (`pos`
+    tl…br only to force a place). Works with `hook`, `explain` and `list_item` (the
+    on_screen_text becomes a left-aligned title with the `emphasis` words marked). Keep consecutive stage scenes on the same
     background: it stays on screen and only the props change. Example: narration "Rupiah
     melemah, jadi barang impor mahal: kedelai, pakan ayam, dan BBM" → `{"type": "stage",
-    "background": "desk", "elements": [{"at": "Rupiah", "kind": "stack", "name": "coins"},
+    "background": "grid", "elements": [{"at": "Rupiah", "kind": "stack", "name": "coins"},
     {"at": "impor", "kind": "number", "text": "Rp18rb", "tone": "down"}, {"at": "kedelai",
-    "kind": "cutout", "query": "soybeans", "label": "Kedelai", "clear": true}, {"at": "pakan",
-    "kind": "cutout", "query": "chicken"}, {"at": "BBM", "kind": "icon", "name": "fuel", "label":
-    "BBM"}]}`. Stock search is weak for Indonesian food: prefer an icon, or `path` to the
-    user's own photo, when a prop must be exactly right.
+    "kind": "cutout", "query": "soybeans", "label": "Kedelai", "clear": true, "brief": "segenggam
+    kedelai kuning", "own": true}, {"at": "pakan", "kind": "cutout", "query": "chicken feed sack",
+    "name": "wheat"}, {"at": "BBM", "kind": "cutout", "query": "fuel pump nozzle", "name": "fuel",
+    "label": "BBM"}]}`. Stock search is weak for Indonesian food: mark such props `"own": true` (the user
+    is asked for the photo) rather than swapping in an icon.
   - `icon`: Lucide `name` (check `renderer/node_modules/lucide-static/icons/<name>.svg`).
     Good for the CTA and for abstract ideas with no good footage.
   - `local`: `path` to the user's own clip. Use it when they mention their own footage.
@@ -124,7 +204,8 @@ re-render; unchanged stages are cached. Tell the user about any check you couldn
     used as the query).
 - After rendering, check the `assets:` lines in the output and the warnings. If a scene
   fell back to an icon or got an off-topic clip, suggest a better query. For stage scenes,
-  look at `projects/<slug>/media/<scene>_el<n>.*` (the cut-outs) the same way.
+  look at `projects/<slug>/media/<scene>_el<n>.*` (the cut-outs) the same way, and pass on the
+  photo brief line (`Photo brief: …`) if props still want a photo.
 
 ## Writing guide
 
@@ -172,6 +253,9 @@ re-render; unchanged stages are cached. Tell the user about any check you couldn
   nggak lupa" pill pops up when item 2 starts. Don't also say it in the narration. Turn it off
   with `"save_nudge": false` (e.g. when the CTA is already `save`, to avoid asking twice).
 - `post.caption`: one sentence plus an emoji. `post.hashtags`: 3–5, including `#edukasi`.
+  **Hashtags are always all lowercase** (`#literasikeuangan`, `#ihsg`, never `#LiterasiKeuangan`
+  or `#IHSG`), in `post.hashtags`, inside `post.caption` and in any caption variants you write.
+  `post.txt` lowercases them anyway (klip.yaml `post.lowercase_hashtags`); `validate` warns.
 - **`cover`** (optional; the `cover.png` shown on the profile grid): `title` (3–5 words, the
   lead-in) + `keyword` (1–2 words, the payoff, drawn big in the accent colour), or `lines`
   (2–3 explicit lines, the last is the keyword), plus `subtitle` (one short sentence that adds

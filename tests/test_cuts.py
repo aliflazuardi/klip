@@ -102,7 +102,7 @@ class Prov:
     def enabled(self):
         return True
 
-    def search(self, q, kind, per_page=15):
+    def search(self, q, kind, per_page=15, **kw):
         return [c for c in self.by_query.get(q, []) if c.kind == kind]
 
     def fetch(self, c):

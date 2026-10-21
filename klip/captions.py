@@ -101,15 +101,23 @@ def paginate(
     max_page_ms: float = 1200,
     hold_ms: float = 250,
     scene_ends: dict[str, float] | None = None,
+    hide_gap_ms: float | None = None,
+    per_scene: dict[str, dict] | None = None,
 ) -> list[Page]:
     """Group words into caption pages of <= max_words, ~<= max_page_ms.
 
     Pages never cross scene boundaries. Breaks after sentence punctuation, and after
     soft punctuation once a page has 2+ words. A trailing single-word page is merged
-    into the previous page when that keeps it within max_words.
+    into the previous page when that keeps it within max_words. With hide_gap_ms, a page
+    leaves `hold_ms` after its last word when the next one starts more than hide_gap_ms
+    later (no caption during pauses). per_scene overrides max_words / max_page_ms /
+    hide_gap_ms by scene id.
     """
     pages: list[Page] = []
+    defaults = {"max_words": max_words, "max_page_ms": max_page_ms, "hide_gap_ms": hide_gap_ms}
     for scene_id, words in scene_words:
+        opts = {**defaults, **(per_scene or {}).get(scene_id, {})}
+        max_words, max_page_ms, gap = opts["max_words"], opts["max_page_ms"], opts["hide_gap_ms"]
         scene_pages: list[Page] = []
         cur: list[CaptionWord] = []
 
@@ -139,6 +147,8 @@ def paginate(
             p.start_ms = p.words[0].start_ms
             if i + 1 < len(merged):
                 p.end_ms = merged[i + 1].words[0].start_ms
+                if gap is not None and p.end_ms - p.words[-1].end_ms > gap:
+                    p.end_ms = p.words[-1].end_ms + hold_ms
             else:
                 p.end_ms = p.words[-1].end_ms + hold_ms
                 if scene_end is not None:

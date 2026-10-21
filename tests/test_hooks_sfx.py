@@ -161,6 +161,10 @@ def test_snap_to_speech_moves_words_out_of_pauses():
     words = [Word("kaget.", 1000, 1400), Word("Faktanya,", 1500, 2400), Word("otak", 2400, 2700)]
     out = voice.snap_to_speech(words, [(1450, 1850)])
     assert [w.start_ms for w in out] == [1000, 1850, 2400] and out[1].end_ms == 2400
+    late = [Word("kaget.", 1000, 1400), Word("Faktanya,", 2000, 2400), Word("otak", 2400, 2700)]
+    out = voice.snap_to_speech(late, [(1450, 1850)], late_ms=300)            # aligned word 150 ms late
+    assert [w.start_ms for w in out] == [1000, 1850, 2400]
+    assert voice.snap_to_speech(late, [(1450, 1850)], late_ms=100)[1].start_ms == 2000   # too late: a real gap
 
 
 def test_breaths_between_pauses_are_merged():

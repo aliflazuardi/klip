@@ -37,6 +37,15 @@ def load() -> dict:
     return _merge(data, _read(local)) if local.is_file() else data
 
 
+def override(path: str, value: Any) -> None:
+    """Set a dotted key for this process only (e.g. an A/B run trying another TTS engine)."""
+    node = load()
+    *parents, last = path.split(".")
+    for key in parents:
+        node = node.setdefault(key, {})
+    node[last] = value
+
+
 def get(path: str, default: Any = None) -> Any:
     """Dotted lookup, e.g. get("qa.max_still_s")."""
     node: Any = load()
@@ -86,6 +95,9 @@ def _brand_style(pack: Path) -> dict:
         node = st.get(section)
         if isinstance(node, dict) and node.get(key):
             node[key] = str((pack / node[key]).resolve())
+    for m in (st.get("mascot") or {}).get("cast") or []:      # mascot folders, relative to the pack
+        if m.get("dir"):
+            m["dir"] = str((pack / m["dir"]).resolve())
     return st
 
 

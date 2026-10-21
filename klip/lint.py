@@ -10,6 +10,7 @@ from dataclasses import dataclass
 
 from klip import config
 from klip.captions import norm, tokenize
+from klip.mascot import scene_voice
 from klip.paths import RENDERER_DIR
 from klip.spec import STAGE_TEMPLATES, Scene, Spec
 
@@ -36,10 +37,12 @@ def _contains(tokens: list[str], phrase: str) -> bool:
     return bool(want) and any(have[i:i + len(want)] == want for i in range(len(have) - len(want) + 1))
 
 
-def _check_anchors(where: str, tokens: list[str], anchors: list[str], what: str, err) -> list[int | None]:
-    """Each anchor must be a narration word after the previous anchor. Returns word indexes."""
-    rest = [norm(t) for t in tokens]
-    offset, out = 0, []
+def _check_anchors(where: str, tokens: list[str], anchors: list[str], what: str, err,
+                   start: int = 0) -> list[int | None]:
+    """Each anchor must be a narration word after the previous anchor (the first at or after word
+    `start`). Returns word indexes."""
+    rest = [norm(t) for t in tokens][start:]
+    offset, out = start, []
     for a in anchors:
         first = norm(a.split()[0]) if a.split() else ""
         if first not in rest:
@@ -60,10 +63,21 @@ def _lint_stage(spec: Spec, s: Scene, tokens: list[str], err, warn) -> None:
         err(s.id, f"visual.type 'stage' works with the {', '.join(sorted(STAGE_TEMPLATES))} templates, "
                   f"not {s.template!r} (its cards would cover the stage)")
     els = s.visual.elements
-    idx = _check_anchors(s.id, tokens, [e.at for e in els], "stage element", err)
-    wps = words_per_second(spec.voice, spec.speech_rate)
+    # elements and the steps of motion components share one narration order; a component's first
+    # steps may land on the element's own word
+    idx: list[int | None] = []
+    pos = 0
+    for e in els:
+        [k] = _check_anchors(s.id, tokens, [e.at], "stage element", err, pos)
+        idx.append(k)
+        if k is None:
+            continue
+        found = _check_anchors(s.id, tokens, [st.at for st in e.steps if st.at], f"{e.kind} step", err, k)
+        idx += found
+        pos = max([k, *(j for j in found if j is not None)]) + 1
+    wps = words_per_second(scene_voice(spec, s), spec.speech_rate)
     lo, hi = config.get("stage.lint_min_gap_s"), config.get("stage.lint_max_gap_s")
-    marks = [-1] + [i for i in idx if i is not None] + [len(tokens)]
+    marks = [-1] + sorted({i for i in idx if i is not None}) + [len(tokens)]
     for a, b in zip(marks, marks[1:]):
         gap = (b - max(a, 0)) / wps
         if a >= 0 and b < len(tokens) and gap < lo:
@@ -74,6 +88,11 @@ def _lint_stage(spec: Spec, s: Scene, tokens: list[str], err, warn) -> None:
             warn(s.id, f"nothing new on the stage for ~{gap:.0f}s {where}; add an element so the picture "
                        f"changes every 1-2 s")
     for e in els:
+        for st in e.steps:
+            if e.kind == "kinetic" and len(st.text.split()) > 5:
+                warn(s.id, f"kinetic phrase {st.text!r}: keep each line to 1-5 words")
+            elif e.kind in ("split", "flow", "cycle", "funnel", "reel") and len(st.text) > 22:
+                warn(s.id, f"{e.kind} step {st.text!r} is long; keep it to ~2-3 words so it fits")
         if e.kind == "label" and len(e.text.split()) > 4:
             warn(s.id, f"label {e.text!r} has {len(e.text.split())} words; keep labels to 1-4")
         if e.label and len(e.label.split()) > 3:
@@ -82,16 +101,77 @@ def _lint_stage(spec: Spec, s: Scene, tokens: list[str], err, warn) -> None:
             warn(s.id, f"number {e.text!r} is long; keep it ≤ 9 characters (e.g. 'Rp12rb', '-7%')")
         if e.kind == "bar" and any(len(b.label) > 9 for b in e.bars):
             warn(s.id, "bar labels over 9 characters won't fit under the bars")
-        if e.path and e.kind in ("cutout", "photo"):
+        if e.path and e.kind in ("cutout", "photo", "person", "logo"):
             from klip.paths import ROOT
             if not (ROOT / e.path).exists():
                 err(s.id, f"stage element path not found: {e.path}")
+        if e.csv:
+            from klip.paths import ROOT
+            if not (ROOT / e.csv).is_file():
+                err(s.id, f"chart csv not found: {e.csv}")
+        if e.kind == "person" and e.query and not (e.who or e.path):
+            warn(s.id, f"person {e.query!r} has only a stock `query`: that's a stranger, not the real person; "
+                       f"set `who` to their Wikipedia article title")
+        if e.kind == "news":
+            if not e.outlet:
+                warn(s.id, f"news card {e.text[:40]!r}…: set `outlet` (and `date`) so it reads as a real headline")
+            if len(e.text.split()) > 14:
+                warn(s.id, "news headline over 14 words won't fit the card; shorten it")
+        if e.kind == "unit" and e.total > 200:
+            warn(s.id, f"unit with {e.total} squares: they get tiny; scale it ('1 kotak = 1.000 …')")
+        if e.kind == "person" and e.stat and len(e.stat) > 9:
+            warn(s.id, f"person stat {e.stat!r} is long; keep it ≤ 9 characters")
+    pics = sum(e.kind in ("cutout", "photo", "person", "logo", "screenshot") for e in els)
+    icons = sum(e.kind in ("icon", "stack") for e in els)
+    need = float(config.get("stage.photos.min_share"))
+    if icons and pics < need * (pics + icons):
+        warn(s.id, f"{icons} icon(s) vs {pics} real picture(s) on this stage: make most object props real photos "
+                   f"(cutout/photo/person/logo, ≥ {need:.0%}); keep icons for abstract ideas")
     bg = s.visual.background
     if bg and bg not in (config.get("stage.backgrounds") or {}):
         from klip.paths import ROOT
         if not (ROOT / bg).is_file():
             err(s.id, f"visual.background {bg!r} is neither a built-in "
                       f"({', '.join(config.get('stage.backgrounds'))}) nor an image file")
+
+
+def _lint_mascot(spec: Spec, s: Scene, tokens: list[str], err, warn) -> None:
+    """Mascot names and poses must exist in the style's cast; pose words must be in the narration."""
+    from klip import mascot
+    try:
+        style = mascot.video_style(spec)
+    except KeyError:
+        return
+    cast = mascot.names(style)
+    if not cast:
+        warn(s.id, f"scene has a `mascot` but this video has no mascots (style {spec.style!r}, `mascots`); "
+                   f"it is ignored")
+        return
+    m = s.mascot
+    if m.speaker and m.speaker != "none" and m.speaker not in cast:
+        err(s.id, f"mascot speaker {m.speaker!r} isn't in the cast ({', '.join(cast)}, or 'none')")
+    for p in m.poses:
+        if p.who not in cast:
+            err(s.id, f"mascot {p.who!r} isn't in the cast ({', '.join(cast)})")
+        elif p.pose not in (have := mascot.poses(style, p.who)):
+            err(s.id, f"{p.who} has no pose {p.pose!r} ({', '.join(have)})")
+    _check_anchors(s.id, tokens, [p.at for p in m.poses if p.at], "mascot pose", err)
+    if s.visual.type != "stage" and s.template != "cta":
+        warn(s.id, "mascots only show on stage scenes (and say a folded cta's closing line)")
+
+
+def _lint_mascots(spec: Spec, err) -> None:
+    """`mascots` names must be in the style's cast."""
+    if not isinstance(spec.mascots, list):
+        return
+    from klip import mascot
+    try:
+        cast = mascot.names(config.style(spec.style))
+    except KeyError:
+        return
+    for name in spec.mascots:
+        if name not in cast:
+            err("spec", f"mascots: {name!r} isn't in style {spec.style!r}'s cast ({', '.join(cast) or 'none'})")
 
 
 def _lint_look(spec: Spec, err) -> None:
@@ -114,6 +194,14 @@ def lint(spec: Spec) -> list[Issue]:
     err = lambda where, msg: issues.append(Issue("error", where, msg))      # noqa: E731
     warn = lambda where, msg: issues.append(Issue("warning", where, msg))   # noqa: E731
     _lint_look(spec, err)
+    _lint_mascots(spec, err)
+    if config.get("post.lowercase_hashtags", True):
+        import re
+        caps = sorted({t for t in re.findall(r"#\w+", spec.post.caption + " " + " ".join(spec.post.hashtags))
+                       if t != t.lower()})
+        if caps:
+            warn("post", f"hashtags must be all lowercase: {', '.join(caps)} "
+                         f"(post.txt writes {', '.join(t.lower() for t in caps)})")
 
     est = estimate_duration_s(spec)
     tol = config.get("qa.duration_tolerance", 0.15)
@@ -167,10 +255,12 @@ def lint(spec: Spec) -> list[Issue]:
         _check_anchors(s.id, tokens, [b.at for b in s.visual.beats], "beat", err)
         if s.visual.type == "stage":
             _lint_stage(spec, s, tokens, err, warn)
+        if s.mascot:
+            _lint_mascot(spec, s, tokens, err, warn)
         if s.visual.type in ("stock_video", "stock_photo") and s.visual.max_shots != 1:
             from klip.pipeline import words_per_second
             shots_n = len(s.visual.beats or s.visual.queries) + 1
-            per_shot = len(s.narration.split()) / words_per_second(spec.voice, spec.speech_rate) / shots_n
+            per_shot = len(s.narration.split()) / words_per_second(scene_voice(spec, s), spec.speech_rate) / shots_n
             if per_shot > config.get("cuts.max_shot_s", 6.0):
                 warn(s.id, f"~{per_shot:.0f}s per clip; add visual.beats so a new clip cuts in every ~2-3 s "
                            f"(clips are never repeated)")

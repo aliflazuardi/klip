@@ -8,6 +8,11 @@ Two steps, so searching/downloading can run while the voice stage synthesizes:
 Provider order: local library, then Pexels (if keyed), then Pixabay (if keyed), then
 Openverse (photos, no key). stock_video falls back to photos, then to the scene's icon
 (visual.name) or a gradient background.
+
+Stage props (cutout/photo/person/logo) look first in your photo folder (stage.photos.dir/<slug>/,
+named <scene>-<n>…), then search every provider in stage.photos.providers (any orientation), so the
+vision check compares photos from all of them. fetch() also writes photo-brief.md: the props that
+still need a better photo from you.
 """
 
 from __future__ import annotations
@@ -15,17 +20,21 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 import shutil
 import time
 from pathlib import Path
 
-from klip import config, cutout, ffmpeg, http, shots
+from klip import brief, chartdata, config, cutout, ffmpeg, http, screenshot, shots
 from klip import stage as stage_mod
+from klip.engines.media import wikimedia
 from klip.engines.media.base import Candidate, Kind, MediaProvider, TARGET_H, TARGET_W, relevance, score
+from klip.engines.media.commons import Commons
 from klip.engines.media.local import LocalLibrary, candidate_for_file
 from klip.engines.media.openverse import Openverse
 from klip.engines.media.pexels import Pexels
 from klip.engines.media.pixabay import Pixabay
+from klip.engines.media.unsplash import Unsplash
 from klip.paths import CACHE_DIR, ROOT
 from klip.spec import Scene, Spec, Visual
 
@@ -42,15 +51,20 @@ class AssetsError(RuntimeError):
     pass
 
 
-PROVIDERS = {"local": LocalLibrary, "pexels": Pexels, "pixabay": Pixabay, "openverse": Openverse}
+PROVIDERS = {"local": LocalLibrary, "pexels": Pexels, "unsplash": Unsplash, "pixabay": Pixabay,
+             "commons": Commons, "openverse": Openverse}
 
 
-def default_providers() -> list[MediaProvider]:
-    names = config.get("assets.providers", list(PROVIDERS))
+def default_providers(key: str = "assets.providers") -> list[MediaProvider]:
+    names = config.get(key, list(PROVIDERS))
     unknown = [n for n in names if n not in PROVIDERS]
     if unknown:
-        raise AssetsError(f"unknown providers in klip.yaml assets.providers: {unknown}")
+        raise AssetsError(f"unknown providers in klip.yaml {key}: {unknown}")
     return [PROVIDERS[n]() for n in names]
+
+
+def prop_providers() -> list[MediaProvider]:
+    return default_providers("stage.photos.providers")
 
 
 def kinds_for(scene: Scene) -> list[Kind]:
@@ -85,27 +99,34 @@ def _pool(scene: Scene, query: str, kind: Kind, need_s: float, used: set[str],
     `extra` > 0 also appends that many top-ranked results the tag gate dropped (for the vision
     check to rescue; they're marked with `vision_only`)."""
     for p in providers:
-        if not p.enabled():
-            continue
-        try:
-            cands = [c for c in p.search(query, kind) if c.key not in used]
-        except http.HTTPError as e:
-            warnings.append(f"{scene.id}: {p.name} search failed ({e})")
-            continue
-        # Relevance gate: drop results whose tags share too few of the query's words
-        # (e.g. "food container refrigerator" → a shipping-container port). Untagged → kept.
-        relevant = [c for c in cands if (rel := relevance(c, gate or query)) is None or rel >= MIN_RELEVANCE]
-        if cands and not relevant:
-            log.info("assets: %s: %d %s %s result(s) off-topic for %r", scene.id, len(cands), p.name, kind, query)
-        ranked = sorted(relevant, key=lambda c: score(c, need_s, gate or query), reverse=True)
-        if extra:
-            dropped = [c for c in sorted(cands, key=lambda c: c.rank) if c not in relevant][:extra]
-            for c in dropped:
-                c.vision_only = True   # type: ignore[attr-defined]
-            ranked += dropped
-        if ranked:
-            return p, ranked
+        if found := _ranked(scene, p, query, kind, need_s, used, warnings, extra, gate):
+            return p, found
     return None
+
+
+def _ranked(scene: Scene, p: MediaProvider, query: str, kind: Kind, need_s: float, used: set[str],
+            warnings: list[str], extra: int = 0, gate: str | None = None, shape: str = "portrait") -> list[Candidate]:
+    """One provider's relevant, unused candidates for a query, best first (see _pool)."""
+    if not p.enabled():
+        return []
+    try:
+        cands = [c for c in (p.search(query, kind, shape=shape) if shape != "portrait" else p.search(query, kind))
+                 if c.key not in used]
+    except http.HTTPError as e:
+        warnings.append(f"{scene.id}: {p.name} search failed ({e})")
+        return []
+    # Relevance gate: drop results whose tags share too few of the query's words
+    # (e.g. "food container refrigerator" → a shipping-container port). Untagged → kept.
+    relevant = [c for c in cands if (rel := relevance(c, gate or query)) is None or rel >= MIN_RELEVANCE]
+    if cands and not relevant:
+        log.info("assets: %s: %d %s %s result(s) off-topic for %r", scene.id, len(cands), p.name, kind, query)
+    ranked = sorted(relevant, key=lambda c: score(c, need_s, gate or query), reverse=True)
+    if extra:
+        dropped = [c for c in sorted(cands, key=lambda c: c.rank) if c not in relevant][:extra]
+        for c in dropped:
+            c.vision_only = True   # type: ignore[attr-defined]
+        ranked += dropped
+    return ranked
 
 
 def build_pools(scene: Scene, need_s: float, used: set[str], providers: list[MediaProvider],
@@ -215,7 +236,8 @@ def _thumb(c: Candidate) -> Path | None:
                             "-vf", "scale=360:-2", str(out)])
             return out
         if c.thumb_url:
-            return http.download(c.thumb_url, f"thumb-{c.provider}-{c.kind}-{c.id}.jpg")
+            safe = re.sub(r"[^\w.-]+", "_", c.id)[:60] + "-" + hashlib.sha256(c.id.encode()).hexdigest()[:8]
+            return http.download(c.thumb_url, f"thumb-{c.provider}-{c.kind}-{safe}.jpg")
     except (http.HTTPError, ffmpeg.FFmpegError):
         pass
     return None
@@ -233,16 +255,35 @@ def stage_queries(e) -> list[str]:
     return [f"{e.query} {suffix}", e.query] if suffix and e.kind == "cutout" else [e.query]
 
 
+def stage_searched(e, own: Path | None) -> bool:
+    """A prop that comes from a stock search (not your file, a Wikipedia title, data or a page)."""
+    return stage_mod.is_media(e) and bool(e.query) and not (e.path or e.who or own)
+
+
+def prop_pools(scene: Scene, e, used: set[str], providers: list[MediaProvider], warnings: list[str],
+               extra: int = 0) -> list[Pool]:
+    """Candidates for one stage prop from every provider (any orientation; a prop is cut out or
+    framed), one pool per (query, provider), at most stage.photos.per_provider each, until
+    stage.photos.enough relevant photos are found. Relevance is gated on the plain query: the suffix
+    word alone must never let a photo in."""
+    per, enough = int(config.get("stage.photos.per_provider", 4)), int(config.get("stage.photos.enough", 8))
+    pools, seen = [], set()
+    for q in stage_queries(e):
+        for p in providers:
+            if found := _ranked(scene, p, q, "photo", 3.0, used, warnings, extra, gate=e.query, shape="any"):
+                pools.append((q, p, found[:per + extra]))
+                seen |= {c.key for c in found[:per] if not getattr(c, "vision_only", False)}
+            if len(seen) >= enough:          # enough to choose from: spare the other APIs (and their limits)
+                return pools
+    return pools
+
+
 def stage_pools(scene: Scene, used: set[str], providers: list[MediaProvider], warnings: list[str],
-                extra: int = 0) -> dict[str, list[Pool]]:
-    """Candidate pools per cutout/photo element (by prop_key), for the vision check. Relevance is
-    gated on the plain query: the suffix word alone must never let a photo in."""
-    plans = {}
-    for i, e in enumerate(scene.visual.elements):
-        if stage_mod.is_media(e) and not e.path:
-            plans[prop_key(scene.id, i)] = [(q, *found) for q in stage_queries(e) if (
-                found := _pool(scene, q, "photo", 3.0, used, providers, warnings, extra, gate=e.query))]
-    return plans
+                extra: int = 0, own: dict[int, Path] | None = None) -> dict[str, list[Pool]]:
+    """Candidate pools per searched stage prop (by prop_key), for the vision check."""
+    own = own or {}
+    return {prop_key(scene.id, i): pools for i, e in enumerate(scene.visual.elements)
+            if stage_searched(e, own.get(i)) and (pools := prop_pools(scene, e, used, providers, warnings, extra))}
 
 
 def vision_review(spec: Spec, plans: dict[str, list[Pool]], project_dir: Path, warnings: list[str],
@@ -315,6 +356,11 @@ def vision_review(spec: Spec, plans: dict[str, list[Pool]], project_dir: Path, w
         keep = sorted((i for i, r in enumerate(ratings) if r >= min_score), key=lambda i: (-ratings[i], i))
         keep_keys = [order[sid][i] for i in keep]
         rank = {k: i for i, k in enumerate(keep_keys)}
+        rating = {order[sid][i]: r for i, r in enumerate(ratings) if i < len(order[sid])}
+        for _, _, cands in pools:
+            for c in cands:
+                if c.key in rating:
+                    c.vision_score = rating[c.key]   # type: ignore[attr-defined]
         if sid in props:
             first = {}
             for q, p, cands in pools:
@@ -346,18 +392,63 @@ def _local_path(scene: Scene, path: str | None = None) -> Path:
     return p
 
 
+def _stage_source(scene: Scene, i: int, e, used: set[str], warnings: list[str]) -> dict | None:
+    """A row for an element that isn't a stock search: Wikipedia (`who`), a screenshot or chart data.
+    None (with a warning) when it can't be had; the element is then left out."""
+    try:
+        if e.kind == "chart":
+            d = chartdata.series(e)
+            return {"el": i, "data": d["points"], "credit": d["credit"]}
+        if e.kind == "screenshot":
+            path = screenshot.capture(e.url, e.wayback, e.selector)
+            return {"el": i, "src": str(path), "credit": screenshot.credit(e.url, e.wayback), "query": None}
+        c = wikimedia.lookup(e.who, logo=e.kind == "logo")
+    except (chartdata.DataError, screenshot.ScreenshotError, http.HTTPError) as err:
+        warnings.append(f"{scene.id}: stage element at {e.at!r}: {err}; it is left out")
+        return None
+    if not c:
+        warnings.append(f"{scene.id}: no Wikipedia {'logo' if e.kind == 'logo' else 'image'} for {e.who!r} "
+                        f"(check the article title); it is left out")
+        return None
+    if c.nonfree and not (e.kind == "logo" and config.get("wikimedia.allow_nonfree_logos")):
+        warnings.append(f"{scene.id}: the Wikipedia image for {e.who!r} is non-free ({c.license}); it is left out")
+        return None
+    if c.key in used:
+        warnings.append(f"{scene.id}: the image for {e.who!r} is already used in this video; it is left out")
+        return None
+    try:
+        path = wikimedia.fetch(c)
+    except http.HTTPError as err:
+        warnings.append(f"{scene.id}: {e.who!r}: {err}; it is left out")
+        return None
+    used.add(c.key)
+    if c.nonfree:
+        warnings.append(f"{scene.id}: the {e.who!r} logo is non-free on Wikipedia (fair use): fine for commentary, "
+                        f"credited in post.txt")
+    log.info("assets: %s el %d ← wikimedia %s", scene.id, i, c.id)
+    return {"el": i, "src": str(path), "credit": c.credit(), "query": None}
+
+
 def fetch_stage(scene: Scene, used: set[str], providers: list[MediaProvider], warnings: list[str],
-                plans: dict[str, list[Pool]] | None = None) -> list[dict]:
-    """One photo per cutout/photo element of a stage scene (never one already used in the video).
-    With `plans` (from the vision check, by prop_key) the best approved candidate is taken;
-    otherwise the first tag-relevant result of stage_queries()."""
+                plans: dict[str, list[Pool]] | None = None, own: dict[int, Path] | None = None) -> list[dict]:
+    """One row per stage element that needs a file or data: your file (`path`, then the photo
+    folder: `own`), stock photos for cutout/photo/person (never one already used in the video),
+    Wikipedia images for `who`, screenshots and chart data. With `plans` (from the vision check,
+    by prop_key) the best approved stock candidate is taken; otherwise the first tag-relevant
+    result of stage_queries(). Rows say where the file came from (`origin`) for the photo brief."""
+    own = own or {}
     rows = []
     for i, e in enumerate(scene.visual.elements):
-        if not stage_mod.is_media(e):
+        if not stage_mod.needs_row(e):
             continue
-        if e.path:
-            c = candidate_for_file(_local_path(scene, e.path))
-            rows.append({"el": i, "src": c.local_path, "credit": c.credit(), "query": None})
+        if e.path or (own.get(i) and stage_mod.is_media(e)):
+            c = candidate_for_file(_local_path(scene, e.path) if e.path else own[i])
+            rows.append({"el": i, "src": c.local_path, "credit": c.credit(), "query": None,
+                         "origin": "path" if e.path else "own"})
+            continue
+        if e.who or e.kind in ("chart", "screenshot"):
+            if row := _stage_source(scene, i, e, used, warnings):
+                rows.append({**row, "origin": "who" if e.who else e.kind})
             continue
         got = None
         if plans is not None and (key := prop_key(scene.id, i)) in plans:
@@ -365,22 +456,26 @@ def fetch_stage(scene: Scene, used: set[str], providers: list[MediaProvider], wa
             got = next((g for q, p, cands in plans[key]
                         if (g := _take(scene, q, p, list(cands), used, warnings, failures))), None)
         else:
-            for q in stage_queries(e):
-                if (found := _pool(scene, q, "photo", 3.0, used, providers, warnings, gate=e.query)) and \
-                        (got := _take(scene, q, *found, used, warnings, {})):
+            for q, p, cands in prop_pools(scene, e, used, providers, warnings):
+                if got := _take(scene, q, p, list(cands), used, warnings, {}):
                     break
         if got:
             c, path, q = got
-            rows.append({"el": i, "src": str(path), "credit": c.credit(), "query": q,
-                         "vision_rescued": bool(getattr(c, "vision_only", False))})
+            rows.append({"el": i, "src": str(path), "credit": c.credit(), "query": q, "origin": "stock",
+                         "vision_rescued": bool(getattr(c, "vision_only", False)),
+                         "vision_score": getattr(c, "vision_score", None)})
             log.info("assets: %s el %d ← %s photo %s", scene.id, i, c.provider, c.id)
         else:
             warnings.append(f"{scene.id}: no photo for stage element at {e.at!r} ({e.query!r}); it is left out")
     return rows
 
 
-def fetch(spec: Spec, project_dir: Path, providers: list[MediaProvider] | None = None, reviewer=None) -> dict:
+def fetch(spec: Spec, project_dir: Path, providers: list[MediaProvider] | None = None, reviewer=None,
+          props: list[MediaProvider] | None = None) -> dict:
+    """`props`: providers for stage props (default stage.photos.providers, or `providers` when given)."""
+    props = props if props is not None else providers if providers is not None else prop_providers()
     providers = providers if providers is not None else default_providers()
+    own = brief.own_photos(spec)
     http.stats.reset()
     rate = spec.speech_rate or config.default_rate(spec.voice)
     used: set[str] = set()
@@ -400,11 +495,13 @@ def fetch(spec: Spec, project_dir: Path, providers: list[MediaProvider] | None =
             warnings.append(f"{scene.id}: ai_image backend not configured; using a stock photo")
         if v.type == "stage":
             if use_vision:
-                plans.update(stage_pools(scene, used, providers, warnings, extra))
+                plans.update(stage_pools(scene, used, props, warnings, extra, own.get(scene.id)))
             continue
         if v.type in ("local", "icon", "solid"):
             continue
-        est = estimate_scene_s(scene, spec.voice, rate)
+        from klip.mascot import scene_voice
+        narrator = scene_voice(spec, scene)
+        est = estimate_scene_s(scene, narrator, spec.speech_rate or config.default_rate(narrator))
         if v.beats:
             n = len(queries_for(scene))          # one clip per beat
         else:
@@ -433,8 +530,8 @@ def fetch(spec: Spec, project_dir: Path, providers: list[MediaProvider] | None =
             scenes[scene.id] = {"kind": None}
             continue
         if v.type == "stage":
-            scenes[scene.id] = {"kind": None, "stage": fetch_stage(scene, used, providers, warnings,
-                                                                   plans if use_vision else None)}
+            scenes[scene.id] = {"kind": None, "stage": fetch_stage(scene, used, props, warnings,
+                                                                   plans if use_vision else None, own.get(scene.id))}
             continue
         n, est = wanted[scene.id]
         if v.beats:
@@ -453,10 +550,12 @@ def fetch(spec: Spec, project_dir: Path, providers: list[MediaProvider] | None =
             warnings.append(f"{scene.id}: no media found for {query_for(scene)!r}; using {fallback}")
             scenes[scene.id] = {"kind": None, "fallback": fallback}
 
-    result = {"scenes": scenes, "warnings": warnings, "http": vars(http.stats).copy(), "vision": vision_report}
+    result = {"scenes": scenes, "warnings": warnings, "http": vars(http.stats).copy(), "vision": vision_report,
+              "photo_brief": brief.write(spec, scenes, project_dir, bool(vision_report and vision_report.get("ok")))}
     (project_dir / "assets.fetch.json").write_text(json.dumps(result, indent=2, ensure_ascii=False))
     credits = [{"scene": sid, **clip["credit"]} for sid, sc in scenes.items()
-               for clip in [*sc.get("clips", []), *sc.get("stage", [])] if clip["credit"]["provider"] != "local"]
+               for clip in [*sc.get("clips", []), *sc.get("stage", [])]
+               if clip.get("credit") and clip["credit"]["provider"] != "local"]
     (project_dir / "credits.json").write_text(json.dumps(credits, indent=2, ensure_ascii=False))
     for w in warnings:
         log.warning(w)
@@ -539,12 +638,18 @@ def plan_shots(scene_visual: Visual, t: dict, words: list[dict], clips: list[dic
 
 def prepare_stage(sid: str, visual: Visual, rows: list[dict], media_dir: Path, project_dir: Path,
                   warnings: list[str]) -> list[dict]:
-    """Cut-outs (background removed, white outline) and photo cards for a stage scene's elements.
-    A cut-out whose subject can't be lifted becomes a photo card."""
+    """Files for a stage scene's elements: cut-outs (background removed, white outline), photo cards
+    (also person portraits), logos and screenshots (alpha kept, resized). A cut-out whose subject
+    can't be lifted becomes a photo card. Chart rows pass their data through."""
     from PIL import Image
     out = []
     for r in rows:
         e = visual.elements[r["el"]]
+        cr = r.get("credit") or {}
+        if "data" in r:
+            out.append({"el": r["el"], "render": "chart", "data": r["data"],      # a csv is your own data
+                        "source": f"{cr['provider']}:{cr['id']}" if cr else f"local:{e.csv}"})
+            continue
         src = Path(r["src"])
         render, file = "photo", None
         if e.kind == "cutout":
@@ -552,14 +657,17 @@ def prepare_stage(sid: str, visual: Visual, rows: list[dict], media_dir: Path, p
             if file:
                 render = "cutout"
             else:
-                warnings.append(f"{sid}: couldn't cut out {e.query or e.path!r} ({why}); shown as a photo card")
+                warnings.append(f"{sid}: couldn't cut out {e.query or e.who or e.path!r} ({why}); shown as a photo card")
+        elif e.kind in ("logo", "screenshot"):
+            file, render = cutout.fit(src, int(config.get(f"stage.{e.kind}.max_px"))), e.kind
+        elif e.kind == "person":
+            render = "person"
         if not file:
             file = cutout.card(src)
         dst = media_dir / f"{sid}_el{r['el']}{file.suffix}"
         shutil.copyfile(file, dst)
         with Image.open(dst) as im:
             w, h = im.size
-        cr = r["credit"]
         out.append({"el": r["el"], "render": render, "file": str(dst.relative_to(project_dir)), "w": w, "h": h,
                     "source": f"{cr['provider']}:{cr.get('id') or r['src']}"})
     return out
@@ -600,7 +708,7 @@ def prepare(spec: Spec, project_dir: Path) -> dict:
                               "clip": ci, "source": f"{cr['provider']}:{cr.get('id') or clip['src']}"})
         out[sid] = {"kind": shot_rows[0]["kind"], "file": shot_rows[0]["file"], "mode": shot_rows[0]["mode"],
                     "provider": clips[0]["credit"]["provider"], "shots": shot_rows}
-    result = {"scenes": out, "warnings": warnings, "http": fetched["http"]}
+    result = {"scenes": out, "warnings": warnings, "http": fetched["http"], "photo_brief": fetched.get("photo_brief")}
     (project_dir / "assets.json").write_text(json.dumps(result, indent=2, ensure_ascii=False))
     return result
 

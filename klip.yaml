@@ -8,24 +8,70 @@
 
 # ── Voice (TTS) ──────────────────────────────────────────────────────────────
 voices:
-  engine: edge                      # TTS engine (only "edge" for now)
+  # TTS engine: edge (free, Microsoft Edge voices) | elevenlabs (ELEVENLABS_API_KEY, paid, most
+  # natural, returns word timings) | gemini (GEMINI_API_KEY, natural, style-prompted; word timings
+  # come from the aligner: `uv sync --extra align`). Compare them: uv run klip ab-voice <spec>
+  engine: edge
+  # scene = one TTS call per scene (per-scene delivery presets, but intonation restarts each
+  # scene); whole = the whole script in one call, cut into scenes at the pauses: one continuous,
+  # natural read (delivery presets don't apply; ElevenLabs/Gemini carry the energy themselves).
+  take: scene
   ids:                              # logical voice → engine voice id
     edge:
       male: id-ID-ArdiNeural
       female: id-ID-GadisNeural
+    elevenlabs:                     # premade multilingual voices; swap in Indonesian voices from
+      male: JBFqnCBsd6RMkjVDRZzb    # the ElevenLabs voice library (George)
+      female: EXAVITQu4vr4xnSDxMaL  # (Sarah)
+    gemini:                         # prebuilt voices: Puck (upbeat), Charon (informative), Kore
+      male: Puck                    # (firm), Aoede (breezy), Sulafat (warm), Achird (friendly)...
+      female: Aoede
   # Rate used when a spec leaves `speech_rate` unset. Gadis reads slower than Ardi.
   default_rate:
     male: "+8%"
     female: "+15%"
   # Shift applied to word timings (ms) so captions match the audible onset.
   # edge-tts word offsets run ~115 ms early (measured with scripts/check_sync.py).
+  # The first word after a pause starts where the sound resumes: words timed up to this late after
+  # a pause are pulled back to it (aligned engines like Gemini time those words ~0.1-0.2 s late).
+  snap_late_ms: 300
   timing_offset_ms:
     edge: 100
+    elevenlabs: 0
+    gemini: 0
   # Words per second at +0% rate, used for duration estimates and script word budgets.
   # Measured: female 1.97 w/s at +15%, male 2.35 w/s at +8%.
   base_words_per_second:
     male: 2.176
     female: 1.713
+
+# ElevenLabs engine (voices.engine: elevenlabs). Voice settings: lower stability = livelier.
+elevenlabs:
+  model: eleven_multilingual_v2     # or eleven_v3 (more expressive)
+  language_code: null               # e.g. "id" to force Indonesian (ignored by multilingual_v2)
+  stability: 0.4
+  similarity_boost: 0.75
+  style: 0.2                        # style exaggeration (0 = off)
+  speed_range: [0.8, 1.2]           # the voice's rate (+8% → 1.08) is clamped to this
+
+# Gemini TTS engine (voices.engine: gemini). `style` steers delivery (pace, mood, accent); the
+# text itself is read verbatim.
+gemini_tts:
+  model: gemini-3.8-flash-tts
+  style: >-
+    Narator video edukasi pendek berbahasa Indonesia untuk TikTok: santai, hangat, penasaran,
+    seperti ngobrol dengan teman, tempo agak cepat, logat Jakarta yang netral.
+
+# Forced alignment for engines without word timings (Gemini): faster-whisper word timestamps,
+# mapped onto the script. Optional: `uv sync --extra align` (downloads the model on first use).
+align:
+  model: small                      # tiny | base | small | medium (bigger = slower, steadier)
+  device: cpu
+  compute_type: int8
+  language: id
+  # Whisper word starts run early: measured -90 ms mean against edge-tts's own timings on the
+  # judol script (238 words; median error 82 ms). Added to every aligned word.
+  offset_ms: 85
 
 # ── Delivery (per-scene prosody) ─────────────────────────────────────────────
 # edge-tts reads everything in one flat tone; varying rate/pitch per scene makes it livelier.
@@ -68,6 +114,7 @@ timeline:
   tail_ms: 1000                     # hold after the last scene
   min_scene_ms: 1500
   hook_lead_ms: 60                  # trim the TTS lead-in so the hook's first word starts ~60 ms in
+  turn_gap_ms: 250                  # whole takes: extra pause where the narrator changes (a scene "voice")
 
 # ── Stock media / b-roll ─────────────────────────────────────────────────────
 assets:
@@ -83,6 +130,7 @@ assets:
   # Below this, a center crop would be too soft → blurred-background fill instead.
   cover_min_fill: 0.6
   api_cache_hours: 24               # Pixabay terms require caching responses 24 h
+  unsplash_px: 1600                 # longest side of a downloaded Unsplash photo
   # Claude looks at numbered thumbnail sheets of each scene's candidates before downloading,
   # keeps the ones that actually show the narration, ranks them, and can rescue a few results
   # the tag gate dropped. One `claude -p` call per video (your Claude plan, ~30-90 s). Falls back
@@ -90,7 +138,7 @@ assets:
   vision_check:
     enabled: true
     candidates_per_scene: 8         # thumbnails per sheet
-    candidates_per_prop: 6          # thumbnails per stage prop (cutout/photo element); best rated is used
+    candidates_per_prop: 8          # thumbnails per stage prop (cutout/photo element); best rated is used
     photo_slots: 3                  # of those, reserved for stock photos (they often match better)
     min_score: 2                    # Claude rates 0-3 (3 shows the subject, 2 closely related, 1 generic)
     extra_untagged: 2               # per query: tag-gate rejects Claude may still approve
@@ -116,61 +164,155 @@ cuts:
 # icons, labels, numbers and charts pop in on their narration words and stay. Consecutive stage
 # scenes with the same background keep it on screen (no whoosh; the props sweep off instead).
 stage:
-  default_background: desk
+  default_background: grid
   # Spec "look": "stage" (klip new --stage) asks for the stage look on most of the video: at least
   # this share of the scenes that can hold a stage (hook, explain, list_item) must use it.
   look_min_share: 0.7
-  # Built-in textures (CSS + SVG noise, no downloads). base = colour, grain = noise opacity,
-  # grain_freq = SVG feTurbulence baseFrequency ("x y"; a tiny y gives wood-like streaks),
-  # planks = px between plank seams (0 = none), vignette = edge darkening (0-1).
+  # Built-in sets (CSS + SVG noise, no downloads). base = colour, tone = light | dark surface
+  # (picks the title/tag colours), grain = noise opacity, grain_freq = SVG feTurbulence
+  # baseFrequency ("x y"; a tiny y gives wood-like streaks), vignette = edge darkening (0-1).
+  # Optional: dots = dot grid {gap px, size px, color}; floor = a wall over a desk {at: share of
+  # the height where the desk starts, color}; spot = a soft light {color, at, size} (CSS radial);
+  # planks = px between plank seams.
+  # grid / studio / spotlight are the clean sets (90secondslab-like); desk / paper / kraft / board
+  # are the original textured ones.
   backgrounds:
-    desk:  {base: "#A86F42", grain: 0.38, grain_freq: "0.012 0.32", planks: 270, vignette: 0.45}
-    paper: {base: "#F4EEE2", grain: 0.10, grain_freq: "0.9 0.9", planks: 0, vignette: 0.18}
-    kraft: {base: "#C9A273", grain: 0.20, grain_freq: "0.7 0.7", planks: 0, vignette: 0.30}
-    board: {base: "#25343A", grain: 0.16, grain_freq: "0.8 0.8", planks: 0, vignette: 0.40}
+    grid:      {base: "#F3F1EC", tone: light, grain: 0.05, grain_freq: "0.9 0.9", vignette: 0.10,
+                dots: {gap: 34, size: 2.6, color: "rgba(21,21,28,.17)"}}
+    studio:    {base: "#ECE7E0", tone: light, grain: 0.08, grain_freq: "0.02 0.5", vignette: 0.20,
+                floor: {at: 0.34, color: "#CFB290"}}
+    spotlight: {base: "#17161A", tone: dark, grain: 0.10, grain_freq: "0.8 0.8", vignette: 0.30,
+                spot: {color: "rgba(255,238,210,.26)", at: "50% 48%", size: "75% 45%"}}
+    desk:  {base: "#A86F42", tone: dark, grain: 0.38, grain_freq: "0.012 0.32", planks: 270, vignette: 0.45}
+    paper: {base: "#F4EEE2", tone: light, grain: 0.10, grain_freq: "0.9 0.9", vignette: 0.18}
+    kraft: {base: "#C9A273", tone: light, grain: 0.20, grain_freq: "0.7 0.7", vignette: 0.30}
+    board: {base: "#25343A", tone: dark, grain: 0.16, grain_freq: "0.8 0.8", vignette: 0.40}
   bg_drift_px: 40                   # the background pans this far across a run of stage scenes
-  zoom: 1.04                        # the props layer slowly pushes in to this scale per scene
-  # Layout: the stage area sits between the title strip and the captions (caption.top 1180).
-  # A slot is a t/m/b row + l/c/r column (e.g. tl, mc, br). Columns are x centres on the canvas;
-  # rows are y centres as a share of the free area under the title strip, so a two-line title
-  # pushes the props down instead of crowding them against it.
-  columns: {l: 290, c: 510, r: 730}
-  rows: {t: 0.2, m: 0.5, b: 0.8}
-  # Automatic slots by how many elements share the stage (highlights don't take a slot).
-  layouts:
-    1: [mc]
-    2: [tl, br]
-    3: [tl, tr, bc]
-    4: [tl, tr, bl, br]
-    5: [tl, tr, mc, bl, br]
-    6: [tl, tc, tr, bl, bc, br]
-  # Default size by how many elements share the stage: 1 → l, 2 → m, 3+ → s.
+  zoom: 1.04                        # the stage camera slowly pushes in to this scale per scene
+  # Motion of the props once they're on stage. float: an idle sway (px up/down by prop group:
+  # media = photos/cut-outs/people/logos, icon = icons/stacks, tag = labels/numbers, data =
+  # charts/bars/units/news/screenshots; 0 = still) over a period picked per prop from
+  # float_period_s, starting settle_s after the prop lands. camera_follow: on each entry the camera
+  # eases this share of the way toward the props on stage (0 = a plain push-in), over camera_move_s.
+  # count_up: numbers like "Rp12.000" or "-4%" count up as they land. exit: sweep (props fly off
+  # to their side) or fade (shrink and drop).
+  motion:
+    float_px: {media: 7, icon: 9, tag: 4, data: 2}
+    float_deg: 1.2
+    float_period_s: [2.4, 3.4]
+    settle_s: 0.55
+    camera_follow: 0.12
+    camera_move_s: 0.9
+    count_up: true
+    count_s: 0.7
+    exit: sweep
+  # Layout: the stage area sits between the title and the stage captions (caption.stage.top).
+  # A composition is a list of [x, y, size]: x as a share of the safe width (x 60–960), y as a
+  # share of the free area under the title, so a two-line title pushes the props down.
+  # `auto` picks one by how many props share the stage and which kinds they are:
+  # 1 → hero; 2 → hero_tag (a photo/chart + a small tag, number or icon) or pair;
+  # 3 → hero_two (one big prop + two small) or trio; 4 → grid4; 5 → scatter5; 6 → scatter6.
+  compositions:
+    hero:     [[0.5, 0.5, l]]
+    hero_tag: [[0.42, 0.42, l], [0.82, 0.86, s]]
+    pair:     [[0.27, 0.5, m], [0.73, 0.5, m]]
+    hero_two: [[0.5, 0.38, l], [0.2, 0.9, s], [0.8, 0.9, s]]
+    trio:     [[0.27, 0.25, m], [0.73, 0.25, m], [0.5, 0.78, m]]
+    grid4:    [[0.27, 0.25, m], [0.73, 0.25, m], [0.27, 0.77, m], [0.73, 0.77, m]]
+    scatter5: [[0.24, 0.17, s], [0.76, 0.17, s], [0.5, 0.5, m], [0.24, 0.84, s], [0.76, 0.84, s]]
+    scatter6: [[0.22, 0.17, s], [0.78, 0.17, s], [0.22, 0.52, s], [0.78, 0.52, s], [0.24, 0.86, s], [0.76, 0.86, s]]
+  # `pos` on an element overrides its place: a t/m/b row + l/c/r column (e.g. tl, mc, br).
+  columns: {l: 290, c: 510, r: 730}  # x centres on the canvas
+  rows: {t: 0.2, m: 0.5, b: 0.8}    # y centres as a share of the free area
   sizes:
-    s: [300, 260]                   # bounding box (w, h) px for cutout/photo/bar/stack
-    m: [420, 360]
-    l: [640, 560]
-  icon_px: {s: 170, m: 220, l: 300} # icon sticker disc diameter
-  number_px: {s: 110, m: 150, l: 210}   # number font size
-  label_px: {s: 40, m: 50, l: 62}   # label font size
-  tilt_deg: 6                       # props are rotated up to ± this (deterministic per element)
+    s: [360, 300]                   # bounding box (w, h) px for cutout/photo/bar/stack
+    m: [470, 420]
+    l: [820, 640]
+  icon_px: {s: 190, m: 250, l: 340} # icon sticker disc diameter
+  number_px: {s: 130, m: 180, l: 260}   # number font size
+  label_px: {s: 44, m: 54, l: 66}  # label (tag) font size
+  stamp_px: {s: 64, m: 84, l: 110} # stamp font size
+  tilt_deg: 4                       # props are rotated up to ± this (deterministic per element)
+  caption_gap_px: 50                # the stage area ends this far above the captions (room for the
+                                    # camera push-in and hanging label tags)
+  layout_gap_px: 16                 # props on one page keep at least this apart (overlaps are pushed
+                                    # apart, then shrunk); stamps may overlap what they judge
   lead_s: 0.06                      # an element lands this long before its word
   min_gap_s: 0.25                   # entries closer than this are pushed apart
   exit_s: 0.25                      # props sweep off this long before a cleared stage / stage→stage cut
   lint_min_gap_s: 0.5               # validate warns when two anchors are closer than this
   lint_max_gap_s: 3.0               # ... and when nothing new appears for longer than this
   stack_count: 4                    # stack elements without `count`
-  title:                            # the scene's on_screen_text as a paper strip at the top
+  title:                            # the scene's on_screen_text at the top of the stage
+    style: plain                    # plain = left-aligned type with a marker on emphasis words;
+                                    # strip = the older centred white paper strip
     top: 330
-    font_size: 58
-    hook_font_size: 72
-    bg: "#FFFFFF"
-    color: "#15151C"
-    tilt_deg: -1.5
-  label: {bg: "#FFFFFF", color: "#15151C"}
+    font_size: 62
+    hook_font_size: 80
+    ink: {light: "#15151C", dark: "#F6F1E7"}   # plain text colour by the background's tone
+    marker: null                    # emphasis marker colour; null = the style's accent_color
+    bg: "#FFFFFF"                   # strip only
+    color: "#15151C"                # strip only
+    tilt_deg: -1.5                  # strip only
+  label:                            # tags: dark on light sets, light on dark sets
+    light: {bg: "#15151C", color: "#FFFFFF"}
+    dark: {bg: "#FFFFFF", color: "#15151C"}
+    uppercase: true
+  stamp: {neutral: "#15151C", up: "#1FA45B", down: "#D93A3F", border_px: 9}
+  shadow:                           # prop drop shadow by the background's tone
+    light: "0 16px 18px rgba(0,0,0,.20)"
+    dark: "0 18px 22px rgba(0,0,0,.42)"
   highlight: {color: "#FFE14D", width: 10, pad: 18}
   icon: {bg: "#FFFFFF", color: "#15151C"}
   number: {neutral: "#15151C", up: "#1FA45B", down: "#E5484D", stroke: "#FFFFFF"}   # by `tone`; white sticker outline
   bar: {colors: ["#3B82F6", "#F59E0B", "#10B981", "#EF4444"], bg: "#FFFFFF", text: "#15151C"}
+  # Motion components: animated diagrams on the stage whose `steps` play on their own words.
+  # width = box width by size (l is the full safe width); aspect = height / width per kind (a page
+  # that also holds other props shrinks it to fit). Steps without an `at` word come step_gap_s
+  # after the previous one; the first comes first_step_s after the element appears.
+  # colors = the parts' fills (split, funnel, flow), "accent" = the style's accent colour; a step
+  # with `accent: true` always gets the accent.
+  components:
+    width: {s: 460, m: 680, l: 900}
+    pad: 0.05                       # card padding as a share of the width (kinetic has no card)
+    card: "#FFFFFF"
+    ink: "#15151C"
+    muted: "#6B7280"
+    track: "#E4E6EB"                # empty tube / unrevealed bar / flow base
+    colors: ["#2F3A4A", "#64748B", "#94A3B8", "#CBD5E1", "#475569"]
+    step_gap_s: 0.45
+    first_step_s: 0.35
+    min_step_s: 0.25
+    kinetic: {aspect: 0.75, max_px: 150}
+    split: {aspect: 0.7}
+    flow: {aspect: 1.05, min_px: 8, max_px: 46, dash: 4, gap: 30, speed_s: 0.6}   # dots: dash/gap px; speed = s per gap
+    meter: {aspect: 0.9, fill_s: 0.8}
+    cycle: {aspect: 1.0, orbit_s: 2.6}   # one lap of the dot once the loop is closed
+    timeline: {aspect: 1.25}
+    funnel: {aspect: 0.95, narrow: 0.36} # narrow = width of the bottom as a share of the top
+    reel: {aspect: 0.8, spins: 3, spin_s: 1.8}   # full turns before landing; spin length without `at`
+  # Real-data and real-world elements. Card sizes follow `sizes` (s/m/l); text scales with the card.
+  chart:                            # line chart that draws on
+    max_points: 160                 # longer series are evenly downsampled (first and last kept)
+    aspect: 0.66                    # height / width of the card
+    bg: "#FFFFFF"
+    text: "#15151C"
+    muted: "#6B7280"
+    grid: "rgba(21,21,28,.08)"
+    line: {neutral: "#2563EB", up: "#1FA45B", down: "#E5484D"}   # neutral follows the trend
+    line_px: 6
+    bands: ["rgba(37,99,235,.10)", "rgba(245,158,11,.14)"]      # alternating band fills
+    draw_s: 1.4                     # how long the line takes to draw
+  unit:                             # waffle of squares
+    fill: "#F2C94C"                 # highlighted (filled) squares
+    empty: "rgba(21,21,28,.12)"
+    gap: 0.18                       # gap as a share of a square
+    fill_s: 1.0                     # all squares appear within this
+  person: {bg: "#FFFFFF", text: "#15151C", muted: "#6B7280", aspect: 1.36,   # card height / width
+           grow: 1.3}                                                      # height = size box height × grow
+  news: {bg: "#FFFFFF", text: "#15151C", muted: "#6B7280", aspect: 0.36}
+  logo: {bg: "#FFFFFF", pad: 0.12, max_px: 800}                  # pad = share of the sign's width
+  screenshot: {max_px: 1400, bar: "#E7E7EC", bar_px: 46}
   cutout:
     # Background removal for kind=cutout: apple = macOS Vision subject lift (a Swift helper built
     # once into the cache; needs Xcode command-line tools), rembg = optional Python package
@@ -183,6 +325,53 @@ stage:
     outline_px: 12                  # white sticker outline around the subject
     max_px: 900                     # longest side of the prepared image
     query_suffix: isolated          # tried first ("tempeh isolated"), then the plain query
+  # Photos for cutout/photo/person/logo props. Your own file wins: put it in <dir>/<slug>/ named
+  # <scene>-<n>[-anything].jpg|png|webp (n = the element's number in the scene, from 1), e.g.
+  # specs/photos/judi-online/s1-1-bandar.png. Otherwise every provider below is searched in any
+  # orientation and the vision check picks the best photo across all of them. Each fetch writes
+  # projects/<slug>/photo-brief.md: props with no photo, props marked `own`, and stock photos the
+  # vision check rated below brief_below (0-3), with the file name to save (`klip photos <spec>`).
+  photos:
+    dir: specs/photos
+    # unsplash/pexels/pixabay need a .env key. openverse is left out: its anonymous rate limit
+    # (minute-long waits) stalls a fetch that searches every prop; add it back if you have few keys.
+    providers: [local, unsplash, pexels, pixabay, commons]
+    per_provider: 4                 # candidates per provider and query shown to the vision check
+    grow: 1.25                      # cutout/photo boxes are this much bigger than stage.sizes
+    enough: 8                       # stop asking further providers once this many relevant photos are found
+    brief_below: 3                  # stock photos rated below this go under "bisa lebih bagus"
+    min_share: 0.6                  # validate warns when real pictures are fewer than this share of a
+                                    # stage scene's object props (pictures + icons/stacks)
+
+# ── Real-world sources for stage elements ────────────────────────────────────
+# person / logo (and cutout / photo with `who`) take a Wikipedia article's image; the licence and
+# author go into credits.json and post.txt.
+wikimedia:
+  langs: [en, id]                   # Wikipedia editions to try, in order
+  photo_px: 900                     # width of the downloaded portrait
+  logo_px: 800
+  allow_nonfree_logos: true         # most corporate logos are "non-free" (fair use) on Wikipedia;
+                                    # false = leave such logos out. Non-free photos are never used.
+
+# Wikimedia Commons file search (stage props): free licences only.
+commons:
+  photo_px: 1600                    # width of the downloaded rendition
+  min_px: 600                       # skip files whose short side is smaller
+  allow_sharealike: false           # CC BY-SA asks that adaptations (a cut-out in a video) share
+                                    # alike; off keeps to CC0 / public domain / CC BY
+
+# screenshot elements: a web page (or its Wayback Machine copy) captured with headless Chrome.
+screenshot:
+  chrome: null                      # path to Chrome; null = the headless Chrome HyperFrames downloads
+  viewport: [1100, 1300]            # px (CSS) of the captured area; desktop layout, top of the page
+  scale: 1.5                        # device pixel ratio (sharper text)
+  wait_ms: 1500                     # after the page settles, before the capture
+  timeout_s: 40
+
+# ── Post text (post.txt) ─────────────────────────────────────────────────────
+post:
+  lowercase_hashtags: true          # write every hashtag in lowercase (#WargaNalar → #warganalar),
+                                    # in the hashtag line and inside the caption; validate warns
 
 # ── Background music ─────────────────────────────────────────────────────────
 music:
@@ -222,6 +411,7 @@ sfx:
     stage_pop: pop            # a stage element (cutout, icon, label, chart...) pops in
     stage_number: ding        # a stage number lands
     stage_highlight: null     # a yellow highlight box draws in
+    stage_stamp: hit          # a stamp thumps down
 
 # ── Final mix loudness ───────────────────────────────────────────────────────
 loudness:
@@ -298,7 +488,7 @@ styles:
     # Branding strip at the top of the safe zone: progress bar (left) + watermark (right).
     # Kept above y 250, where headlines/cards start, and below TikTok's top tabs.
     progress_bar:
-      enabled: true                 # a spec can override with "progress_bar": true/false (A/B test)
+      enabled: false                # a spec can override with "progress_bar": true/false (A/B test)
       top: 210                      # y of the bar's top edge
       height: 8
       color: null                   # null = accent_color
@@ -340,6 +530,59 @@ styles:
       # Brand end card with a comment question: logo disc and wordmark shrink to make room.
       compact_disc: 300             # px (normal 460)
       compact_word: 520             # wordmark width, px (normal 700)
+    # How a final cta scene ends the video:
+    #   card    = a full end card (end_card logo/wordmark if the style has them, else icon + headline)
+    #   overlay = no card: the scene before keeps playing under the cta narration and a small badge
+    #             (logo, text, action chip) slides up over it
+    #   none    = the scene before keeps playing and nothing is added (the ask lives in post.txt)
+    outro:
+      mode: card
+      text: null                    # badge line; null = the cta scene's on_screen_text (a comment
+                                    # cta always shows its question)
+      logo: true                    # overlay: end_card.logo (else the watermark image) in the badge
+      chip: true                    # show the cta_type action chip
+      captions: false               # caption the outro narration (off: its text is already on screen)
+      badge_top: 1300               # overlay: y of the badge's top edge (above TikTok's caption area)
+      font_size: 58                 # overlay: badge text size
+      shrink: 0.85                  # overlay: a stage scene's props shrink to this (towards the
+      lift_px: 40                   # title) and move up this far, to make room for the badge
+      bg_opacity: 0.9               # overlay: shade_color behind the badge
+    # Mascots: characters standing just above the captions who "explain" the video. A brand pack
+    # lists its cast; each mascot is a folder of pose SVGs (<pose>.svg, `netral` required), drawn
+    # facing the viewer and pointing to the viewer's right. Inside a pose: class "mouth" (closed) and
+    # "mouth-open" (hidden) swap on each spoken word of the speaker, "eye" blinks, "wag" sways (a tail),
+    # "nomirror" stays readable when the mascot is mirrored (text). The props area shrinks to make
+    # room. A scene's "mascot" in the spec picks the speaker and adds poses on words.
+    mascot:
+      # [{name, dir (relative to the brand pack), side: left|right, voice: female|male}]. A mascot
+      # with a voice speaks the scenes narrated in that voice; a scene whose spec names it as the
+      # speaker is narrated in its voice. A spec picks who appears with "mascots".
+      cast: []
+      height: 240                   # px
+      gap_px: 6                     # above the stage captions
+      inset_px: 10                  # from the safe zone's left/right edge
+      clear_px: 44                  # the stage props end this far above the mascots (room for the
+                                    # camera push-in and hanging label tags)
+      speaker: {default: null}      # template → who speaks when the voice doesn't decide (no cast
+                                    # voices, or one voice for both); default for the rest
+      # Automatic reactions (spec poses come on top): the speaker points at each new big prop or
+      # motion component (no more often than point_gap_s), everyone reacts to a stamp, and the
+      # hook can open on a pose per mascot.
+      auto:
+        point: tunjuk               # pose name; null = off
+        point_hold_s: 1.3
+        point_gap_s: 3.0
+        stamp: {down: kaget, up: paham, neutral: kepo}   # stamp tone → pose; null = off
+        stamp_hold_s: 1.5
+        hook: {}                    # {mascot: pose} at the hook's start
+        cta: {}                     # {mascot: pose} when the closing line starts (outro overlay/none)
+      # Lip sync, flip-book style: on each spoken word of the speaker the pose's "mouth" hides and
+      # its "mouth-open" shows for a share of the word (max open_s), twice for long words.
+      mouth: {share: 0.6, open_s: 0.16, double_s: 0.42}
+      blink_s: [2.6, 4.8]           # a blink every this many seconds (picked per blink)
+      bob_px: 5                     # idle up/down
+      bob_s: 1.4                    # half a bob
+      enter_s: 0.35
     # "Simpan dulu biar nggak lupa" pill on list videos, shown when list item `at_item` starts
     # (first run of list_item scenes only). A spec can override with "save_nudge": true/false.
     save_nudge:
@@ -392,6 +635,24 @@ styles:
       stroke_px: 10
       max_words: 4                  # words per caption page
       max_page_ms: 1200
+      highlight: color              # active word: color = turns accent_color; underline = an accent
+                                    # marker sweeps in under it
+      shadow: null                  # CSS text-shadow, e.g. "0 0 20px rgba(0,0,0,.5)"; null = none
+      hide_gap_ms: null             # hide the caption in pauses longer than this; null = keep it up
+      # Stage scenes (visual.type stage) use these on top: phrase pages under the stage, lower and
+      # quieter (no stroke, soft shadow, marker under the active word), gone during pauses.
+      stage:
+        top: 1290
+        height: 200
+        font_size: 62
+        stroke_px: 0
+        shadow: "0 3px 0 rgba(0,0,0,.28), 0 0 20px rgba(0,0,0,.55), 0 0 6px rgba(0,0,0,.35)"
+        max_words: 6
+        max_page_ms: 2600
+        highlight: underline
+        hide_gap_ms: 450
+        # On light sets (stage.backgrounds tone: light) white text washes out: dark text instead.
+        on_light: {color: "#15151C", shadow: "0 0 14px rgba(255,255,255,.95), 0 0 4px rgba(255,255,255,.9)"}
     headline:
       font_size: 96
       font_weight: 800

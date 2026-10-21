@@ -27,9 +27,11 @@ def words_per_second(voice_name: str, rate: str | None) -> float:
 
 
 def resolve(spec_path: Path, voice_override: str | None = None, out_dir: Path | None = None,
-            progress_bar: bool | None = None) -> tuple[Spec, Path]:
+            progress_bar: bool | None = None, mascots: bool | list[str] | None = None) -> tuple[Spec, Path]:
     """Load a spec, applying overrides (None = keep the spec's value)."""
     spec = load_spec(spec_path)
+    if mascots is not None:
+        spec = spec.model_copy(update={"mascots": mascots})
     if voice_override:
         spec = spec.model_copy(update={"voice": voice_override})
     if progress_bar is not None:
@@ -111,7 +113,11 @@ def run_variants(spec: Spec, project_dir: Path, main: dict,
 def estimate_duration_s(spec: Spec) -> float:
     """Per-scene word time at each scene's delivery rate + ~0.15 s gap per scene + 1 s tail."""
     from klip import prosody
-    base = spec.speech_rate or config.default_rate(spec.voice)
-    speech = sum(len(s.narration.split()) / words_per_second(spec.voice, prosody.for_scene(s, base).rate)
-                 for s in spec.scenes)
+    from klip.mascot import scene_voice, video_style
+    style = video_style(spec)
+    speech = 0.0
+    for s in spec.scenes:
+        v = scene_voice(spec, s, style)
+        base = spec.speech_rate or config.default_rate(v)
+        speech += len(s.narration.split()) / words_per_second(v, prosody.for_scene(s, base).rate)
     return speech + 0.15 * len(spec.scenes) + 1.0

@@ -33,7 +33,9 @@ word-synced captions, b-roll, music). Workflow:
 3. Call validate_spec and fix every error. Adjust the word count until the duration is in range.
 4. REVIEW GATE: show the user each scene's narration and on-screen text, the estimated duration
    and the facts with sources. Wait for their approval before rendering (unless they said not to).
-5. Call render_spec. Rendering takes about 2-3 minutes; poll job_status every ~30 s.
+5. If the spec has stage photo props, call photo_brief and show the user which photos they could
+   provide (files go in the photo folder it names). Then call render_spec. Rendering takes about
+   2-3 minutes; poll job_status every ~30 s.
    For A/B hook tests, put 2-3 alternative hooks in hook_variants and pass variants=true.
 6. Report the final.mp4 path, the QA result and the TikTok caption, and remind the user to turn
    on TikTok's AI-generated content label."""
@@ -122,18 +124,21 @@ def validate_spec(spec: dict[str, Any] | str, voice: str | None = None) -> dict[
 
 @server.tool()
 def render_spec(spec: dict[str, Any] | str, voice: str | None = None, variants: bool = False,
-                progress_bar: bool | None = None) -> dict[str, Any]:
+                progress_bar: bool | None = None, mascots: bool | list[str] | None = None) -> dict[str, Any]:
     """Save the spec to specs/<slug>.json and start rendering in the background.
     Only call after the user approved the script. Returns a job_id for job_status.
     variants=true also renders every hook_variants entry (A/B hook test; ~2 min extra each).
     progress_bar=true/false shows or hides the progress bar at the top (saved into the spec);
-    omit it to keep the spec's value (unset = the style's default)."""
+    omit it to keep the spec's value (unset = the style's default).
+    mascots=false hides the style's mascots, a list of names keeps only those (saved into the spec)."""
     try:
         data = _parse(spec)
     except json.JSONDecodeError as e:
         return {"started": False, "errors": [f"spec is not valid JSON: {e}"]}
     if progress_bar is not None:
         data = {**data, "progress_bar": progress_bar}
+    if mascots is not None:
+        data = {**data, "mascots": mascots}
     parsed, report = _check(data, voice)
     if not parsed or not report["valid"]:
         return {"started": False, **report}
@@ -144,6 +149,25 @@ def render_spec(spec: dict[str, Any] | str, voice: str | None = None, variants: 
     return {"started": True, "job_id": job.id, "spec_path": str(path),
             "project_dir": str(ROOT / "projects" / parsed.slug),
             "note": "Rendering takes ~2-3 min. Poll job_status every ~30 s."}
+
+
+@server.tool()
+def photo_brief(spec: dict[str, Any] | str) -> dict[str, Any]:
+    """Find photos for the spec's stage props (no voice, no render; ~1-2 min with the vision check)
+    and return the photo brief: props with no photo, props marked `own`, and weak stock picks, each
+    with the file name to save in the photo folder. Show it to the user at the review gate."""
+    from klip.stages import assets
+    try:
+        data = _parse(spec)
+    except json.JSONDecodeError as e:
+        return {"ok": False, "errors": [f"spec is not valid JSON: {e}"]}
+    parsed, report = _check(data, None)
+    if not parsed or not report["valid"]:
+        return {"ok": False, **report}
+    project_dir = ROOT / "projects" / parsed.slug
+    project_dir.mkdir(parents=True, exist_ok=True)
+    b = assets.fetch(parsed, project_dir)["photo_brief"]
+    return {"ok": True, **b, "markdown": Path(b["path"]).read_text(encoding="utf-8")}
 
 
 @server.tool()

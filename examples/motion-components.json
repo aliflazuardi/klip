@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "slug": "motion-components",
+  "voice": "female",
+  "target_duration_s": 65,
+  "look": "stage",
+  "progress_bar": false,
+  "facts": [
+    {"claim": "Aturan 50/30/20: 50% kebutuhan, 30% keinginan, 20% tabungan", "source": "https://www.investopedia.com/ask/answers/022916/what-502030-budget-rule.asp"}
+  ],
+  "scenes": [
+    {"id": "s1", "template": "hook", "narration": "Gaji baru masuk, tapi kok cepat banget habis?",
+     "on_screen_text": "Gaji cepat habis?",
+     "visual": {"type": "stage", "elements": [
+       {"at": "Gaji", "kind": "kinetic", "steps": [
+         {"text": "Gaji masuk.", "at": "Gaji"},
+         {"text": "Cepat banget", "at": "cepat"},
+         {"text": "HABIS?", "at": "habis", "accent": true}]}]}},
+    {"id": "s2", "template": "explain", "narration": "Coba pakai aturan lima puluh, tiga puluh, dua puluh. Separuh buat kebutuhan, tiga puluh persen buat keinginan, dan dua puluh persen ditabung.",
+     "on_screen_text": "Aturan 50/30/20",
+     "visual": {"type": "stage", "elements": [
+       {"at": "aturan", "kind": "split", "text": "Gaji kamu", "steps": [
+         {"text": "Kebutuhan", "value": 50, "at": "kebutuhan"},
+         {"text": "Keinginan", "value": 30, "at": "keinginan"},
+         {"text": "Tabungan", "value": 20, "at": "ditabung", "accent": true}]}]}},
+    {"id": "s3", "template": "explain", "narration": "Kalau gajimu lima juta, dua setengah juta mengalir ke kebutuhan, satu setengah juta ke keinginan, dan satu juta ke tabungan.",
+     "on_screen_text": "Uangnya ke mana?",
+     "visual": {"type": "stage", "elements": [
+       {"at": "gajimu", "kind": "flow", "text": "Rp5 juta", "name": "wallet", "steps": [
+         {"text": "Kebutuhan", "value": 2.5, "show": "Rp2,5 jt", "name": "house", "at": "kebutuhan"},
+         {"text": "Keinginan", "value": 1.5, "show": "Rp1,5 jt", "name": "shopping-bag", "at": "keinginan"},
+         {"text": "Tabungan", "value": 1, "show": "Rp1 jt", "name": "piggy-bank", "at": "tabungan", "accent": true}]}]}},
+    {"id": "s4", "template": "explain", "narration": "Masalahnya, kita sering nabung dari sisa. Gajian, belanja, uang habis, lalu nunggu gajian lagi.",
+     "on_screen_text": "Lingkaran gajian",
+     "visual": {"type": "stage", "elements": [
+       {"at": "Masalahnya", "kind": "cycle", "text": "Tiap bulan", "steps": [
+         {"text": "Gajian", "name": "banknote", "at": "Gajian"},
+         {"text": "Belanja", "name": "shopping-cart", "at": "belanja"},
+         {"text": "Habis", "name": "wallet", "at": "habis", "accent": true},
+         {"text": "Nunggu", "name": "hourglass", "at": "nunggu"}]}]}},
+    {"id": "s5", "template": "explain", "narration": "Padahal kalau sejuta disisihkan di awal, tabunganmu jadi enam juta dalam enam bulan, dan dua belas juta dalam setahun.",
+     "on_screen_text": "Sisihkan di awal",
+     "visual": {"type": "stage", "elements": [
+       {"at": "sejuta", "kind": "meter", "text": "Tabungan", "name": "piggy-bank", "max": 12, "steps": [
+         {"text": "bulan pertama", "value": 1, "show": "Rp1 juta", "at": "sejuta"},
+         {"text": "enam bulan", "value": 6, "show": "Rp6 juta", "at": "enam"},
+         {"text": "satu tahun", "value": 12, "show": "Rp12 juta", "at": "setahun", "accent": true}]}]}},
+    {"id": "s6", "template": "explain", "narration": "Biar konsisten, atur jadwalnya. Tanggal satu gajian, langsung transfer tabungan. Tanggal lima bayar tagihan. Sisanya baru buat jajan.",
+     "on_screen_text": "Jadwal sebulan",
+     "visual": {"type": "stage", "elements": [
+       {"at": "jadwalnya", "kind": "timeline", "steps": [
+         {"label": "Tgl 1", "text": "Gajian + transfer tabungan", "at": "satu", "accent": true},
+         {"label": "Tgl 5", "text": "Bayar tagihan", "at": "lima"},
+         {"label": "Sisanya", "text": "Baru buat jajan", "at": "Sisanya"}]}]}},
+    {"id": "s7", "template": "explain", "narration": "Dari seratus persen gaji, potong tagihan, potong jajan, yang benar-benar tersisa cuma sedikit.",
+     "on_screen_text": "Yang tersisa",
+     "visual": {"type": "stage", "elements": [
+       {"at": "seratus", "kind": "funnel", "steps": [
+         {"text": "Gaji", "value": 100, "show": "100%", "at": "seratus"},
+         {"text": "Setelah tagihan", "value": 50, "show": "50%", "at": "tagihan"},
+         {"text": "Setelah jajan", "value": 20, "show": "20%", "at": "jajan"},
+         {"text": "Tersisa", "value": 5, "show": "5%", "at": "tersisa", "accent": true}]}]}},
+    {"id": "s8", "template": "explain", "narration": "Jadi kapan waktu terbaik buat nabung? Bukan akhir bulan, tapi di awal.",
+     "on_screen_text": "Kapan nabung?",
+     "visual": {"type": "stage", "elements": [
+       {"at": "kapan", "kind": "reel", "text": "Nabung kapan?", "steps": [
+         {"text": "Akhir bulan"}, {"text": "Kalau sempat"}, {"text": "Pas bonus"},
+         {"text": "Di awal", "at": "awal", "accent": true}, {"text": "Nanti aja"}]}]}},
+    {"id": "s9", "template": "cta", "cta_type": "save", "narration": "Simpan video ini buat gajian berikutnya.",
+     "on_screen_text": "Simpan dulu", "visual": {"type": "icon", "name": "bookmark"}}
+  ],
+  "post": {"caption": "Gaji cepat habis? Coba aturan 50/30/20.", "hashtags": ["#keuangan", "#nabung"]}
+}

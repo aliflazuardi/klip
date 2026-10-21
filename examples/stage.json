@@ -20,7 +20,7 @@
       ],
       "visual": {
         "type": "stage",
-        "background": "desk",
+        "background": "grid",
         "elements": [
           {
             "at": "saham",
@@ -53,7 +53,7 @@
       ],
       "visual": {
         "type": "stage",
-        "background": "desk",
+        "background": "grid",
         "elements": [
           {
             "at": "IHSG",
@@ -110,7 +110,7 @@
       "on_screen_text": "Rupiah lemah, impor mahal",
       "visual": {
         "type": "stage",
-        "background": "desk",
+        "background": "grid",
         "elements": [
           {
             "at": "Rupiah",

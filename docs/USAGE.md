@@ -86,6 +86,56 @@ fewer than `stage.look_min_share` (70%) of those scenes are staged. Without it (
 the default) each scene picks its own visual. Backgrounds and animation are tuned in
 `klip.yaml` (`stage`); `klip report` groups results by look.
 
+### Motion components
+
+For the beats that explain something (shares, flows, accumulation, loops, schedules), a stage can
+hold an animated diagram instead of props. Each is a stage element whose `steps` play on their own
+narration words: `kinetic` (kinetic type), `split` (a whole breaking into shares), `flow` (an
+amount flowing to destinations), `meter` (a gauge filling, with a counter), `cycle` (a loop with a
+dot going round), `timeline`, `funnel` and `reel` (a slot reel landing on the answer). Numbers in
+`show` count up. See `examples/motion-components.json` (one of each) and `stage.components` in
+`klip.yaml` for sizes, colours and timing.
+
+### Mascots
+
+A brand pack can bring characters who "explain" the video: `mascot.cast` in its `brand.yaml` lists
+them, each a folder of pose SVGs (`netral.svg` required; `brands/example/mascot/bulat/` shows the
+format). On stage scenes they stand above the captions: the scene's speaker mouths each word
+(flip-book lip sync between the pose's `mouth` and `mouth-open`), they blink and sway, point at
+new big props, and react to stamps. A scene's `"mascot"` picks the speaker and adds poses on
+words. Settings: `styles.default.mascot` in `klip.yaml`.
+
+A video picks its mascots with `"mascots"` in the spec (`false`, `["napa"]`, unset = all) or
+`klip render … --mascots none|all|napa,gulung`. A cast member can have a `voice`: scenes narrated in
+that voice are theirs, so a dialogue is just scenes with alternating `"voice": "female"` /
+`"male"`. Consecutive scenes with the same voice are recorded as one take, with a short pause
+(`timeline.turn_gap_ms`) where the narrator changes.
+
+### Photos on the stage: stock first, then a photo brief for you
+
+Stage props are mostly real photos cut out with scissors. For each `cutout`/`photo`/`person`/`logo`
+prop Klip looks, in order, for:
+
+1. **your file** in `specs/photos/<slug>/`, named `<scene>-<n>…` (n = the element's number in the
+   scene, from 1), e.g. `specs/photos/judi-online/s1-1-bandar.png`. A transparent PNG is used as
+   is; any other photo is cut out automatically;
+2. a Wikipedia image (`who`), a screenshot or chart data;
+3. stock: Unsplash (`UNSPLASH_ACCESS_KEY`), Pexels, Pixabay and Wikimedia Commons
+   (`stage.photos.providers`), in any orientation, with Claude's vision check picking the best
+   photo across all of them.
+
+Every asset fetch writes `projects/<slug>/photo-brief.md`: props with no photo, props marked
+`"own": true`, and stock photos the vision check found only loosely related, each with what the
+photo should show (`brief`), the file name to save and search links. Get it before rendering:
+
+```bash
+uv run klip photos specs/<slug>.json      # stock search + vision check + photo brief (no render)
+```
+
+Drop the photos you want into the folder and render; the rest stay stock. A photo prop with no
+photo at all shows its fallback icon (`name`) if it has one. Stage props also sway gently once
+they land, numbers count up, and the camera eases toward each new prop (`stage.motion`).
+
 ## Using the CLI directly
 
 ```bash
