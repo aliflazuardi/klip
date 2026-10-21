@@ -306,6 +306,11 @@ class SceneMascot(_Strict):
     poses: list[MascotPose] = Field(default_factory=list, max_length=12,
                                     description="Pose changes in narration order (on top of automatic reactions).")
     hide: bool = Field(False, description="No mascots in this scene.")
+    show: list[str] | None = Field(None, description="Only these mascots appear in this scene (e.g. ['napa'] "
+                                                     "to introduce one); unset = all of the video's mascots.")
+    scale: float = Field(1.0, ge=0.5, le=2.2, description="Mascot size in this scene (2 = twice as tall, for "
+                                                          "a scene about the mascots themselves); the props "
+                                                          "area shrinks to make room.")
 
 
 class Scene(_Strict):

@@ -6,6 +6,11 @@ All notable changes to Klip are listed here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- A scene's `"mascot"` takes `show` (only these mascots appear, e.g. to introduce one) and `scale`
+  (up to 2.2× taller, for a scene about the mascots themselves; the props area makes room).
+
 ## [0.3.0] - 2026-10-21
 
 ### Added

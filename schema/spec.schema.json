@@ -683,6 +683,30 @@
           "description": "No mascots in this scene.",
           "title": "Hide",
           "type": "boolean"
+        },
+        "show": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Only these mascots appear in this scene (e.g. ['napa'] to introduce one); unset = all of the video's mascots.",
+          "title": "Show"
+        },
+        "scale": {
+          "default": 1.0,
+          "description": "Mascot size in this scene (2 = twice as tall, for a scene about the mascots themselves); the props area shrinks to make room.",
+          "maximum": 2.2,
+          "minimum": 0.5,
+          "title": "Scale",
+          "type": "number"
         }
       },
       "title": "SceneMascot",

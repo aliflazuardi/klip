@@ -150,6 +150,9 @@ def _lint_mascot(spec: Spec, s: Scene, tokens: list[str], err, warn) -> None:
     m = s.mascot
     if m.speaker and m.speaker != "none" and m.speaker not in cast:
         err(s.id, f"mascot speaker {m.speaker!r} isn't in the cast ({', '.join(cast)}, or 'none')")
+    for name in m.show or []:
+        if name not in cast:
+            err(s.id, f"mascot show: {name!r} isn't in this video's cast ({', '.join(cast)})")
     for p in m.poses:
         if p.who not in cast:
             err(s.id, f"mascot {p.who!r} isn't in the cast ({', '.join(cast)})")

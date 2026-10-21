@@ -116,3 +116,22 @@ def test_cli_mascots_option():
     from klip.cli import parse_mascots
     assert parse_mascots(None) is None and parse_mascots("none") is False and parse_mascots("all") is True
     assert parse_mascots("Napa, gulung") == ["napa", "gulung"]
+
+
+@needs_renderer
+def test_scene_shows_some_mascots_bigger():
+    from klip.stages import compose as comp
+    sp = Spec.model_validate({"slug": "t", "style": "example", "scenes": [
+        {"id": "s1", "template": "hook", "narration": "aku bulat", "mascot": {"scale": 2},
+         "visual": stage({"at": "aku", "kind": "label", "text": "x"})},
+        {"id": "s2", "template": "explain", "narration": "dan ini", "mascot": {"show": []},
+         "visual": stage({"at": "dan", "kind": "label", "text": "y"})},
+        {"id": "s3", "template": "explain", "narration": "lagi kecil", "visual": stage({"at": "lagi", "kind": "label", "text": "z"})}]})
+    ws = words(("aku", 100), ("bulat", 500)) + words(("dan", 3100), scene="s2") + words(("lagi", 5100), scene="s3")
+    ctx, _ = comp.build_context(sp, _timeline(("s1", 3000), ("s2", 2000), ("s3", 2000)), ws, {"scenes": {}})
+    [m] = ctx["mascots"]
+    assert m["scale0"] == 2 and m["scales"] == [{"t": 5.0, "s": 1.0}] and m["origin"] == "0% 100%"
+    assert [(x["start"], x["end"]) for x in m["spans"]] == [(0.0, 3.0), (5.0, 7.0)]     # an empty show hides it
+    cap = comp.caption_style(STYLE, True)["top"]
+    assert ctx["scenes"][0]["stage"]["area"][1] <= mascot.top(STYLE, cap, 2) - STYLE["mascot"]["clear_px"]
+    assert ctx["scenes"][2]["stage"]["area"][1] > ctx["scenes"][0]["stage"]["area"][1]

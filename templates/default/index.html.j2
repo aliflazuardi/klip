@@ -376,7 +376,7 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; 
 {% endif %}
 {% for m in mascots or [] %}
   <div id="{{ m.id }}" class="ms clip" data-start="0" data-duration="{{ total }}" data-track-index="8"
-       style="left: {{ m.x }}px; top: {{ m.y }}px; width: {{ m.w }}px; height: {{ m.h }}px;">
+       style="left: {{ m.x }}px; top: {{ m.y }}px; width: {{ m.w }}px; height: {{ m.h }}px; transform-origin: {{ m.origin }};">
     <div class="ms-body"><div class="ms-flip{{ ' mirror' if m.mirror }}">
       {% for p in m.poses %}<div class="ms-pose" data-p="{{ p.name }}">{{ p.svg | safe }}</div>{% endfor %}
     </div></div>
@@ -471,6 +471,10 @@ tl.set("#{{ w.id }}", { className: "{{ w.cls }}" }, {{ w.off }});
 {% for m in mascots %}
 {% set ms = "#" ~ m.id %}
 gsap.set("{{ ms }} .ms-pose[data-p='netral']", { opacity: 1 });
+gsap.set("{{ ms }}", { scale: {{ m.scale0 }}, transformOrigin: "{{ m.origin }}" });
+{% for z in m.scales %}
+tl.to("{{ ms }}", { scale: {{ z.s }}, duration: 0.45, ease: "power3.inOut" }, {{ z.t }});
+{% endfor %}
 {% for sp in m.spans %}
 tl.fromTo("{{ ms }}", { opacity: 0, y: 70 }, { opacity: 1, y: 0, duration: {{ mc.enter_s }}, ease: "back.out(1.6)", immediateRender: false }, {{ sp.start }});
 {% if sp.end < total - 0.05 %}tl.to("{{ ms }}", { opacity: 0, y: 70, duration: 0.25, ease: "power2.in" }, {{ (sp.end - 0.25) | round(3) }});{% endif %}

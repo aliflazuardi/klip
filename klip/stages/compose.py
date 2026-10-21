@@ -170,8 +170,8 @@ def _stage_ctx(scene: Scene, t: dict, words: list[dict], media: dict, style: dic
     times = stage_mod.entry_times(els, words, t["start_ms"], t["duration_ms"], warnings, scene.id)
     cap_top = caption_style(style, True)["top"]
     bottom = cap_top - float(config.get("stage.caption_gap_px"))
-    if mascot.active(scene, style):           # the props end above the mascots
-        bottom = min(bottom, mascot.top(style, cap_top) - float(mascot.settings(style)["clear_px"]))
+    if mascot.shown(scene, style):            # the props end above the mascots
+        bottom = min(bottom, mascot.top(style, cap_top, mascot.scale(scene)) - float(mascot.settings(style)["clear_px"]))
     area = (stage_title_bottom(scene) + 24, bottom)
     boxes = stage_mod.layout(scene.id, els, rows, area)
     exits: dict[int, float] = {}

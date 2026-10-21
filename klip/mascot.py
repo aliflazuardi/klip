@@ -71,10 +71,23 @@ def active(scene: Scene, style: dict) -> bool:
     return bool(settings(style).get("cast")) and scene.visual.type == "stage" and not (scene.mascot and scene.mascot.hide)
 
 
-def top(style: dict, caption_top: float) -> float:
-    """y of the mascots' top edge (they stand on the captions)."""
+def top(style: dict, caption_top: float, scale: float = 1.0) -> float:
+    """y of the mascots' top edge (they stand on the captions), at a scene's mascot scale."""
     c = settings(style)
-    return caption_top - float(c["gap_px"]) - float(c["height"])
+    return caption_top - float(c["gap_px"]) - float(c["height"]) * scale
+
+
+def shown(scene: Scene, style: dict) -> list[str]:
+    """The mascots visible in a scene (its `show`, within the video's cast)."""
+    if not active(scene, style):
+        return []
+    cast = names(style)
+    pick = scene.mascot.show if scene.mascot and scene.mascot.show is not None else None
+    return [n for n in cast if pick is None or n in pick]
+
+
+def scale(scene: Scene) -> float:
+    return scene.mascot.scale if scene.mascot else 1.0
 
 
 def with_cast(style: dict, spec: Spec) -> dict:
@@ -137,13 +150,16 @@ def plan(spec: Spec, scenes: list[dict], words: list[dict], style: dict, caption
     y = top(style, caption_top)
     events: dict[str, list[tuple[float, str, float | None]]] = {m["name"]: [] for m in cast}
     mouth: dict[str, list[tuple[float, float]]] = {m["name"]: [] for m in cast}
-    spans: list[tuple[float, float]] = []
+    spans: dict[str, list[tuple[float, float]]] = {m["name"]: [] for m in cast}
+    sizes: dict[str, list[tuple[float, float]]] = {m["name"]: [] for m in cast}
     for sc in scenes:
         scene = by_id.get(sc["id"])
-        if not scene or sc.get("hidden") or not active(scene, style):
+        if not scene or sc.get("hidden") or not (here := shown(scene, style)):
             continue
         t0, t1 = sc["start"], sc["end"]
-        spans.append((t0, t1))
+        for name in here:
+            spans[name].append((t0, t1))
+            sizes[name].append((t0, scale(scene)))
         sw = [w for w in words if w["sceneId"] == scene.id]
         who = speaker(spec, scene, style)
         if who in mouth:
@@ -172,15 +188,16 @@ def plan(spec: Spec, scenes: list[dict], words: list[dict], style: dict, caption
                 t = t / 1000 if t is not None else t0
                 if p.who in events:
                     events[p.who].append((t, p.pose, p.hold_s))
-    if not spans:
+    if not any(spans.values()):
         return None
-    spans = _merge_spans(spans)
+    spans = {name: _merge_spans(v) for name, v in spans.items()}
+    every = _merge_spans([x for v in spans.values() for x in v])
     # an outro overlay folds the cta into the scene before it: its speaker still says the closing line
     for sc in scenes:
         scene = by_id.get(sc["id"])
         if not (scene and sc.get("hidden") and scene.template == "cta"):
             continue
-        if not any(a <= sc["start"] < b for a, b in spans) or (scene.mascot and scene.mascot.hide):
+        if not any(a <= sc["start"] < b for a, b in every) or (scene.mascot and scene.mascot.hide):
             continue
         sw = [w for w in words if w["sceneId"] == scene.id]
         if (who := speaker(spec, scene, style)) in mouth:
@@ -196,11 +213,16 @@ def plan(spec: Spec, scenes: list[dict], words: list[dict], style: dict, caption
         inset = float(c["inset_px"])
         x = SAFE_X[0] + inset if m.get("side", "left") == "left" else SAFE_X[1] - inset - w
         segs = _segments(events[name], set(svgs))
+        side = m.get("side", "left")
+        # scale changes per scene (grow/shrink from the outer bottom corner, so it stays on screen)
+        steps = [(t, k) for i, (t, k) in enumerate(sizes[name]) if i == 0 or k != sizes[name][i - 1][1]]
         out.append({"name": name, "id": f"ms-{name}", "x": round(x, 1), "y": round(y, 1), "w": w, "h": h,
-                    "mirror": m.get("side", "left") == "right",
+                    "mirror": side == "right", "origin": "0% 100%" if side == "left" else "100% 100%",
+                    "scale0": steps[0][1] if steps else 1.0,
+                    "scales": [{"t": round(t, 3), "s": k} for t, k in steps[1:]],
                     "poses": [{"name": p, "svg": _scoped(svg, f"ms-{name}-{p}")} for p, svg in svgs.items()],
-                    "segments": segs, "spans": [{"start": a, "end": b} for a, b in spans],
-                    "mouth": mouth[name], "blinks": _blinks(spans, name, c["blink_s"]),
+                    "segments": segs, "spans": [{"start": a, "end": b} for a, b in spans[name]],
+                    "mouth": mouth[name], "blinks": _blinks(spans[name], name, c["blink_s"]),
                     "bob_delay": round(_h(name, "bob") * float(c["bob_s"]), 3)})
     return out
 
