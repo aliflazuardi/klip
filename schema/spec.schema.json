@@ -486,6 +486,23 @@
           "title": "Emphasis",
           "type": "array"
         },
+        "voice": {
+          "anyOf": [
+            {
+              "enum": [
+                "male",
+                "female"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "This scene's narrator when it differs from the video's `voice` (a dialogue: alternate male and female). Unset = the voice of the scene's mascot speaker if one is set, else the video's voice.",
+          "title": "Voice"
+        },
         "delivery": {
           "anyOf": [
             {
@@ -1466,6 +1483,25 @@
       ],
       "title": "Look",
       "type": "string"
+    },
+    "mascots": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Which of the style's mascots appear: unset/true = the whole cast, false = none, or a list of names (e.g. ['napa']).",
+      "title": "Mascots"
     },
     "progress_bar": {
       "anyOf": [

@@ -170,8 +170,13 @@ re-render; unchanged stages are cached. Tell the user about any check you couldn
     `examples/motion-components.json`.
     **Mascots** (only when the style's brand pack has a `mascot` cast, e.g. Warga Nalar): they
     stand above the stage captions on every stage scene, mouth the narration of the scene's
-    speaker, point at new big props and react to stamps on their own. A scene's `"mascot"`
-    steers them: `speaker` (a cast name, or "none"), `poses` [{who, pose, at, hold_s}] (pose =
+    speaker, point at new big props and react to stamps on their own. The spec's `"mascots"`
+    picks who appears (`false` = none, `["napa"]` = one; unset = the whole cast; the user may say
+    "tanpa maskot" or "cuma Napa"). Each mascot has a voice: a scene narrated in that voice is
+    theirs. **Dialogue:** set `"voice": "female"` / `"male"` per scene (or `"mascot": {"speaker":
+    "napa"}`, which picks that mascot's voice) so the narration alternates and the mascots take
+    turns; consecutive scenes with the same voice are recorded as one natural take. A scene's
+    `"mascot"` also takes `poses` [{who, pose, at, hold_s}] (pose =
     a file in the mascot's folder: netral, kepo, kaget, paham, bingung, tunjuk), `hide`. Use poses
     for the beats that matter (a myth landing → `bingung`, the reveal → `paham`); leave the rest
     automatic. They don't show on non-stage scenes.

@@ -10,6 +10,7 @@ from dataclasses import dataclass
 
 from klip import config
 from klip.captions import norm, tokenize
+from klip.mascot import scene_voice
 from klip.paths import RENDERER_DIR
 from klip.spec import STAGE_TEMPLATES, Scene, Spec
 
@@ -74,7 +75,7 @@ def _lint_stage(spec: Spec, s: Scene, tokens: list[str], err, warn) -> None:
         found = _check_anchors(s.id, tokens, [st.at for st in e.steps if st.at], f"{e.kind} step", err, k)
         idx += found
         pos = max([k, *(j for j in found if j is not None)]) + 1
-    wps = words_per_second(spec.voice, spec.speech_rate)
+    wps = words_per_second(scene_voice(spec, s), spec.speech_rate)
     lo, hi = config.get("stage.lint_min_gap_s"), config.get("stage.lint_max_gap_s")
     marks = [-1] + sorted({i for i in idx if i is not None}) + [len(tokens)]
     for a, b in zip(marks, marks[1:]):
@@ -138,12 +139,13 @@ def _lint_mascot(spec: Spec, s: Scene, tokens: list[str], err, warn) -> None:
     """Mascot names and poses must exist in the style's cast; pose words must be in the narration."""
     from klip import mascot
     try:
-        style = config.style(spec.style)
+        style = mascot.video_style(spec)
     except KeyError:
         return
     cast = mascot.names(style)
     if not cast:
-        warn(s.id, f"scene has a `mascot` but style {spec.style!r} has no mascot cast; it is ignored")
+        warn(s.id, f"scene has a `mascot` but this video has no mascots (style {spec.style!r}, `mascots`); "
+                   f"it is ignored")
         return
     m = s.mascot
     if m.speaker and m.speaker != "none" and m.speaker not in cast:
@@ -156,6 +158,20 @@ def _lint_mascot(spec: Spec, s: Scene, tokens: list[str], err, warn) -> None:
     _check_anchors(s.id, tokens, [p.at for p in m.poses if p.at], "mascot pose", err)
     if s.visual.type != "stage" and s.template != "cta":
         warn(s.id, "mascots only show on stage scenes (and say a folded cta's closing line)")
+
+
+def _lint_mascots(spec: Spec, err) -> None:
+    """`mascots` names must be in the style's cast."""
+    if not isinstance(spec.mascots, list):
+        return
+    from klip import mascot
+    try:
+        cast = mascot.names(config.style(spec.style))
+    except KeyError:
+        return
+    for name in spec.mascots:
+        if name not in cast:
+            err("spec", f"mascots: {name!r} isn't in style {spec.style!r}'s cast ({', '.join(cast) or 'none'})")
 
 
 def _lint_look(spec: Spec, err) -> None:
@@ -178,6 +194,7 @@ def lint(spec: Spec) -> list[Issue]:
     err = lambda where, msg: issues.append(Issue("error", where, msg))      # noqa: E731
     warn = lambda where, msg: issues.append(Issue("warning", where, msg))   # noqa: E731
     _lint_look(spec, err)
+    _lint_mascots(spec, err)
     if config.get("post.lowercase_hashtags", True):
         import re
         caps = sorted({t for t in re.findall(r"#\w+", spec.post.caption + " " + " ".join(spec.post.hashtags))
@@ -243,7 +260,7 @@ def lint(spec: Spec) -> list[Issue]:
         if s.visual.type in ("stock_video", "stock_photo") and s.visual.max_shots != 1:
             from klip.pipeline import words_per_second
             shots_n = len(s.visual.beats or s.visual.queries) + 1
-            per_shot = len(s.narration.split()) / words_per_second(spec.voice, spec.speech_rate) / shots_n
+            per_shot = len(s.narration.split()) / words_per_second(scene_voice(spec, s), spec.speech_rate) / shots_n
             if per_shot > config.get("cuts.max_shot_s", 6.0):
                 warn(s.id, f"~{per_shot:.0f}s per clip; add visual.beats so a new clip cuts in every ~2-3 s "
                            f"(clips are never repeated)")

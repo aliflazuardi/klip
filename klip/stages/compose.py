@@ -328,7 +328,7 @@ def _scene_ctx(scene: Scene, idx: int, t: dict, style: dict, warnings: list[str]
 
 def build_context(spec: Spec, timeline: dict, words: list[dict],
                   assets: dict | None = None) -> tuple[dict, list[str]]:
-    style = config.style(spec.style)
+    style = mascot.with_cast(config.style(spec.style), spec)
     warnings: list[str] = []
     tmap = {s["id"]: s for s in timeline["scenes"]}
     if [s.id for s in spec.scenes] != [s["id"] for s in timeline["scenes"]]:

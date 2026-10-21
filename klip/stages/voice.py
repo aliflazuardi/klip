@@ -28,7 +28,7 @@ from klip.engines.tts.base import TTSEngine, Word
 from klip.engines.tts.edge import EdgeTTS
 from klip.lexicon import apply_lexicon
 from klip.paths import CACHE_DIR
-from klip.spec import Spec
+from klip.spec import Scene, Spec
 
 log = logging.getLogger(__name__)
 
@@ -36,6 +36,7 @@ GAP_MS = config.get("timeline.gap_ms", 150)            # silence between scenes
 TAIL_MS = config.get("timeline.tail_ms", 1000)         # hold after the last scene
 MIN_SCENE_MS = config.get("timeline.min_scene_ms", 1500)
 HOOK_LEAD_MS = config.get("timeline.hook_lead_ms", 60)  # first word starts this soon after frame 0
+TURN_GAP_MS = config.get("timeline.turn_gap_ms", 250)   # whole takes: pause when the narrator changes
 
 
 ENGINES = ("edge", "elevenlabs", "gemini")
@@ -118,11 +119,11 @@ def snap_to_speech(words: list[Word], pauses: list[tuple[float, float]], late_ms
     return out
 
 
-def _scene_takes(spec: Spec, engine: TTSEngine, voice_id: str, rate: str, lex: dict, offset: float,
-                 audio_dir: Path) -> list[dict]:
+def _scene_takes(scenes: list[Scene], engine: TTSEngine, voice_id: str, rate: str, lex: dict, offset: float,
+                 audio_dir: Path, first: bool = True) -> list[dict]:
     """One TTS call per scene: [{scene, audio (Path), words (spoken, ms in the clip), pro}]."""
     takes = []
-    for i, scene in enumerate(spec.scenes):
+    for i, scene in enumerate(scenes):
         spoken = apply_lexicon(scene.tts_override or scene.narration, lex)
         pro = prosody.for_scene(scene, rate)
         src, spoken_words = synthesize_cached(engine, spoken, voice_id, pro.rate, pro.pitch, pro.volume)
@@ -131,7 +132,7 @@ def _scene_takes(spec: Spec, engine: TTSEngine, voice_id: str, rate: str, lex: d
         audio_ms = ffmpeg.duration_ms(dst)
         spoken_words = [Word(w.text, min(w.start_ms + offset, audio_ms), min(w.end_ms + offset, audio_ms))
                         for w in spoken_words]
-        if i == 0 and spoken_words:
+        if i == 0 and first and spoken_words:
             # The hook must start talking immediately: trim TTS lead-in silence before word one.
             cut = spoken_words[0].start_ms - HOOK_LEAD_MS
             if cut > 20:
@@ -157,10 +158,11 @@ def scene_cuts(spans: list[tuple[float, float]], pauses: list[tuple[float, float
     return cuts
 
 
-def _whole_take(spec: Spec, engine: TTSEngine, voice_id: str, rate: str, lex: dict, offset: float,
-                audio_dir: Path) -> list[dict]:
-    """The whole script in one TTS call, cut into scene clips at the pauses between scenes."""
-    texts = [apply_lexicon(s.tts_override or s.narration, lex).strip() for s in spec.scenes]
+def _whole_take(scenes: list[Scene], engine: TTSEngine, voice_id: str, rate: str, lex: dict, offset: float,
+                audio_dir: Path, first: bool = True) -> list[dict]:
+    """A run of scenes (the whole script, or one narrator's turn) in one TTS call, cut into scene
+    clips at the pauses between scenes."""
+    texts = [apply_lexicon(s.tts_override or s.narration, lex).strip() for s in scenes]
     src, words = synthesize_cached(engine, " ".join(texts), voice_id, rate)
     total = ffmpeg.duration_ms(src)
     words = [Word(w.text, min(w.start_ms + offset, total), min(w.end_ms + offset, total)) for w in words]
@@ -170,14 +172,14 @@ def _whole_take(spec: Spec, engine: TTSEngine, voice_id: str, rate: str, lex: di
     for i in range(len(texts)):
         mine = [w for w, o in zip(timed, owner) if o == i]
         if not mine:
-            raise ValueError(f"{spec.scenes[i].id}: no spoken words found in the take")
+            raise ValueError(f"{scenes[i].id}: no spoken words found in the take")
         spans.append((mine[0].start_ms, mine[-1].end_ms))
     pauses = silences(src)
     if pauses and pauses[0][0] <= 50 and pauses[0][1] < spans[0][1]:   # lead-in silence: speech starts after it
         spans[0] = (max(spans[0][0], pauses[0][1]), spans[0][1])
     cuts = scene_cuts(spans, pauses, total, HOOK_LEAD_MS)
     takes = []
-    for i, scene in enumerate(spec.scenes):
+    for i, scene in enumerate(scenes):
         a, b = cuts[i], cuts[i + 1]
         dst = audio_dir / f"{scene.id}.wav"
         ffmpeg.run(["-ss", f"{a / 1000:.3f}", "-to", f"{b / 1000:.3f}", "-i", str(src), "-c:a", "pcm_s16le", str(dst)])
@@ -186,12 +188,25 @@ def _whole_take(spec: Spec, engine: TTSEngine, voice_id: str, rate: str, lex: di
     return takes
 
 
+def turns(spec: Spec) -> list[tuple[str, list[Scene]]]:
+    """Consecutive scenes with the same narrator: [(voice, scenes)]. One turn = the whole video
+    unless scenes set their own voice (or a mascot speaker with one)."""
+    from klip.mascot import scene_voice, video_style
+    style = video_style(spec)
+    out: list[tuple[str, list[Scene]]] = []
+    for scene in spec.scenes:
+        v = scene_voice(spec, scene, style)
+        if out and out[-1][0] == v:
+            out[-1][1].append(scene)
+        else:
+            out.append((v, [scene]))
+    return out
+
+
 def run(spec: Spec, project_dir: Path, engine: TTSEngine | None = None) -> dict:
     engine_name = config.get("voices.engine", "edge")
     engine = engine or get_engine(engine_name)
-    voice_id = config.voice_id(spec.voice, engine.name)
     lex = config.lexicon()
-    rate = spec.speech_rate or config.default_rate(spec.voice)
     offset = float(config.get("voices.timing_offset_ms", {}).get(engine.name, 0))
     whole = config.get("voices.take") == "whole"
 
@@ -199,7 +214,15 @@ def run(spec: Spec, project_dir: Path, engine: TTSEngine | None = None) -> dict:
     if audio_dir.exists():
         shutil.rmtree(audio_dir)
     audio_dir.mkdir(parents=True)
-    takes = (_whole_take if whole else _scene_takes)(spec, engine, voice_id, rate, lex, offset, audio_dir)
+    # each narrator's turn is recorded on its own (a whole take per turn keeps the intonation
+    # flowing within it); the voice and its default rate follow the turn
+    takes, voices = [], {}
+    for k, (v, scenes) in enumerate(turns(spec)):
+        voices[v] = config.voice_id(v, engine.name)
+        rate = spec.speech_rate or config.default_rate(v)
+        got = (_whole_take if whole else _scene_takes)(scenes, engine, voices[v], rate, lex, offset, audio_dir, k == 0)
+        takes += [{**tk, "voice": v, "turn_end": j == len(got) - 1} for j, tk in enumerate(got)]
+    rate = spec.speech_rate or config.default_rate(spec.voice)
 
     scenes, all_words = [], []
     cursor = 0.0
@@ -209,12 +232,14 @@ def run(spec: Spec, project_dir: Path, engine: TTSEngine | None = None) -> dict:
         spoken_words = snap_to_speech(tk["words"], silences(dst))
         words = align(tokenize(scene.narration), spoken_words)
         is_last = i == len(takes) - 1
-        # a whole take already has its natural pauses between scenes
-        duration = max(audio_ms + (TAIL_MS if is_last else 0 if whole else GAP_MS), MIN_SCENE_MS)
+        # a whole take already has its natural pauses between scenes; a change of narrator gets a gap
+        gap = TAIL_MS if is_last else (TURN_GAP_MS if tk["turn_end"] else 0) if whole else GAP_MS
+        duration = max(audio_ms + gap, MIN_SCENE_MS)
         scenes.append({
             "id": scene.id, "start_ms": round(cursor, 1), "duration_ms": round(duration, 1),
             "audio_ms": round(audio_ms, 1), "audio": str(dst.relative_to(project_dir)),
-            "delivery": None if whole else pro.delivery, "rate": rate if whole else pro.rate,
+            "voice": tk["voice"], "delivery": None if whole else pro.delivery, "rate": pro.rate if not whole else
+            (spec.speech_rate or config.default_rate(tk["voice"])),
             "pitch": None if whole else pro.pitch,
         })
         for w in words:
@@ -227,7 +252,8 @@ def run(spec: Spec, project_dir: Path, engine: TTSEngine | None = None) -> dict:
         cursor += duration
 
     timeline = {
-        "total_ms": round(cursor, 1), "voice": spec.voice, "voice_id": voice_id,
+        "total_ms": round(cursor, 1), "voice": spec.voice, "voice_id": voices.get(spec.voice) or next(iter(voices.values())),
+        "voices": voices,
         "engine": engine.name, "take": "whole" if whole else "scene", "speech_rate": rate, "scenes": scenes,
         "words_per_second": round(spec.word_count / (sum(s["audio_ms"] for s in scenes) / 1000), 3),
     }

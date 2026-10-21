@@ -105,6 +105,12 @@ format). On stage scenes they stand above the captions: the scene's speaker mout
 new big props, and react to stamps. A scene's `"mascot"` picks the speaker and adds poses on
 words. Settings: `styles.default.mascot` in `klip.yaml`.
 
+A video picks its mascots with `"mascots"` in the spec (`false`, `["napa"]`, unset = all) or
+`klip render … --mascots none|all|napa,gulung`. A cast member can have a `voice`: scenes narrated in
+that voice are theirs, so a dialogue is just scenes with alternating `"voice": "female"` /
+`"male"`. Consecutive scenes with the same voice are recorded as one take, with a short pause
+(`timeline.turn_gap_ms`) where the narrator changes.
+
 ### Photos on the stage: stock first, then a photo brief for you
 
 Stage props are mostly real photos cut out with scissors. For each `cutout`/`photo`/`person`/`logo`

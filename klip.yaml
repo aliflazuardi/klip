@@ -114,6 +114,7 @@ timeline:
   tail_ms: 1000                     # hold after the last scene
   min_scene_ms: 1500
   hook_lead_ms: 60                  # trim the TTS lead-in so the hook's first word starts ~60 ms in
+  turn_gap_ms: 250                  # whole takes: extra pause where the narrator changes (a scene "voice")
 
 # ── Stock media / b-roll ─────────────────────────────────────────────────────
 assets:
@@ -553,13 +554,17 @@ styles:
     # "nomirror" stays readable when the mascot is mirrored (text). The props area shrinks to make
     # room. A scene's "mascot" in the spec picks the speaker and adds poses on words.
     mascot:
-      cast: []                      # [{name, dir (relative to the brand pack), side: left|right}]
+      # [{name, dir (relative to the brand pack), side: left|right, voice: female|male}]. A mascot
+      # with a voice speaks the scenes narrated in that voice; a scene whose spec names it as the
+      # speaker is narrated in its voice. A spec picks who appears with "mascots".
+      cast: []
       height: 240                   # px
       gap_px: 6                     # above the stage captions
       inset_px: 10                  # from the safe zone's left/right edge
       clear_px: 44                  # the stage props end this far above the mascots (room for the
                                     # camera push-in and hanging label tags)
-      speaker: {default: null}      # template → who speaks (e.g. hook: napa); default for the rest
+      speaker: {default: null}      # template → who speaks when the voice doesn't decide (no cast
+                                    # voices, or one voice for both); default for the rest
       # Automatic reactions (spec poses come on top): the speaker points at each new big prop or
       # motion component (no more often than point_gap_s), everyone reacts to a stamp, and the
       # hook can open on a pose per mascot.

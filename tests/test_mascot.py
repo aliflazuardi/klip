@@ -78,3 +78,41 @@ def test_no_cast_no_mascots():
                                                        "visual": stage({"at": "a", "kind": "label", "text": "x"})}]})
     assert mascot.plan(sp, [], [], config.style("default"), 1290) is None
     assert not mascot.active(sp.scenes[0], config.style("default"))
+
+
+WN = {**STYLE, "mascot": {**STYLE["mascot"], "speaker": {"hook": "napa", "default": "gulung"},
+                          "cast": [{"name": "napa", "dir": STYLE["mascot"]["cast"][0]["dir"], "voice": "female"},
+                                   {"name": "gulung", "dir": STYLE["mascot"]["cast"][0]["dir"], "side": "right",
+                                    "voice": "male"}]}}
+
+
+def test_video_picks_which_mascots_appear():
+    sp = spec({"id": "s1", "template": "hook", "narration": "a", "visual": stage({"at": "a", "kind": "label", "text": "x"})})
+    assert mascot.names(mascot.with_cast(WN, sp)) == ["napa", "gulung"]
+    assert mascot.names(mascot.with_cast(WN, sp.model_copy(update={"mascots": ["gulung"]}))) == ["gulung"]
+    assert mascot.names(mascot.with_cast(WN, sp.model_copy(update={"mascots": False}))) == []
+    bad = Spec.model_validate({"slug": "t", "style": "example", "mascots": ["napa"], "scenes": [sp.scenes[0].model_dump()]})
+    assert any("mascots: 'napa' isn't in style 'example'" in str(i) for i in lint(bad))
+
+
+def test_the_narrator_decides_who_speaks_and_vice_versa():
+    sp = Spec.model_validate({"slug": "t", "voice": "male", "scenes": [
+        {"id": "s1", "template": "hook", "narration": "a"},
+        {"id": "s2", "template": "explain", "narration": "b", "voice": "female"},
+        {"id": "s3", "template": "explain", "narration": "c", "mascot": {"speaker": "napa"}},
+        {"id": "s4", "template": "explain", "narration": "d", "mascot": {"speaker": "none"}}]})
+    s1, s2, s3, s4 = sp.scenes
+    assert mascot.speaker(sp, s1, WN) == "gulung"               # the male narrator is Gulung, even on the hook
+    assert mascot.speaker(sp, s2, WN) == "napa" and mascot.scene_voice(sp, s2, WN) == "female"
+    assert mascot.scene_voice(sp, s3, WN) == "female"          # naming Napa as the speaker makes it her voice
+    assert mascot.speaker(sp, s4, WN) is None and mascot.scene_voice(sp, s4, WN) == "male"
+    solo = mascot.with_cast(WN, sp.model_copy(update={"mascots": ["napa"]}))
+    assert mascot.speaker(sp, s1, solo) == "napa"              # a lone mascot speaks every line
+    no_voices = {**WN, "mascot": {**WN["mascot"], "cast": [{**m, "voice": None} for m in WN["mascot"]["cast"]]}}
+    assert mascot.speaker(sp, s1, no_voices) == "napa"         # without voices the template map decides
+
+
+def test_cli_mascots_option():
+    from klip.cli import parse_mascots
+    assert parse_mascots(None) is None and parse_mascots("none") is False and parse_mascots("all") is True
+    assert parse_mascots("Napa, gulung") == ["napa", "gulung"]

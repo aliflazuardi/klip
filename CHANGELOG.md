@@ -11,7 +11,9 @@ All notable changes to Klip are listed here. The format follows
 - Mascots: a brand pack's `mascot.cast` (folders of pose SVGs) stand above the stage captions,
   lip-sync the scene's speaker word by word, blink and sway, point at new props and react to
   stamps; a scene's `"mascot"` picks the speaker and adds poses on words. Example cast in
-  `brands/example/mascot/`.
+  `brands/example/mascot/`. A spec picks who appears with `"mascots"` (or `--mascots`).
+- Dialogue: a scene can set its own `"voice"`, so a video can alternate female and male narrators.
+  Each narrator's turn is recorded as its own take, and a mascot with that `voice` speaks it.
 - Motion components for stage scenes: `kinetic`, `split`, `flow`, `meter`, `cycle`, `timeline`,
   `funnel` and `reel`, animated diagrams whose `steps` play on their own narration words, with
   count-up values, accent steps and SFX (`stage.components` in klip.yaml). Example:

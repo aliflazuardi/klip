@@ -77,11 +77,52 @@ def top(style: dict, caption_top: float) -> float:
     return caption_top - float(c["gap_px"]) - float(c["height"])
 
 
-def speaker(scene: Scene, style: dict) -> str | None:
+def with_cast(style: dict, spec: Spec) -> dict:
+    """The style with its mascot cast narrowed to the spec's choice (`mascots`: unset/true = all,
+    false = none, a list = those names)."""
+    pick = spec.mascots
+    if pick is None or pick is True or not settings(style).get("cast"):
+        return style
+    keep = [m for m in settings(style)["cast"] if pick and m["name"] in pick]
+    return {**style, "mascot": {**settings(style), "cast": keep}}
+
+
+def video_style(spec: Spec) -> dict:
+    from klip import config
+    return with_cast(config.style(spec.style), spec)
+
+
+def _voice_of(style: dict, who: str | None) -> str | None:
+    return next((m.get("voice") for m in settings(style).get("cast") or [] if m["name"] == who), None)
+
+
+def scene_voice(spec: Spec, scene: Scene, style: dict | None = None) -> str:
+    """Who narrates a scene: its own `voice`, else the voice of its explicit mascot speaker (a cast
+    member's `voice`), else the video's voice."""
+    if scene.voice:
+        return scene.voice
+    style = style if style is not None else video_style(spec)
+    if scene.mascot and scene.mascot.speaker and (v := _voice_of(style, scene.mascot.speaker)):
+        return v
+    return spec.voice
+
+
+def speaker(spec: Spec, scene: Scene, style: dict) -> str | None:
+    """The mascot who mouths a scene: the scene's explicit speaker; else the one cast member whose
+    `voice` is the scene's voice; else the style's speaker for the template (if in the cast); else
+    the only mascot. None = nobody."""
+    cast = names(style)
     if scene.mascot and scene.mascot.speaker:
-        return None if scene.mascot.speaker == "none" else scene.mascot.speaker
+        return None if scene.mascot.speaker == "none" or scene.mascot.speaker not in cast else scene.mascot.speaker
+    v = scene_voice(spec, scene, style)
+    by_voice = [m["name"] for m in settings(style).get("cast") or [] if m.get("voice") == v]
+    if len(by_voice) == 1:
+        return by_voice[0]
     sp = settings(style).get("speaker") or {}
-    return sp.get(scene.template, sp.get("default"))
+    who = sp.get(scene.template, sp.get("default"))
+    if who in cast:
+        return who
+    return cast[0] if len(cast) == 1 else None
 
 
 def plan(spec: Spec, scenes: list[dict], words: list[dict], style: dict, caption_top: float) -> list[dict] | None:
@@ -104,7 +145,7 @@ def plan(spec: Spec, scenes: list[dict], words: list[dict], style: dict, caption
         t0, t1 = sc["start"], sc["end"]
         spans.append((t0, t1))
         sw = [w for w in words if w["sceneId"] == scene.id]
-        who = speaker(scene, style)
+        who = speaker(spec, scene, style)
         if who in mouth:
             mouth[who] += _flaps(sw, c["mouth"])
         if scene.template == "hook":
@@ -142,7 +183,7 @@ def plan(spec: Spec, scenes: list[dict], words: list[dict], style: dict, caption
         if not any(a <= sc["start"] < b for a, b in spans) or (scene.mascot and scene.mascot.hide):
             continue
         sw = [w for w in words if w["sceneId"] == scene.id]
-        if (who := speaker(scene, style)) in mouth:
+        if (who := speaker(spec, scene, style)) in mouth:
             mouth[who] += _flaps(sw, c["mouth"])
         for name, pose in (auto.get("cta") or {}).items():
             if name in events:

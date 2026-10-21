@@ -109,3 +109,21 @@ def test_engines_need_their_keys(monkeypatch):
             voice.get_engine(name).synthesize("halo", "x", "+0%", ROOT / "nope.mp3")
     with pytest.raises(ValueError, match="unknown TTS engine"):
         voice.get_engine("nope")
+
+
+@needs_ffmpeg
+def test_dialogue_records_one_take_per_narrator_turn(project, whole):  # noqa: F811
+    spec = load_spec(ROOT / "examples" / "menguap.json")
+    voices = ["female", "female", "male"] + ["male"] * (len(spec.scenes) - 3)
+    spec = spec.model_copy(update={"voice": "male", "scenes": [s.model_copy(update={"voice": v})
+                                                               for s, v in zip(spec.scenes, voices)]})
+    project.mkdir()
+    eng = FakeTake()
+    seen = []
+    orig = eng.synthesize
+    eng.synthesize = lambda text, voice_id, rate, out, **kw: (seen.append(voice_id), orig(text, voice_id, rate, out))[1]
+    tl = voice.run(spec, project, engine=eng)
+    assert len(eng.calls) == 2 and seen == [config.voice_id("female", "edge"), config.voice_id("male", "edge")]
+    assert [s["voice"] for s in tl["scenes"]] == voices and set(tl["voices"]) == {"female", "male"}
+    gap = tl["scenes"][2]["start_ms"] - (tl["scenes"][1]["start_ms"] + tl["scenes"][1]["audio_ms"])
+    assert gap == pytest.approx(voice.TURN_GAP_MS, abs=1)          # a pause where the narrator changes

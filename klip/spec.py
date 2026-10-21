@@ -316,6 +316,10 @@ class Scene(_Strict):
     on_screen_text: str | None = None
     visual: Visual = Field(default_factory=Visual)
     emphasis: list[str] = Field(default_factory=list, description="Words/phrases to color with the emphasis color.")
+    voice: VoiceName | None = Field(None, description="This scene's narrator when it differs from the video's "
+                                                      "`voice` (a dialogue: alternate male and female). Unset = "
+                                                      "the voice of the scene's mascot speaker if one is set, "
+                                                      "else the video's voice.")
     delivery: Delivery | None = Field(None, description="Voice style for this scene (rate/pitch preset in "
                                                         "klip.yaml prosody); unset = by template.")
     # Template-specific data
@@ -404,6 +408,9 @@ class Spec(_Strict):
     look: LookName = Field("mixed", description="'stage' = illustrated explainer look: most hook/explain/"
                                                  "list_item scenes use visual.type 'stage' (share in klip.yaml "
                                                  "stage.look_min_share). 'mixed' = pick per scene.")
+    mascots: bool | list[str] | None = Field(None, description="Which of the style's mascots appear: unset/true = "
+                                                               "the whole cast, false = none, or a list of names "
+                                                               "(e.g. ['napa']).")
     progress_bar: bool | None = Field(None, description="Thin progress bar at the top; unset = the style's setting. "
                                                         "Set false/true to A/B test it.")
     save_nudge: bool | None = Field(None, description="'Simpan dulu' pill when the 2nd list_item starts; "

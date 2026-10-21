@@ -24,6 +24,21 @@ console = Console()
 
 VoiceOpt = typer.Option(None, "--voice", "-v", help="male | female (overrides the spec)")
 OutOpt = typer.Option(None, "--out", "-o", help="Project dir (default: projects/<slug>)")
+MascotsOpt = typer.Option(None, "--mascots", help="Which mascots appear: all, none, or names (napa,gulung); "
+                                                   "default: the spec's \"mascots\" (else the whole cast)")
+
+
+def parse_mascots(value: str | None) -> bool | list[str] | None:
+    if value is None:
+        return None
+    v = value.strip().lower()
+    if v in ("none", "off", "no", "false", "0"):
+        return False
+    if v in ("all", "on", "yes", "true"):
+        return True
+    return [n.strip() for n in v.split(",") if n.strip()]
+
+
 ProgressOpt = typer.Option(None, "--progress-bar/--no-progress-bar",
                            help="Show the progress bar at the top (default: the style's setting)")
 
@@ -43,11 +58,12 @@ def _main(verbose: bool = typer.Option(False, "--verbose", help="Debug logging")
                         handlers=[RichHandler(console=Console(stderr=True), show_path=False, show_time=False)])
 
 
-def _load_or_exit(spec_path: Path, voice: str | None, out: Path | None, progress_bar: bool | None = None):
+def _load_or_exit(spec_path: Path, voice: str | None, out: Path | None, progress_bar: bool | None = None,
+                  mascots: bool | list[str] | None = None):
     if voice and voice not in ("male", "female"):
         raise typer.BadParameter("voice must be 'male' or 'female'")
     try:
-        return pipeline.resolve(spec_path, voice, out, progress_bar)
+        return pipeline.resolve(spec_path, voice, out, progress_bar, mascots)
     except ValidationError as e:
         console.print(f"[red]Invalid spec {spec_path}:[/red]\n{e}")
         raise typer.Exit(2)
@@ -56,6 +72,10 @@ def _load_or_exit(spec_path: Path, voice: str | None, out: Path | None, progress
 def print_preview(spec, issues) -> None:
     """The review gate: what the video will say and show, plus anything to fix or verify."""
     t = Table(title=f"{spec.slug} · voice={spec.voice} · style={spec.style}", show_lines=True)
+    from klip import mascot as _m
+    ms_style = _m.video_style(spec)
+    if _m.names(ms_style):
+        t.title += f" · mascots={','.join(_m.names(ms_style))}"
     for col in ("id", "template", "visual", "on-screen", "narration"):
         t.add_column(col, overflow="fold")
     for s in spec.scenes:
@@ -71,7 +91,12 @@ def print_preview(spec, issues) -> None:
         elif s.template == "compare":
             on = f"{s.compare.left.label} vs {s.compare.right.label}"
         from klip import prosody
-        t.add_row(s.id, f"{s.template}\n[dim]{prosody.delivery_name(s)}[/dim]", vis, on, s.narration)
+        from klip import mascot
+        who = mascot.speaker(spec, s, ms_style) if mascot.names(ms_style) else None
+        voice = mascot.scene_voice(spec, s, ms_style)
+        t.add_row(s.id, f"{s.template}\n[dim]{prosody.delivery_name(s)}[/dim]"
+                        + (f"\n[dim]{voice}{' · ' + who if who else ''}[/dim]" if voice != spec.voice or who else ""),
+                  vis, on, s.narration)
     for i, v in enumerate(spec.hook_variants):
         t.add_row(f"s1·{chr(ord('B') + i)}", "hook variant", "", v.on_screen_text or "", v.narration)
     console.print(t)
@@ -244,9 +269,10 @@ def ab_voice(spec_path: Path,
 @app.command()
 def render(spec_path: Path, voice: Optional[str] = VoiceOpt, out: Optional[Path] = OutOpt,
            force: bool = typer.Option(False, help="Re-render even if the composition is unchanged"),
-           variants: bool = VariantsOpt, progress_bar: Optional[bool] = ProgressOpt) -> None:
+           variants: bool = VariantsOpt, progress_bar: Optional[bool] = ProgressOpt,
+           mascots: Optional[str] = MascotsOpt) -> None:
     """Render a spec to final.mp4 (voice → assets → compose → render → post → qa)."""
-    _render(spec_path, voice, out, force, variants, progress_bar)
+    _render(spec_path, voice, out, force, variants, progress_bar, parse_mascots(mascots))
 
 
 def _print_variants(rows: list[dict]) -> None:
@@ -261,8 +287,8 @@ def _print_variants(rows: list[dict]) -> None:
 
 
 def _render(spec_path: Path, voice: str | None, out: Path | None, force: bool, variants: bool = False,
-            progress_bar: bool | None = None) -> None:
-    spec, project_dir = _load_or_exit(spec_path, voice, out, progress_bar)
+            progress_bar: bool | None = None, mascots: bool | list[str] | None = None) -> None:
+    spec, project_dir = _load_or_exit(spec_path, voice, out, progress_bar, mascots)
     with console.status("starting…") as status:
         results = pipeline.run_all(spec, project_dir, force=force,
                                    on_stage=lambda s: status.update(f"[bold]{s}[/bold]…"))

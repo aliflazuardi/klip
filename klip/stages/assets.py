@@ -499,7 +499,9 @@ def fetch(spec: Spec, project_dir: Path, providers: list[MediaProvider] | None =
             continue
         if v.type in ("local", "icon", "solid"):
             continue
-        est = estimate_scene_s(scene, spec.voice, rate)
+        from klip.mascot import scene_voice
+        narrator = scene_voice(spec, scene)
+        est = estimate_scene_s(scene, narrator, spec.speech_rate or config.default_rate(narrator))
         if v.beats:
             n = len(queries_for(scene))          # one clip per beat
         else:

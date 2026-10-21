@@ -124,18 +124,21 @@ def validate_spec(spec: dict[str, Any] | str, voice: str | None = None) -> dict[
 
 @server.tool()
 def render_spec(spec: dict[str, Any] | str, voice: str | None = None, variants: bool = False,
-                progress_bar: bool | None = None) -> dict[str, Any]:
+                progress_bar: bool | None = None, mascots: bool | list[str] | None = None) -> dict[str, Any]:
     """Save the spec to specs/<slug>.json and start rendering in the background.
     Only call after the user approved the script. Returns a job_id for job_status.
     variants=true also renders every hook_variants entry (A/B hook test; ~2 min extra each).
     progress_bar=true/false shows or hides the progress bar at the top (saved into the spec);
-    omit it to keep the spec's value (unset = the style's default)."""
+    omit it to keep the spec's value (unset = the style's default).
+    mascots=false hides the style's mascots, a list of names keeps only those (saved into the spec)."""
     try:
         data = _parse(spec)
     except json.JSONDecodeError as e:
         return {"started": False, "errors": [f"spec is not valid JSON: {e}"]}
     if progress_bar is not None:
         data = {**data, "progress_bar": progress_bar}
+    if mascots is not None:
+        data = {**data, "mascots": mascots}
     parsed, report = _check(data, voice)
     if not parsed or not report["valid"]:
         return {"started": False, **report}
