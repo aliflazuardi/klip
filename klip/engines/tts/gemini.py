@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import base64
 import json
+import re
 import logging
 import time
 import urllib.error
@@ -49,11 +50,20 @@ def to_wav(audio: bytes, rate: int = 24000) -> bytes:
         + b"data" + struct.pack("<I", n) + audio
 
 
+
+def retry_wait(code: int, detail: str, attempt: int) -> float:
+    """Seconds to wait before retrying: a rate limit says how long ("retry in 34s"; the free tier
+    allows a few requests a minute, and a dialogue video makes one per narrator turn), capped at
+    gemini_tts.max_wait_s; other errors back off exponentially."""
+    if code == 429 and (m := re.search(r"retry in ([\d.]+)\s*s", detail)):
+        return min(float(m.group(1)) + 1.0, float(config.get("gemini_tts.max_wait_s")))
+    return 3 * 2 ** attempt
+
 class GeminiTTS:
     name = "gemini"
     ext = ".wav"
 
-    def __init__(self, retries: int = 3):
+    def __init__(self, retries: int = 5):
         self.retries = retries
         self.key = env.get("GEMINI_API_KEY")
         c = config.get("gemini_tts")
@@ -81,7 +91,7 @@ class GeminiTTS:
             except urllib.error.HTTPError as e:
                 detail = e.read().decode(errors="replace")[:300]
                 if e.code in (429, 500, 502, 503) and attempt + 1 < self.retries:
-                    time.sleep(3 * 2 ** attempt)
+                    time.sleep(retry_wait(e.code, detail, attempt))
                     continue
                 raise TTSError(f"Gemini TTS HTTP {e.code}: {detail}") from None
             except (urllib.error.URLError, TimeoutError) as e:

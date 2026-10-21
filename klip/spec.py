@@ -7,6 +7,7 @@ Run `klip schema` to export the JSON Schema to schema/spec.schema.json.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Literal
 
@@ -15,7 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 TemplateName = Literal["hook", "explain", "list_item", "myth_fact", "stat", "compare", "cta"]
 VisualType = Literal["stock_video", "stock_photo", "ai_image", "icon", "solid", "local", "stage"]
 StageKind = Literal["cutout", "photo", "icon", "label", "number", "bar", "stack", "highlight", "stamp",
-                    "chart", "unit", "person", "news", "logo", "screenshot",
+                    "chart", "unit", "person", "news", "logo", "screenshot", "notif",
                     "kinetic", "split", "flow", "meter", "cycle", "timeline", "funnel", "reel"]
 # Motion components: animated diagrams whose `steps` play out on their own narration words.
 COMPONENTS = ("kinetic", "split", "flow", "meter", "cycle", "timeline", "funnel", "reel")
@@ -85,7 +86,7 @@ _STAGE_NEEDS = {"cutout": (("query", "path", "who"),), "photo": (("query", "path
                 "label": (("text",),), "number": (("text",),), "bar": (("bars",),), "stack": (("name",),),
                 "highlight": (("target",),), "stamp": (("text",),), "chart": (("points", "csv", "ticker"),),
                 "unit": (("total",),), "person": (("who", "path", "query"),), "news": (("text",),),
-                "logo": (("who", "path"),), "screenshot": (("url",),), "kinetic": (("steps",),),
+                "logo": (("who", "path"),), "screenshot": (("url",),), "notif": (("text",),), "kinetic": (("steps",),),
                 "split": (("steps",),), "flow": (("steps",), ("text",)), "meter": (("steps",), ("max",)),
                 "cycle": (("steps",),), "timeline": (("steps",),), "funnel": (("steps",),), "reel": (("steps",),)}
 # steps each component takes (min, max) and whether every step needs a `value`
@@ -108,7 +109,9 @@ class StageElement(_Strict):
                                         "unit = a grid of `total` squares, `filled` of them highlighted; person = a "
                                         "real person's card (Wikipedia photo of `who`, name, a line, a stat); news = "
                                         "a headline card (outlet, date, text); logo = an organisation's logo "
-                                        "(`who`) on a sign; screenshot = a web page (`url`) in a browser window. "
+                                        "(`who`) on a sign; screenshot = a web page (`url`) in a browser window; notif = "
+                                        "a phone notification card (`outlet` = the app, `text` = the line, "
+                                        "`stat` = a big amount, `date` = the corner note). "
                                         "Motion components (animated diagrams; their `steps` play on their own "
                                         "words): kinetic = big kinetic type, one phrase per step; split = a whole "
                                         "that breaks into shares (step values); flow = amounts flowing from a "
@@ -154,14 +157,17 @@ class StageElement(_Strict):
                                    description="chart: shaded spans with a label (eras, terms of office).")
     total: int | None = Field(None, ge=2, le=400, description="unit: how many squares.")
     filled: int | None = Field(None, ge=0, le=400, description="unit: how many are highlighted (default all).")
-    outlet: str | None = Field(None, description="news: the outlet, e.g. 'Katadata'.")
-    date: str | None = Field(None, description="news: the date as shown, e.g. 'Jumat, 16 Okt 2026'.")
+    outlet: str | None = Field(None, description="news: the outlet, e.g. 'Katadata'; notif: the app name "
+                                                 "('m-banking', 'Shopee').")
+    date: str | None = Field(None, description="news: the date as shown, e.g. 'Jumat, 16 Okt 2026'; notif: the "
+                                               "corner note ('bulan ke-12', '09.41').")
     url: str | None = Field(None, description="screenshot: the page to capture (http/https).")
     wayback: str | None = Field(None, description="screenshot: capture the Wayback Machine copy from this date "
                                                   "(YYYY or YYYYMMDD), for pages as they looked back then.")
     selector: str | None = Field(None, description="screenshot: CSS selector of the part to capture (unset = the "
                                                    "top of the page).")
-    stat: str | None = Field(None, description="person: a short stat under the name, e.g. '+499,50%'.")
+    stat: str | None = Field(None, description="person: a short stat under the name, e.g. '+499,50%'; notif: "
+                                               "the big amount ('Rp4,54 jt').")
     bars: list[StageBar] = Field(default_factory=list, max_length=4, description="bar: 2-4 bars, left to right.")
     steps: list[MotionStep] = Field(default_factory=list, max_length=10,
                                     description="Motion components: the beats, in narration order.")
@@ -210,6 +216,55 @@ class StageElement(_Strict):
         return self
 
 
+BackdropKind = Literal["photo", "screenshot", "board", "phone"]
+
+
+class Backdrop(_Strict):
+    """A themed set behind a stage scene's props, instead of a plain built-in `background`: a real
+    place (photo), a web page, a market board or a phone screen."""
+    kind: BackdropKind = Field(description="photo = a full-screen photo of a place or surface (stock `query`, "
+                                           "Wikipedia `who` for a painting/map, or your `path`), darkened so props "
+                                           "read on it; screenshot = a web page (`url`, optional `wayback`) filling "
+                                           "the frame; board = a dense market/departure board of `items` "
+                                           "('BBCA -2,1%'), tinted; phone = a phone app screen with a `title` "
+                                           "header (pair it with notif elements).")
+    query: str | None = Field(None, description="photo: English keywords for a place or surface, 2-4 words "
+                                                "('old apothecary shelves', 'vintage world map', 'trading floor').")
+    who: str | None = Field(None, description="photo: a Wikipedia article whose lead image is the set (a painting, "
+                                              "an old map, a building).")
+    path: str | None = Field(None, description="photo: your own image (repo-relative).")
+    brief: str | None = Field(None, description="photo: the ideal backdrop in a few Indonesian words, for the "
+                                                "photo brief.")
+    url: str | None = Field(None, description="screenshot: the page (http/https).")
+    wayback: str | None = Field(None, description="screenshot: the Wayback Machine copy from this date (YYYY or "
+                                                  "YYYYMMDD).")
+    items: list[str] = Field(default_factory=list, max_length=40,
+                             description="board: 4-40 short cells ('BBCA -2,1%', 'GOTO +4,8%', 'CGK 09.40'); a "
+                                         "'-' / '+' number colours the cell red / green. Repeated to fill.")
+    title: str | None = Field(None, description="phone: the small header line ('autodebet · tgl 5 Jan'); "
+                                                "board: an optional header ('IDX · 15 Okt 2026').")
+    dim: float | None = Field(None, ge=0, le=0.9, description="How much the set is darkened (0-0.9); unset = "
+                                                              "klip.yaml stage.backdrop.<kind>.dim.")
+    blur: float | None = Field(None, ge=0, le=30, description="photo/screenshot: blur in px; unset = the kind's default.")
+    tint: str | None = Field(None, description="A colour wash over the set, e.g. '#7A0F14' (a red market crash); "
+                                               "unset = none.")
+    tone: Literal["light", "dark"] | None = Field(None, description="Whether the set reads as light or dark "
+                                                                    "(title and tag colours); unset = the kind's default.")
+
+    @model_validator(mode="after")
+    def _kind_fields(self) -> Backdrop:
+        need = {"photo": ("query", "who", "path"), "screenshot": ("url",), "board": ("items",), "phone": ()}[self.kind]
+        if need and not any(getattr(self, f) for f in need):
+            raise ValueError(f"backdrop kind={self.kind!r} requires {' or '.join(need)}")
+        if self.kind == "board" and len(self.items) < 4:
+            raise ValueError("a board backdrop needs at least 4 items")
+        if self.url and not self.url.startswith(("http://", "https://")):
+            raise ValueError("backdrop `url` must start with http:// or https://")
+        if self.tint and not re.fullmatch(r"#[0-9a-fA-F]{6}", self.tint):
+            raise ValueError("backdrop `tint` must be a #RRGGBB colour")
+        return self
+
+
 class Visual(_Strict):
     type: VisualType = "solid"
     query: str | None = Field(None, description="English keywords for stock search (the scene's first shot).")
@@ -229,6 +284,9 @@ class Visual(_Strict):
                                                      "older 'desk', 'paper', 'kraft', 'board' (see klip.yaml "
                                                      "stage.backgrounds), or a repo-relative image path. "
                                                      "Unset = stage.default_background.")
+    backdrop: Backdrop | None = Field(None, description="type=stage: a themed set instead of `background` (a real "
+                                                        "place, a web page, a market board, a phone screen). Vary "
+                                                        "sets across the video as the story moves.")
     elements: list[StageElement] = Field(default_factory=list, max_length=12,
                                          description="type=stage: props that build up on the background, each "
                                                      "popping in on its narration word, in narration order.")
@@ -247,8 +305,10 @@ class Visual(_Strict):
             if not self.elements:
                 raise ValueError("visual.type='stage' requires visual.elements")
             self._check_stage()
-        elif self.elements or self.background:
-            raise ValueError("visual.elements / visual.background are only for visual.type='stage'")
+            if self.backdrop and self.background:
+                raise ValueError("use either visual.background or visual.backdrop, not both")
+        elif self.elements or self.background or self.backdrop:
+            raise ValueError("visual.elements / visual.background / visual.backdrop are only for visual.type='stage'")
         return self
 
     def _check_stage(self) -> None:
@@ -306,6 +366,11 @@ class SceneMascot(_Strict):
     poses: list[MascotPose] = Field(default_factory=list, max_length=12,
                                     description="Pose changes in narration order (on top of automatic reactions).")
     hide: bool = Field(False, description="No mascots in this scene.")
+    show: list[str] | None = Field(None, description="Only these mascots appear in this scene (e.g. ['napa'] "
+                                                     "to introduce one); unset = all of the video's mascots.")
+    scale: float = Field(1.0, ge=0.5, le=2.2, description="Mascot size in this scene (2 = twice as tall, for "
+                                                          "a scene about the mascots themselves); the props "
+                                                          "area shrinks to make room.")
 
 
 class Scene(_Strict):

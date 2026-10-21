@@ -205,7 +205,7 @@ def run(spec: Spec, project_dir: Path) -> dict:
 
     lines = [hashtags_lower(spec.post.caption.strip()), "", hashtags_lower(" ".join(spec.post.hashtags).strip()), "",
              f"Suara: AI ({ENGINE_NAMES.get(timeline.get('engine', 'edge'), timeline.get('engine'))}, "
-             f"{timeline['voice_id']})."]
+             f"{', '.join(dict.fromkeys((timeline.get('voices') or {}).values())) or timeline['voice_id']})."]
     if track:
         lines.append(f"Musik: {track.stem}")
     credits_path = project_dir / "credits.json"

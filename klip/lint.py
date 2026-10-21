@@ -127,6 +127,15 @@ def _lint_stage(spec: Spec, s: Scene, tokens: list[str], err, warn) -> None:
     if icons and pics < need * (pics + icons):
         warn(s.id, f"{icons} icon(s) vs {pics} real picture(s) on this stage: make most object props real photos "
                    f"(cutout/photo/person/logo, ≥ {need:.0%}); keep icons for abstract ideas")
+    b = s.visual.backdrop
+    if b and b.path:
+        from klip.paths import ROOT
+        if not (ROOT / b.path).is_file():
+            err(s.id, f"visual.backdrop.path not found: {b.path}")
+    if b and b.kind == "phone" and not any(e.kind == "notif" for e in els):
+        warn(s.id, "a phone backdrop reads best with notif elements (the app's notifications) on it")
+    if any(e.kind == "notif" for e in els) and not (b and b.kind == "phone"):
+        warn(s.id, 'notif cards sit best on a phone backdrop: "backdrop": {"kind": "phone", "title": "…"}')
     bg = s.visual.background
     if bg and bg not in (config.get("stage.backgrounds") or {}):
         from klip.paths import ROOT
@@ -150,6 +159,9 @@ def _lint_mascot(spec: Spec, s: Scene, tokens: list[str], err, warn) -> None:
     m = s.mascot
     if m.speaker and m.speaker != "none" and m.speaker not in cast:
         err(s.id, f"mascot speaker {m.speaker!r} isn't in the cast ({', '.join(cast)}, or 'none')")
+    for name in m.show or []:
+        if name not in cast:
+            err(s.id, f"mascot show: {name!r} isn't in this video's cast ({', '.join(cast)})")
     for p in m.poses:
         if p.who not in cast:
             err(s.id, f"mascot {p.who!r} isn't in the cast ({', '.join(cast)})")
@@ -187,6 +199,17 @@ def _lint_look(spec: Spec, err) -> None:
                     f'"stage" (need ≥ {need:.0%}); convert some of {others}, or set "look": "mixed"')
 
 
+def _lint_sets(spec: Spec, warn) -> None:
+    """A long stage video on one set looks samey: suggest switching sets as the story moves."""
+    from klip import stage as stage_mod
+    staged = [s for s in spec.scenes if s.visual.type == "stage"]
+    sets = {stage_mod.background_key(s.visual) for s in staged}
+    if len(staged) >= int(config.get("stage.variety_scenes")) and len(sets) < int(config.get("stage.variety_min_sets")):
+        warn("spec", f"all {len(staged)} stage scenes are on one set; switch sets as the story moves (a "
+                     f"`backdrop` for a place, a page, a market board or a phone screen, or another background), "
+                     f"keeping consecutive scenes of one beat on the same set")
+
+
 def lint(spec: Spec) -> list[Issue]:
     from klip.pipeline import estimate_duration_s
 
@@ -194,6 +217,7 @@ def lint(spec: Spec) -> list[Issue]:
     err = lambda where, msg: issues.append(Issue("error", where, msg))      # noqa: E731
     warn = lambda where, msg: issues.append(Issue("warning", where, msg))   # noqa: E731
     _lint_look(spec, err)
+    _lint_sets(spec, warn)
     _lint_mascots(spec, err)
     if config.get("post.lowercase_hashtags", True):
         import re

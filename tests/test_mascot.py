@@ -116,3 +116,57 @@ def test_cli_mascots_option():
     from klip.cli import parse_mascots
     assert parse_mascots(None) is None and parse_mascots("none") is False and parse_mascots("all") is True
     assert parse_mascots("Napa, gulung") == ["napa", "gulung"]
+
+
+@needs_renderer
+def test_scene_shows_some_mascots_bigger():
+    from klip.stages import compose as comp
+    sp = Spec.model_validate({"slug": "t", "style": "example", "scenes": [
+        {"id": "s1", "template": "hook", "narration": "aku bulat", "mascot": {"scale": 2},
+         "visual": stage({"at": "aku", "kind": "label", "text": "x"})},
+        {"id": "s2", "template": "explain", "narration": "dan ini", "mascot": {"show": []},
+         "visual": stage({"at": "dan", "kind": "label", "text": "y"})},
+        {"id": "s3", "template": "explain", "narration": "lagi kecil", "visual": stage({"at": "lagi", "kind": "label", "text": "z"})}]})
+    ws = words(("aku", 100), ("bulat", 500)) + words(("dan", 3100), scene="s2") + words(("lagi", 5100), scene="s3")
+    ctx, _ = comp.build_context(sp, _timeline(("s1", 3000), ("s2", 2000), ("s3", 2000)), ws, {"scenes": {}})
+    [m] = ctx["mascots"]
+    assert m["scale0"] == 2 and m["scales"] == [{"t": 5.0, "s": 1.0}] and m["origin"] == "0% 100%"
+    assert [(x["start"], x["end"]) for x in m["spans"]] == [(0.0, 3.0), (5.0, 7.0)]     # an empty show hides it
+    cap = comp.caption_style(STYLE, True)["top"]
+    assert ctx["scenes"][0]["stage"]["area"][1] <= mascot.top(STYLE, cap, 2) - STYLE["mascot"]["clear_px"]
+    assert ctx["scenes"][2]["stage"]["area"][1] > ctx["scenes"][0]["stage"]["area"][1]
+
+
+def test_closing_pose_waits_for_a_held_reaction():
+    segs = mascot._segments([(11.9, "tunjuk", 1.5), (12.2, "netral", mascot.SOFT)], {"netral", "tunjuk"})
+    assert segs == [{"t": 0.0, "pose": "netral"}, {"t": 11.9, "pose": "tunjuk"}, {"t": 13.4, "pose": "netral"}]
+
+
+def test_listener_leans_in_when_the_speaker_first_points_at_a_notif():
+    c = STYLE["mascot"]
+    duo = {**STYLE, "mascot": {**c, "cast": [{**c["cast"][0], "name": "a", "voice": "female"},
+                                              {**c["cast"][0], "name": "b", "side": "right", "voice": "male"}],
+                               "auto": {**c["auto"], "point": "tunjuk", "listen": "tunjuk"}}}
+    sp = Spec.model_validate({"slug": "t", "voice": "male", "scenes": [
+        {"id": "s1", "template": "explain", "narration": "notif masuk lagi",
+         "visual": stage({"at": "notif", "kind": "notif", "text": "x"}, {"at": "lagi", "kind": "notif", "text": "y"})}]})
+    scenes = [{"id": "s1", "start": 0.0, "end": 6.0, "stage": {"elements": [
+        {"kind": "notif", "start": 0.5, "i": 0}, {"kind": "notif", "start": 4.0, "i": 1}]}}]
+    a, b = mascot.plan(sp, scenes, words(("notif", 500), ("lagi", 4000)), duo, 1400)
+    assert [s["pose"] for s in b["segments"] if s["t"] in (0.5, 4.0)] == ["tunjuk", "tunjuk"]   # b speaks and points
+    assert [(s["t"], s["pose"]) for s in a["segments"]][:2] == [(0.0, "netral"), (0.65, "tunjuk")]  # a once, at the first
+
+
+@needs_renderer
+def test_mascots_get_a_sticker_outline_and_ground_shadow():
+    sp = spec({"id": "s1", "template": "hook", "narration": "bandar menang",
+               "visual": stage({"at": "bandar", "kind": "stamp", "text": "x"}, backdrop={"kind": "phone"})})
+    ctx, _ = compose.build_context(sp, _timeline(("s1", 3000)), words(("bandar", 100), ("menang", 500)), {"scenes": {}})
+    assert ctx["scenes"][0]["stage"]["elements"][0]["color"] == config.get("stage.stamp.neutral_dark")   # dark set
+    from jinja2 import Environment, FileSystemLoader, StrictUndefined
+    from klip.paths import TEMPLATES_DIR
+    env = Environment(loader=FileSystemLoader(TEMPLATES_DIR / "default"), undefined=StrictUndefined,
+                      autoescape=True, trim_blocks=True, lstrip_blocks=True)
+    env.filters["rgba"] = compose.rgba
+    html = env.get_template("index.html.j2").render(**ctx)
+    assert '<filter id="ms-outline"' in html and "url(#ms-outline)" in html and 'class="ms-ground"' in html

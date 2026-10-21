@@ -58,6 +58,7 @@ elevenlabs:
 # text itself is read verbatim.
 gemini_tts:
   model: gemini-3.8-flash-tts
+  max_wait_s: 70                    # on a rate limit (HTTP 429), wait what the API asks, up to this
   style: >-
     Narator video edukasi pendek berbahasa Indonesia untuk TikTok: santai, hangat, penasaran,
     seperti ngobrol dengan teman, tempo agak cepat, logat Jakarta yang netral.
@@ -188,6 +189,28 @@ stage:
     kraft: {base: "#C9A273", tone: light, grain: 0.20, grain_freq: "0.7 0.7", vignette: 0.30}
     board: {base: "#25343A", tone: dark, grain: 0.16, grain_freq: "0.8 0.8", vignette: 0.40}
   bg_drift_px: 40                   # the background pans this far across a run of stage scenes
+  # Backdrops (visual.backdrop): themed sets instead of a plain background, as 90secondslab swaps
+  # sets with the story (apothecary shelves, the IDX board, an old Kaskus page, an m-banking
+  # screen, an old map). Per kind: dim = darkening (0-0.9) so props and captions read on it,
+  # blur = px (photo/screenshot; baked into the prepared file), tone = which title/tag colours,
+  # title = the title style on this set (box = caps in dark boxes, readable on a busy picture),
+  # shade = extra darkening toward the bottom, where the captions sit (0-1).
+  # board: a dense grid of `items` (base = board colour, ink = plain cells, up/down = cells with a
+  # +/- number, stripe = alternate rows, cols = columns, font_px / row_px = cell type and row height). phone: an app screen
+  # (base, bar = status-bar/header ink; the header sits at header_top px).
+  backdrop:
+    photo:      {dim: 0.38, blur: 2, tone: dark, title: box, shade: 0.55}
+    screenshot: {dim: 0.42, blur: 1, tone: dark, title: box, shade: 0.6}
+    board:      {dim: 0.30, tone: dark, title: box, shade: 0.6, base: "#0B0D10", ink: "#C9CED6", up: "#22C55E",
+                 down: "#EF4444", stripe: "#1A1D23", cols: 3, font_px: 30, row_px: 60, header_top: 236}
+    phone:      {dim: 0, tone: dark, title: plain, shade: 0, base: "#0E1013", bar: "#9AA0A6", header_top: 236}
+    size: [1200, 2040]              # px a photo/screenshot set is prepared at (the frame plus the pan)
+    tint_opacity: 0.5               # strength of a `tint` colour wash (multiplied over the set)
+    query_suffix: background        # photo sets search "<query> background" first, then the plain query
+  # validate suggests switching sets when a video has at least variety_scenes stage scenes but
+  # fewer than variety_min_sets different sets (backgrounds and backdrops).
+  variety_scenes: 5
+  variety_min_sets: 2
   zoom: 1.04                        # the stage camera slowly pushes in to this scale per scene
   # Motion of the props once they're on stage. float: an idle sway (px up/down by prop group:
   # media = photos/cut-outs/people/logos, icon = icons/stacks, tag = labels/numbers, data =
@@ -245,7 +268,8 @@ stage:
   stack_count: 4                    # stack elements without `count`
   title:                            # the scene's on_screen_text at the top of the stage
     style: plain                    # plain = left-aligned type with a marker on emphasis words;
-                                    # strip = the older centred white paper strip
+                                    # strip = the older centred white paper strip; box = caps in dark
+                                    # boxes, emphasis in an accent box (backdrops pick theirs)
     top: 330
     font_size: 62
     hook_font_size: 80
@@ -254,11 +278,13 @@ stage:
     bg: "#FFFFFF"                   # strip only
     color: "#15151C"                # strip only
     tilt_deg: -1.5                  # strip only
+    box: {bg: "#15151C", color: "#FFFFFF", emph_color: null}   # box only; emph_color null = the style's
+                                    # text-on-accent colour; the emphasis box is the accent colour
   label:                            # tags: dark on light sets, light on dark sets
     light: {bg: "#15151C", color: "#FFFFFF"}
     dark: {bg: "#FFFFFF", color: "#15151C"}
     uppercase: true
-  stamp: {neutral: "#15151C", up: "#1FA45B", down: "#D93A3F", border_px: 9}
+  stamp: {neutral: "#15151C", neutral_dark: "#F6F1E7", up: "#1FA45B", down: "#D93A3F", border_px: 9}   # neutral_dark: on dark sets
   shadow:                           # prop drop shadow by the background's tone
     light: "0 16px 18px rgba(0,0,0,.20)"
     dark: "0 18px 22px rgba(0,0,0,.42)"
@@ -311,6 +337,7 @@ stage:
   person: {bg: "#FFFFFF", text: "#15151C", muted: "#6B7280", aspect: 1.36,   # card height / width
            grow: 1.3}                                                      # height = size box height × grow
   news: {bg: "#FFFFFF", text: "#15151C", muted: "#6B7280", aspect: 0.36}
+  notif: {bg: "#FFFFFF", text: "#15151C", muted: "#6B7280", app: "#1FA45B", aspect: 0.36}   # phone notification card
   logo: {bg: "#FFFFFF", pad: 0.12, max_px: 800}                  # pad = share of the sign's width
   screenshot: {max_px: 1400, bar: "#E7E7EC", bar_px: 46}
   cutout:
@@ -572,6 +599,8 @@ styles:
         point: tunjuk               # pose name; null = off
         point_hold_s: 1.3
         point_gap_s: 3.0
+        listen: null                # pose the other mascots take when the speaker first points in a
+                                    # scene (a duet's listener leaning in); null = off
         stamp: {down: kaget, up: paham, neutral: kepo}   # stamp tone → pose; null = off
         stamp_hold_s: 1.5
         hook: {}                    # {mascot: pose} at the hook's start
@@ -580,9 +609,16 @@ styles:
       # its "mouth-open" shows for a share of the word (max open_s), twice for long words.
       mouth: {share: 0.6, open_s: 0.16, double_s: 0.42}
       blink_s: [2.6, 4.8]           # a blink every this many seconds (picked per blink)
+      # Sticker look so the cast reads on every set (dark boards, phone screens, busy pages), in the
+      # same cut-out language as the props: an outline of px in color around the whole character
+      # (null = none), and a soft contact shadow under the feet (opacity; 0 = none) that stays put
+      # while the body bobs.
+      outline: {px: 6, color: "#FFFFFF"}
+      ground: 0.32
       bob_px: 5                     # idle up/down
       bob_s: 1.4                    # half a bob
       enter_s: 0.35
+      outro_lift_px: 80             # rise this far when an outro overlay badge slides up under them
     # "Simpan dulu biar nggak lupa" pill on list videos, shown when list item `at_item` starts
     # (first run of list_item scenes only). A spec can override with "save_nudge": true/false.
     save_nudge:

@@ -6,6 +6,35 @@ All notable changes to Klip are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-21
+
+### Added
+
+- A scene's `"mascot"` takes `show` (only these mascots appear, e.g. to introduce one) and `scale`
+  (up to 2.2× taller, for a scene about the mascots themselves; the props area makes room).
+- Stage backdrops: a stage scene's `"backdrop"` swaps the plain set for a themed one as the story
+  moves: `photo` (a place or surface from stock, a Wikipedia image such as an old map, or your
+  `<scene>-bg.jpg`), `screenshot` (a web page, also from the Wayback Machine), `board` (a market
+  board whose `+`/`-` cells turn green/red) or `phone` (an app screen). Each takes `dim`, `blur`,
+  `tint` and `tone`; settings live in `klip.yaml` `stage.backdrop`. Busy sets get boxed caps titles
+  (`stage.title.style: box`) and a darker bottom for the captions. Example: `examples/backdrops.json`.
+- `notif` stage element: a phone notification card (app, line, big amount, time) that slides down;
+  several stack down the screen.
+- `validate` suggests switching sets when five or more stage scenes all use one.
+- Mascots read on every set: a sticker outline (`mascot.outline`, the cut-out props' language) and a
+  contact shadow under the feet (`mascot.ground`) keep a dark character visible on dark or busy sets.
+- Mascots point at `notif` cards, and with `mascot.auto.listen` the other mascots lean in (a pose)
+  when the speaker first points in a scene, so a duet reacts to each other.
+
+### Fixed
+
+- A neutral stamp on a dark set is drawn light (`stage.stamp.neutral_dark`) instead of vanishing.
+- Gemini TTS waits as long as a rate limit asks (the free tier allows 3 requests a minute, and a
+  dialogue makes one per narrator turn) instead of failing after short retries.
+- The mascots' closing pose waits for a held reaction to finish (Gulung's roll at a "hoaks" stamp
+  was cut short), and the mascots rise when the outro badge slides up under them.
+- `post.txt` credits every narrator voice of a dialogue video, not just the first.
+
 ## [0.3.0] - 2026-10-21
 
 ### Added
@@ -141,7 +170,8 @@ First public release.
 - `klip.local.yaml` for personal overrides, deep-merged over `klip.yaml`.
 - `klip --version`.
 
-[Unreleased]: https://github.com/aliflazuardi/klip/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/aliflazuardi/klip/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/aliflazuardi/klip/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/aliflazuardi/klip/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/aliflazuardi/klip/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/aliflazuardi/klip/compare/v0.1.0...v0.2.0

@@ -81,7 +81,7 @@ def print_preview(spec, issues) -> None:
     for s in spec.scenes:
         vis = s.visual.type + (f":{s.visual.query or s.visual.name or s.visual.path or ''}" if s.visual.type != "solid" else "")
         if s.visual.type == "stage":
-            vis = f"stage:{s.visual.background or 'default'} " + ", ".join(
+            vis = f"stage:{('backdrop:' + s.visual.backdrop.kind) if s.visual.backdrop else s.visual.background or 'default'} " + ", ".join(
                 e.kind if e.kind != "highlight" else "▭" for e in s.visual.elements)
         on = s.on_screen_text or ""
         if s.template == "myth_fact":

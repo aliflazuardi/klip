@@ -153,6 +153,36 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; 
 .nw-top { display: flex; justify-content: space-between; align-items: baseline; gap: .6em; font-size: .62em; }
 .nw-top span { color: {{ sc.news.muted }}; font-weight: 600; white-space: nowrap; }
 .nw-head { font-size: 1em; font-weight: 800; line-height: 1.18; }
+.nf-card { width: 100%; height: 100%; padding: .8em 1em; border-radius: 1.1em; background: {{ sc.notif.bg }}; color: {{ sc.notif.text }};
+           box-shadow: var(--st-shadow); display: flex; flex-direction: column; justify-content: center; gap: .18em; overflow: hidden; }
+.nf-top { display: flex; align-items: center; gap: .45em; font-size: .72em; color: {{ sc.notif.muted }}; }
+.nf-top b { font-weight: 700; }
+.nf-top span { margin-left: auto; white-space: nowrap; }
+.nf-app { width: 1.25em; height: 1.25em; border-radius: .32em; background: {{ sc.notif.app }}; flex: none; }
+.nf-line { font-size: 1em; font-weight: 700; line-height: 1.2; }
+.nf-stat { font-size: 2.3em; font-weight: 800; line-height: 1.05; letter-spacing: -0.02em; }
+.bd-board { position: absolute; inset: 0; padding: 12px {{ sc.bg_drift_px + 20 }}px; font-weight: 700; font-variant-numeric: tabular-nums; overflow: hidden; }
+.bd-row { display: flex; align-items: center; border-bottom: 1px solid rgba(255,255,255,.06); }
+.bd-cell { flex: 1; padding: 0 .7em; white-space: nowrap; overflow: hidden; }
+{% for b in ("board",) %}{% set bc = sc.backdrop[b] %}
+.bd-cell.up { color: {{ bc.up }}; }
+.bd-cell.down { color: {{ bc.down }}; }
+.bd-board .bd-row:nth-child(odd) { background: {{ bc.stripe }}; }
+{% endfor %}
+.bd-tint, .bd-dim, .bd-shade { position: absolute; inset: 0; pointer-events: none; }
+.bd-tint { mix-blend-mode: multiply; opacity: {{ sc.backdrop.tint_opacity }}; }
+.bd-dim { background: #000; }
+.bd-shade { background: linear-gradient(180deg, rgba(0,0,0,0) 45%, #000 100%); }
+.bd-status { position: absolute; left: 70px; right: 70px; top: 44px; display: flex; justify-content: space-between; align-items: center;
+             font-size: 30px; color: {{ sc.backdrop.phone.bar }}; }
+.bd-status span { display: flex; gap: 8px; align-items: flex-end; }
+.bd-status i { display: block; width: 7px; background: {{ sc.backdrop.phone.bar }}; border-radius: 2px; }
+.bd-status i:nth-child(1) { height: 12px; } .bd-status i:nth-child(2) { height: 18px; } .bd-status i:nth-child(3) { height: 24px; }
+.bd-status em { display: block; width: 44px; height: 22px; margin-left: 10px; border: 3px solid {{ sc.backdrop.phone.bar }}; border-radius: 6px; }
+.bd-header { position: absolute; left: 0; right: 0; text-align: center; font-size: 30px; font-weight: 600; color: {{ sc.backdrop.phone.bar }};
+             letter-spacing: .02em; }
+.bd-header span { display: inline-block; padding: .2em .8em; border-radius: 999px; background: rgba(0,0,0,.85); }
+.bd-phone .bd-header span { padding: 0; background: none; }
 .lg-card { width: 100%; height: 100%; padding: {{ (sc.logo.pad * 100) | round(1) }}%; border-radius: 18px; background: {{ sc.logo.bg }};
            box-shadow: var(--st-shadow); display: flex; align-items: center; justify-content: center; }
 .lg-card img { max-width: 100%; max-height: 100%; object-fit: contain; }
@@ -244,6 +274,12 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; 
             font-weight: 800; line-height: 1.1; letter-spacing: -0.01em; text-align: center; box-shadow: 0 14px 30px rgba(0,0,0,.35); }
 .st-title .hw.emph { background: linear-gradient(transparent 56%, {{ sc.highlight.color }} 56%, {{ sc.highlight.color }} 92%, transparent 92%); }
 .st-title-row.plain { justify-content: flex-start; }
+.st-title-row.box { justify-content: flex-start; }
+.st-title.box { padding: 0; border-radius: 0; background: none; box-shadow: none; text-align: left; text-transform: uppercase;
+                line-height: 1.3; letter-spacing: .01em; transform-origin: 0 50%; }
+.st-title.box .bx { padding: .04em .24em .08em; background: {{ sc.title.box.bg }}; color: {{ sc.title.box.color }};
+                    -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.st-title.box .hw.emph { padding: 0 .12em; margin: 0 -.12em; background: var(--accent); color: {{ sc.title.box.emph_color or 'var(--stroke)' }}; }
 .st-title.plain { padding: 0; border-radius: 0; background: none; box-shadow: none; color: var(--ink); text-align: left; letter-spacing: -0.02em; }
 .st-title.plain .hw.emph { background: linear-gradient(transparent 60%, {{ sc.title.marker or style.accent_color }} 60%, {{ sc.title.marker or style.accent_color }} 94%, transparent 94%); }
 .st-no { display: inline-block; margin-right: .35em; padding: 0 .4em; border-radius: 999px; background: var(--accent); color: var(--stroke); }
@@ -252,7 +288,10 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; 
 /* Mascots (style.mascot): stacked pose SVGs; one shows at a time */
 .ms { position: absolute; z-index: 9; opacity: 0; }
 .ms-body, .ms-flip, .ms-pose { position: absolute; inset: 0; }
-.ms-body { transform-origin: 50% 100%; filter: drop-shadow(0 10px 10px rgba(0,0,0,.18)); }
+{% set mo = (style.mascot or {}).get("outline") %}
+.ms-body { transform-origin: 50% 100%; filter: {% if mo %}url(#ms-outline) {% endif %}drop-shadow(0 10px 10px rgba(0,0,0,.18)); }
+.ms-ground { position: absolute; left: 14%; right: 14%; bottom: -10px; height: 26px; border-radius: 50%;
+             background: radial-gradient(closest-side, #000, rgba(0,0,0,0)); opacity: {{ (style.mascot or {}).get("ground") or 0 }}; }
 .ms-flip.mirror { transform: scaleX(-1); }
 .ms-flip.mirror .nomirror { transform: scaleX(-1); transform-box: fill-box; transform-origin: 50% 50%; }
 .ms-pose { opacity: 0; }
@@ -374,9 +413,16 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; 
     </div>
   </div>
 {% endif %}
+{% if mascots and (style.mascot or {}).get("outline") %}{% set mo = style.mascot.outline %}
+<svg width="0" height="0" style="position: absolute;" aria-hidden="true"><filter id="ms-outline" x="-10%" y="-10%" width="120%" height="120%">
+  <feMorphology in="SourceAlpha" operator="dilate" radius="{{ mo.px }}" result="d" /><feFlood flood-color="{{ mo.color }}" />
+  <feComposite in2="d" operator="in" result="o" /><feMerge><feMergeNode in="o" /><feMergeNode in="SourceGraphic" /></feMerge>
+</filter></svg>
+{% endif %}
 {% for m in mascots or [] %}
   <div id="{{ m.id }}" class="ms clip" data-start="0" data-duration="{{ total }}" data-track-index="8"
-       style="left: {{ m.x }}px; top: {{ m.y }}px; width: {{ m.w }}px; height: {{ m.h }}px;">
+       style="left: {{ m.x }}px; top: {{ m.y }}px; width: {{ m.w }}px; height: {{ m.h }}px; transform-origin: {{ m.origin }};">
+    {% if (style.mascot or {}).get("ground") %}<div class="ms-ground"></div>{% endif %}
     <div class="ms-body"><div class="ms-flip{{ ' mirror' if m.mirror }}">
       {% for p in m.poses %}<div class="ms-pose" data-p="{{ p.name }}">{{ p.svg | safe }}</div>{% endfor %}
     </div></div>
@@ -471,6 +517,10 @@ tl.set("#{{ w.id }}", { className: "{{ w.cls }}" }, {{ w.off }});
 {% for m in mascots %}
 {% set ms = "#" ~ m.id %}
 gsap.set("{{ ms }} .ms-pose[data-p='netral']", { opacity: 1 });
+gsap.set("{{ ms }}", { scale: {{ m.scale0 }}, transformOrigin: "{{ m.origin }}" });
+{% for z in m.scales %}
+tl.to("{{ ms }}", { scale: {{ z.s }}, duration: 0.45, ease: "power3.inOut" }, {{ z.t }});
+{% endfor %}
 {% for sp in m.spans %}
 tl.fromTo("{{ ms }}", { opacity: 0, y: 70 }, { opacity: 1, y: 0, duration: {{ mc.enter_s }}, ease: "back.out(1.6)", immediateRender: false }, {{ sp.start }});
 {% if sp.end < total - 0.05 %}tl.to("{{ ms }}", { opacity: 0, y: 70, duration: 0.25, ease: "power2.in" }, {{ (sp.end - 0.25) | round(3) }});{% endif %}
@@ -487,6 +537,9 @@ tl.set("{{ ms }} .mouth", { opacity: 1 }, {{ b }}); tl.set("{{ ms }} .mouth-open
 {% for t in m.blinks %}
 tl.fromTo("{{ ms }} .eye", { scaleY: 1 }, { scaleY: 0.1, duration: 0.07, yoyo: true, repeat: 1, ease: "none", immediateRender: false }, {{ t }});
 {% endfor %}
+{% if brand.outro and brand.outro.lift is not none %}
+tl.to("{{ ms }}", { y: -{{ mc.outro_lift_px }}, duration: 0.45, ease: "power2.inOut" }, {{ brand.outro.start }});
+{% endif %}
 {% set halves = (total / mc.bob_s) | int %}
 {% if halves >= 2 %}
 tl.fromTo("{{ ms }} .ms-body", { y: 0 }, { y: -{{ mc.bob_px }}, duration: {{ mc.bob_s }}, yoyo: true, repeat: {{ (halves // 2) * 2 - 1 }}, ease: "sine.inOut" }, {{ m.bob_delay }});

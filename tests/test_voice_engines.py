@@ -127,3 +127,9 @@ def test_dialogue_records_one_take_per_narrator_turn(project, whole):  # noqa: F
     assert [s["voice"] for s in tl["scenes"]] == voices and set(tl["voices"]) == {"female", "male"}
     gap = tl["scenes"][2]["start_ms"] - (tl["scenes"][1]["start_ms"] + tl["scenes"][1]["audio_ms"])
     assert gap == pytest.approx(voice.TURN_GAP_MS, abs=1)          # a pause where the narrator changes
+
+
+def test_gemini_waits_as_long_as_the_rate_limit_asks():
+    assert gemini.retry_wait(429, '{"message": "... Please retry in 34s or upgrade"}', 0) == 35.0
+    assert gemini.retry_wait(429, "retry in 500s", 0) == config.get("gemini_tts.max_wait_s")
+    assert gemini.retry_wait(503, "overloaded", 2) == 12

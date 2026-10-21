@@ -1,5 +1,14 @@
 {% set st = s.stage %}
-    <div class="stage-bg"><div class="stage-pan{{ ' bg-' ~ st.bg if st.builtin }}"{% if st.image %} style="background: url('{{ st.image.src }}') center / cover;"{% endif %}>{% if st.builtin %}<div class="st-grain st-grain-{{ st.bg }}"></div>{% endif %}</div></div>
+{% set bd = st.backdrop %}
+    <div class="stage-bg{{ (' bd bd-' ~ bd.kind) if bd }}"><div class="stage-pan{{ ' bg-' ~ st.bg if st.builtin }}"{% if st.image %} style="background: url('{{ st.image.src }}') center {{ 'top' if bd and bd.kind == 'screenshot' else 'center' }} / cover;"{% elif bd %} style="background: {{ bd.cfg.base }};"{% endif %}>{% if st.builtin %}<div class="st-grain st-grain-{{ st.bg }}"></div>{% endif %}
+      {% if bd and bd.kind == "board" %}<div class="bd-board" style="font-size: {{ bd.cfg.font_px }}px; color: {{ bd.cfg.ink }};">{% for row in bd.rows %}<div class="bd-row" style="height: {{ bd.cfg.row_px }}px;">{% for c in row %}<span class="bd-cell {{ c.tone }}">{{ c.text }}</span>{% endfor %}</div>{% endfor %}</div>{% endif %}
+      </div>
+      {% if bd and bd.tint %}<div class="bd-tint" style="background: {{ bd.tint }};"></div>{% endif %}
+      {% if bd and bd.dim %}<div class="bd-dim" style="opacity: {{ bd.dim }};"></div>{% endif %}
+      {% if bd and bd.cfg.shade %}<div class="bd-shade" style="opacity: {{ bd.cfg.shade }};"></div>{% endif %}
+      {% if bd and bd.kind == "phone" %}<div class="bd-status"><b>09.41</b><span><i></i><i></i><i></i><em></em></span></div>{% endif %}
+      {% if bd and bd.header %}<div class="bd-header" style="top: {{ bd.cfg.header_top }}px;"><span>{{ bd.header }}</span></div>{% endif %}
+    </div>
     <div class="st-cam"><div class="st-props">
     {% for e in st.elements %}
       <div id="{{ e.id }}" class="st-el st-{{ e.kind }}" style="left: {{ (e.x - e.w / 2) | round(1) }}px; top: {{ (e.y - e.h / 2) | round(1) }}px; width: {{ e.w }}px; height: {{ e.h }}px; z-index: {{ 100 + e.i if e.kind == 'highlight' else e.i + 1 }};"><div class="st-in">
@@ -28,6 +37,7 @@
       {% elif e.kind == "unit" %}{% set u = e.unit %}<div class="un-box"><div class="un-grid" style="width: {{ u.gw }}px; grid-template-columns: repeat({{ u.cols }}, {{ u.cell }}px); grid-auto-rows: {{ u.cell }}px;">{% for k in range(u.total) %}<i class="{{ 'on' if k < u.filled else 'off' }}" style="margin: {{ (u.cell * stage.cfg.unit.gap / 2) | round(2) }}px;"></i>{% endfor %}</div>{% if e.text %}<div class="un-legend" style="font-size: {{ e.fs }}px;">{{ e.text }}</div>{% endif %}</div>
       {% elif e.kind == "person" %}<div class="ps-card" style="font-size: {{ e.fs }}px;"><div class="ps-photo"><img src="{{ e.src }}" alt="" /></div><div class="ps-name">{{ e.name }}</div>{% if e.text %}<div class="ps-line">{{ e.text }}</div>{% endif %}{% if e.stat %}<div class="ps-stat" style="color: {{ e.stat_color }};">{{ e.stat }}</div>{% endif %}</div>
       {% elif e.kind == "news" %}<div class="nw-card" style="font-size: {{ e.fs }}px;"><div class="nw-top"><b>{{ e.outlet or "" }}</b><span>{{ e.date or "" }}</span></div><div class="nw-head">{{ e.text }}</div></div>
+      {% elif e.kind == "notif" %}<div class="nf-card" style="font-size: {{ e.fs }}px;"><div class="nf-top"><i class="nf-app"></i><b>{{ e.outlet or "" }}</b><span>{{ e.date or "" }}</span></div><div class="nf-line">{{ e.text }}</div>{% if e.stat %}<div class="nf-stat">{{ e.stat }}</div>{% endif %}</div>
       {% elif e.kind == "logo" %}<div class="lg-card"><img src="{{ e.src }}" alt="" /></div>
       {% elif e.comp is defined %}{% include "scenes/components.html.j2" %}
       {% elif e.kind == "screenshot" %}<div class="st-shot"><div class="sh-bar"><i></i><i></i><i></i><span>{{ e.host }}</span></div><img src="{{ e.src }}" alt="" /></div>
@@ -37,6 +47,6 @@
     {% endfor %}
     </div></div>
     {% if st.title or st.list_no %}
-    {% set plain = stage.cfg.title.style == "plain" %}
-    <div class="st-title-row{{ ' plain' if plain }}"><div class="st-title{{ ' plain' if plain }}" style="font-size: {{ stage.cfg.title.hook_font_size if st.hook else stage.cfg.title.font_size }}px;">{% if st.list_no %}<span class="st-no">{{ st.list_no[0] }}/{{ st.list_no[1] }}</span>{% endif %}{% for h in st.title %}<span class="hw{{ ' emph' if h.emph }}">{{ h.text }}</span>{{ ' ' if not loop.last }}{% endfor %}</div></div>
+    {% set ts = st.title_style %}
+    <div class="st-title-row {{ ts }}"><div class="st-title {{ ts }}" style="font-size: {{ stage.cfg.title.hook_font_size if st.hook else stage.cfg.title.font_size }}px;">{% if st.list_no %}<span class="st-no">{{ st.list_no[0] }}/{{ st.list_no[1] }}</span>{% endif %}{% if ts == "box" %}<span class="bx">{% endif %}{% for h in st.title %}<span class="hw{{ ' emph' if h.emph }}">{{ h.text }}</span>{{ ' ' if not loop.last }}{% endfor %}{% if ts == "box" %}</span>{% endif %}</div></div>
     {% endif %}
