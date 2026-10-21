@@ -38,7 +38,43 @@ def needs_row(e: StageElement) -> bool:
 
 
 def background_key(v: Visual) -> str:
+    """The scene's set: a built-in name, an image path, or `bd-<hash>` for a backdrop (equal
+    backdrops share a key, so consecutive scenes on one carry the set across the cut)."""
+    if v.backdrop:
+        return "bd-" + hashlib.sha256(v.backdrop.model_dump_json().encode()).hexdigest()[:10]
     return v.background or cfg("default_background")
+
+
+def backdrop_settings(v: Visual) -> dict:
+    """A backdrop's look: klip.yaml stage.backdrop.<kind>, with the spec's dim/blur/tone on top."""
+    b = v.backdrop
+    d = dict(cfg(f"backdrop.{b.kind}") or {})
+    for k in ("dim", "blur", "tone"):
+        if getattr(b, k) is not None:
+            d[k] = getattr(b, k)
+    return d
+
+
+def backdrop_needs_file(v: Visual) -> bool:
+    return bool(v.backdrop) and v.backdrop.kind in ("photo", "screenshot")
+
+
+_SIGNED = re.compile(r"(^|\s)([+\-−])\s?\d")
+
+
+def board_rows(items: list[str], cols: int, n_rows: int, offset: int = 0) -> list[list[dict]]:
+    """Cells for a board backdrop: the items repeated row by row (shifted per row so columns don't
+    line up into stripes), each coloured by the sign of its number."""
+    out = []
+    for r in range(n_rows):
+        k = offset + r * (cols + 1) + r * r              # a growing skip, so rows rarely line up
+        row = []
+        for c in range(cols):
+            text = items[(k + c) % len(items)]
+            m = _SIGNED.search(text)
+            row.append({"text": text, "tone": "neutral" if not m else ("up" if m.group(2) == "+" else "down")})
+        out.append(row)
+    return out
 
 
 def is_builtin(bg: str) -> bool:
@@ -54,8 +90,10 @@ def _noise_svg(freq: str, octaves: int = 3) -> str:
     return "data:image/svg+xml," + quote(svg)
 
 
-def tone(bg: str) -> str:
+def tone(bg: str, v: Visual | None = None) -> str:
     """'light' or 'dark' surface: picks title, tag and shadow colours (image backgrounds count as dark)."""
+    if v is not None and v.backdrop:
+        return backdrop_settings(v).get("tone", "dark")
     return (cfg("backgrounds").get(bg) or {}).get("tone", "dark")
 
 
@@ -147,14 +185,14 @@ def step_times(e: StageElement, start: float, end: float, words: list[dict]) -> 
 def tilt(scene_id: str, i: int, kind: str) -> float:
     h = int(hashlib.sha256(f"{scene_id}:{i}".encode()).hexdigest()[:8], 16) / 0xFFFFFFFF
     damp = {"number": 0.5, "label": 0.6, "bar": 0.3, "highlight": 0.0, "stamp": 0.0, "chart": 0.0, "unit": 0.0,
-            "news": 0.3, "screenshot": 0.2, "person": 0.5, "logo": 0.4,
+            "news": 0.3, "notif": 0.0, "screenshot": 0.2, "person": 0.5, "logo": 0.4,
             **{k: 0.0 for k in COMPONENTS}}.get(kind, 1.0)
     if kind == "stamp":
         return -7.0 if h < 0.5 else 6.0
     return round((h * 2 - 1) * float(cfg("tilt_deg")) * damp, 2)
 
 
-BIG = ("cutout", "photo", "bar", "chart", "unit", "person", "news", "logo", "screenshot", *COMPONENTS)   # can be a hero
+BIG = ("cutout", "photo", "bar", "chart", "unit", "person", "news", "notif", "logo", "screenshot", *COMPONENTS)   # can be a hero
 
 
 def composition(elements: list[StageElement], placed: list[int]) -> str:
@@ -175,6 +213,9 @@ def assign_places(elements: list[StageElement], page: list[int]) -> dict[int, tu
     """(x share, y share, size, slot) per element on one page: explicit `pos` first, the rest from the
     page's composition, in order. A `pos` takes the composition place nearest to it out of the pool."""
     placed = [i for i in page if elements[i].kind != "highlight"]
+    if placed and all(elements[i].kind == "notif" for i in placed):     # notifications stack down the screen
+        n = len(placed)
+        return {i: (0.5, (k + 0.5) / n, "l", _slot(0.5, (k + 0.5) / n)) for k, i in enumerate(placed)}
     places = [tuple(p) for p in cfg("compositions")[composition(elements, placed)]]
     placed.sort(key=lambda i: elements[i].kind not in BIG)      # the one big prop takes the hero place
     cols, rows = cfg("columns"), cfg("rows")
@@ -214,6 +255,9 @@ def box_size(e: StageElement, size: str, media: dict | None) -> tuple[float, flo
         return min(bw, h / a), min(bw, h / a) * a
     if e.kind == "news":
         return bw, bw * float(cfg("news.aspect"))
+    if e.kind == "notif":                       # a phone notification spans the screen's width
+        w = float(cfg("components.width")["l"])
+        return w, w * float(cfg("notif.aspect")) * (1.0 if e.stat else 0.62)    # no amount: a short card
     if e.kind == "logo":
         iw, ih = (media or {}).get("w") or 2, (media or {}).get("h") or 1
         s = min(bw * 0.8 / iw, bh * 0.45 / ih)
@@ -419,7 +463,7 @@ def unit_grid(total: int, filled: int, w: float, h: float) -> dict:
 # ---- motion (after compose has linked the stage scenes, so every exit time is known)
 
 FLOAT_GROUP = {"cutout": "media", "photo": "media", "person": "media", "logo": "media", "icon": "icon", "stack": "icon",
-               "label": "tag", "number": "tag", "news": "data", "screenshot": "data", "chart": "data",
+               "label": "tag", "number": "tag", "news": "data", "notif": "data", "screenshot": "data", "chart": "data",
                "bar": "data", "unit": "data", **{k: "data" for k in COMPONENTS}}
 _COUNT = re.compile(r"^([^\d]*?)(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d+))?([^\d]*)$")
 
@@ -491,6 +535,8 @@ def add_motion(scene: dict) -> None:
         r = _h(scene["id"], e["i"], "enter")
         if e["kind"] == "cutout":
             e["enter"] = "slide" if e["col"] in ("l", "r") and r < 0.5 else "drop"
+        elif e["kind"] == "notif":                    # slides down like a phone notification
+            e["enter"] = "notify"
         elif e["kind"] in ("photo", "person", "logo", "screenshot", "news"):
             e["enter"] = "slide" if e["col"] in ("l", "r") and r < 0.4 else "toss"
         else:

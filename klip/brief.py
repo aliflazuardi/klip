@@ -24,6 +24,7 @@ KIND_HINT = {
     "photo": "foto utuh, dibingkai seperti polaroid (boleh landscape)",
     "person": "potret wajah orangnya (kartu tokoh)",
     "logo": "logo resmi, sebaiknya PNG transparan",
+    "backdrop": "foto latar satu layar penuh (tegak lebih baik): tempat atau permukaan, tanpa objek utama di tengah",
 }
 
 
@@ -53,6 +54,22 @@ def find_own(folder: Path, scene_id: str, i: int) -> Path | None:
     hits = sorted(p for p in folder.iterdir() if p.suffix.lower() in EXTS and
                   (p.stem.lower() == f"{scene_id}-{n}".lower() or p.stem.lower().startswith(f"{scene_id}-{n}-".lower())))
     return hits[0] if hits else None
+
+
+def find_own_backdrop(folder: Path, scene_id: str) -> Path | None:
+    """The user's backdrop photo for a scene: <scene>-bg.<ext> or <scene>-bg-<anything>.<ext>."""
+    if not folder.is_dir():
+        return None
+    hits = sorted(p for p in folder.iterdir() if p.suffix.lower() in EXTS and
+                  (p.stem.lower() == f"{scene_id}-bg".lower() or p.stem.lower().startswith(f"{scene_id}-bg-".lower())))
+    return hits[0] if hits else None
+
+
+def own_backdrops(spec: Spec) -> dict[str, Path]:
+    """{scene id: file} for photo backdrops the user put in the spec's photo folder."""
+    folder = photo_dir(spec)
+    return {s.id: f for s in spec.scenes if s.visual.type == "stage" and s.visual.backdrop
+            and s.visual.backdrop.kind == "photo" and (f := find_own_backdrop(folder, s.id))}
 
 
 def own_photos(spec: Spec) -> dict[str, dict[int, Path]]:
@@ -91,6 +108,20 @@ def items(spec: Spec, scenes: dict, vision_ok: bool) -> list[dict]:
     for s in spec.scenes:
         if s.visual.type != "stage":
             continue
+        b = s.visual.backdrop
+        if b and b.kind == "photo":
+            r = (scenes.get(s.id) or {}).get("backdrop")
+            origin = (r or {}).get("origin")
+            score = (r or {}).get("vision_score")
+            status = ("provided" if origin in ("own", "path") else "missing" if not r else
+                      "ok" if origin != "stock" else
+                      "weak" if score is not None and score < below else "unchecked" if score is None else "ok")
+            cr = (r or {}).get("credit") or {}
+            out.append({"scene": s.id, "el": "bg", "n": "bg", "at": "latar", "kind": "backdrop", "status": status,
+                        "want": b.brief or b.query or b.who or "", "query": b.query or b.who or "", "label": None,
+                        "fallback_icon": None, "file": f"{s.id}-bg", "context": s.narration[:140],
+                        "vision_score": score, "current": cr.get("page_url") or (r or {}).get("src"),
+                        "current_by": f"{cr.get('provider', '')} {cr.get('creator', '')}".strip() or None})
         rows = {r["el"]: r for r in (scenes.get(s.id) or {}).get("stage", [])}
         for i, e in enumerate(s.visual.elements):
             if e.kind not in MEDIA:
@@ -142,6 +173,7 @@ def markdown(spec: Spec, rows: list[dict], folder: Path) -> str:
 
     def block(k: int, r: dict) -> list[str]:
         now = {"missing": (f"belum ada foto, sementara ikon `{r['fallback_icon']}`" if r["fallback_icon"]
+                           else "belum ada foto, latar polos dipakai" if r["kind"] == "backdrop"
                            else "belum ada foto, prop ini dilewati"),
                "own": "foto stock sementara" + (f" ({r['current_by']}: {r['current']})" if r["current"] else ""),
                "weak": f"foto stock, cocoknya {r['vision_score'] if r['vision_score'] is not None else '?'}/3"

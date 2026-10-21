@@ -300,6 +300,7 @@ def vision_review(spec: Spec, plans: dict[str, list[Pool]], project_dir: Path, w
     scenes = {s.id: s for s in spec.scenes}
     props = {prop_key(s.id, i): (s, e) for s in spec.scenes if s.visual.type == "stage"
              for i, e in enumerate(s.visual.elements)}
+    backs = {backdrop_key(s.id): s for s in spec.scenes if s.visual.type == "stage" and s.visual.backdrop}
     order: dict[str, list[str]] = {}     # scene → candidate keys in sheet order
     sheets = []
     sheet_dir = project_dir / "vision"
@@ -307,7 +308,7 @@ def vision_review(spec: Spec, plans: dict[str, list[Pool]], project_dir: Path, w
     photo_slots = int(cfg.get("photo_slots", 3))
     for sid, pools in plans.items():
         seen: list[Candidate] = []
-        n_max = int(cfg.get("candidates_per_prop", 6)) if sid in props else max_c
+        n_max = int(cfg.get("candidates_per_prop", 6)) if sid in props or sid in backs else max_c
         # interleave the pools so every query is represented; reserve some slots for photos
         for kind, cap in (("video", n_max - photo_slots), ("photo", n_max)):
             kp = [c for _, _, c in pools if c and c[0].kind == kind]
@@ -323,6 +324,12 @@ def vision_review(spec: Spec, plans: dict[str, list[Pool]], project_dir: Path, w
             sc, e = props[sid]
             prop = f"{e.kind}, pops in on the word {e.at!r}" + (f", labelled {e.label!r}" if e.label else "")
             sheets.append(SceneSheet(sid, sc.narration, sc.on_screen_text or "", e.query, sheet, len(seen), prop))
+        elif sid in backs:
+            sc = backs[sid]
+            prop = ("full-screen backdrop behind the props (a place or surface, darkened; it should set the scene, "
+                    "with no strong subject or text of its own)")
+            sheets.append(SceneSheet(sid, sc.narration, sc.on_screen_text or "", sc.visual.backdrop.query, sheet,
+                                     len(seen), prop))
         else:
             sc = scenes[sid]
             sheets.append(SceneSheet(sid, sc.narration, sc.on_screen_text or "", " | ".join(queries_for(sc)),
@@ -331,7 +338,8 @@ def vision_review(spec: Spec, plans: dict[str, list[Pool]], project_dir: Path, w
     def without_extras(pools: list[Pool]) -> list[Pool]:
         return [(q, p, [c for c in cands if not getattr(c, "vision_only", False)]) for q, p, cands in pools]
 
-    report = {"scenes": sum(s.id not in props for s in sheets), "props": sum(s.id in props for s in sheets),
+    report = {"scenes": sum(s.id not in props and s.id not in backs for s in sheets),
+              "props": sum(s.id in props or s.id in backs for s in sheets),
               "kept": 0, "rejected": 0, "ok": False}
     if not sheets:
         return {sid: without_extras(p) for sid, p in plans.items()}, report
@@ -361,7 +369,7 @@ def vision_review(spec: Spec, plans: dict[str, list[Pool]], project_dir: Path, w
             for c in cands:
                 if c.key in rating:
                     c.vision_score = rating[c.key]   # type: ignore[attr-defined]
-        if sid in props:
+        if sid in props or sid in backs:
             first = {}
             for q, p, cands in pools:
                 for c in cands:
@@ -402,31 +410,115 @@ def _stage_source(scene: Scene, i: int, e, used: set[str], warnings: list[str]) 
         if e.kind == "screenshot":
             path = screenshot.capture(e.url, e.wayback, e.selector)
             return {"el": i, "src": str(path), "credit": screenshot.credit(e.url, e.wayback), "query": None}
-        c = wikimedia.lookup(e.who, logo=e.kind == "logo")
     except (chartdata.DataError, screenshot.ScreenshotError, http.HTTPError) as err:
         warnings.append(f"{scene.id}: stage element at {e.at!r}: {err}; it is left out")
         return None
+    if got := _wiki_image(scene, e.who, e.kind == "logo", used, warnings):
+        log.info("assets: %s el %d ← wikimedia %s", scene.id, i, got["credit"].get("id"))
+        return {"el": i, **got}
+    return None
+
+
+def _wiki_image(scene: Scene, who: str, logo: bool, used: set[str], warnings: list[str]) -> dict | None:
+    """{src, credit, query} for a Wikipedia article's lead image (or logo); None with a warning."""
+    try:
+        c = wikimedia.lookup(who, logo=logo)
+    except http.HTTPError as err:
+        warnings.append(f"{scene.id}: {who!r}: {err}; it is left out")
+        return None
     if not c:
-        warnings.append(f"{scene.id}: no Wikipedia {'logo' if e.kind == 'logo' else 'image'} for {e.who!r} "
+        warnings.append(f"{scene.id}: no Wikipedia {'logo' if logo else 'image'} for {who!r} "
                         f"(check the article title); it is left out")
         return None
-    if c.nonfree and not (e.kind == "logo" and config.get("wikimedia.allow_nonfree_logos")):
-        warnings.append(f"{scene.id}: the Wikipedia image for {e.who!r} is non-free ({c.license}); it is left out")
+    if c.nonfree and not (logo and config.get("wikimedia.allow_nonfree_logos")):
+        warnings.append(f"{scene.id}: the Wikipedia image for {who!r} is non-free ({c.license}); it is left out")
         return None
     if c.key in used:
-        warnings.append(f"{scene.id}: the image for {e.who!r} is already used in this video; it is left out")
+        warnings.append(f"{scene.id}: the image for {who!r} is already used in this video; it is left out")
         return None
     try:
         path = wikimedia.fetch(c)
     except http.HTTPError as err:
-        warnings.append(f"{scene.id}: {e.who!r}: {err}; it is left out")
+        warnings.append(f"{scene.id}: {who!r}: {err}; it is left out")
         return None
     used.add(c.key)
     if c.nonfree:
-        warnings.append(f"{scene.id}: the {e.who!r} logo is non-free on Wikipedia (fair use): fine for commentary, "
+        warnings.append(f"{scene.id}: the {who!r} logo is non-free on Wikipedia (fair use): fine for commentary, "
                         f"credited in post.txt")
-    log.info("assets: %s el %d ← wikimedia %s", scene.id, i, c.id)
-    return {"el": i, "src": str(path), "credit": c.credit(), "query": None}
+    return {"src": str(path), "credit": c.credit(), "query": None}
+
+
+def backdrop_key(scene_id: str) -> str:
+    """Plan/sheet id of a stage scene's photo backdrop."""
+    return f"{scene_id}-bg"
+
+
+def backdrop_queries(b) -> list[str]:
+    """Searches for a photo backdrop: '<query> background' first (stock tags sets that way), then plain."""
+    suffix = (config.get("stage.backdrop.query_suffix") or "").strip()
+    return [f"{b.query} {suffix}", b.query] if suffix else [b.query]
+
+
+def backdrop_pools(scene: Scene, used: set[str], providers: list[MediaProvider], warnings: list[str],
+                   extra: int = 0) -> list[Pool]:
+    """Candidates for a scene's photo backdrop (like prop_pools: every provider, any orientation,
+    until stage.photos.enough relevant photos; relevance gated on the plain query)."""
+    b = scene.visual.backdrop
+    per, enough = int(config.get("stage.photos.per_provider", 4)), int(config.get("stage.photos.enough", 8))
+    pools, seen = [], set()
+    for q in backdrop_queries(b):
+        for p in providers:
+            if found := _ranked(scene, p, q, "photo", 3.0, used, warnings, extra, gate=b.query, shape="any"):
+                pools.append((q, p, found[:per + extra]))
+                seen |= {c.key for c in found[:per] if not getattr(c, "vision_only", False)}
+            if len(seen) >= enough:
+                return pools
+    return pools
+
+
+def backdrop_searched(scene: Scene, own: Path | None) -> bool:
+    b = scene.visual.backdrop
+    return bool(b) and b.kind == "photo" and bool(b.query) and not (b.path or b.who or own)
+
+
+def fetch_backdrop(scene: Scene, used: set[str], providers: list[MediaProvider], warnings: list[str],
+                   plans: dict[str, list[Pool]] | None = None, own: Path | None = None) -> dict | None:
+    """The file behind a photo/screenshot backdrop: `path`, your file in the photo folder
+    (<scene>-bg.jpg), a Wikipedia image (`who`), a page capture, or the best stock photo. None (with
+    a warning) when it can't be had; the scene then falls back to stage.default_background."""
+    b = scene.visual.backdrop
+    if not b or b.kind not in ("photo", "screenshot"):
+        return None
+    if b.path or own:
+        c = candidate_for_file(_local_path(scene, b.path) if b.path else own)
+        return {"src": c.local_path, "credit": c.credit(), "query": None, "origin": "path" if b.path else "own"}
+    if b.kind == "screenshot":
+        try:
+            path = screenshot.capture(b.url, b.wayback, None)
+        except screenshot.ScreenshotError as err:
+            warnings.append(f"{scene.id}: backdrop page {b.url!r}: {err}; using the default background")
+            return None
+        return {"src": str(path), "credit": screenshot.credit(b.url, b.wayback), "query": None, "origin": "screenshot"}
+    if b.who:
+        got = _wiki_image(scene, b.who, False, used, warnings)
+        return {**got, "origin": "who"} if got else None
+    got = None
+    if plans is not None and (key := backdrop_key(scene.id)) in plans:
+        failures: dict[str, int] = {}
+        got = next((g for q, p, cands in plans[key]
+                    if (g := _take(scene, q, p, list(cands), used, warnings, failures))), None)
+    else:
+        for q, p, cands in backdrop_pools(scene, used, providers, warnings):
+            if got := _take(scene, q, p, list(cands), used, warnings, {}):
+                break
+    if not got:
+        warnings.append(f"{scene.id}: no photo for the backdrop ({b.query!r}); using the default background")
+        return None
+    c, path, q = got
+    log.info("assets: %s backdrop ← %s photo %s", scene.id, c.provider, c.id)
+    return {"src": str(path), "credit": c.credit(), "query": q, "origin": "stock",
+            "vision_rescued": bool(getattr(c, "vision_only", False)),
+            "vision_score": getattr(c, "vision_score", None)}
 
 
 def fetch_stage(scene: Scene, used: set[str], providers: list[MediaProvider], warnings: list[str],
@@ -476,6 +568,7 @@ def fetch(spec: Spec, project_dir: Path, providers: list[MediaProvider] | None =
     props = props if props is not None else providers if providers is not None else prop_providers()
     providers = providers if providers is not None else default_providers()
     own = brief.own_photos(spec)
+    own_bd = brief.own_backdrops(spec)
     http.stats.reset()
     rate = spec.speech_rate or config.default_rate(spec.voice)
     used: set[str] = set()
@@ -496,6 +589,9 @@ def fetch(spec: Spec, project_dir: Path, providers: list[MediaProvider] | None =
         if v.type == "stage":
             if use_vision:
                 plans.update(stage_pools(scene, used, props, warnings, extra, own.get(scene.id)))
+                if backdrop_searched(scene, own_bd.get(scene.id)) and \
+                        (pools := backdrop_pools(scene, used, props, warnings, extra)):
+                    plans[backdrop_key(scene.id)] = pools
             continue
         if v.type in ("local", "icon", "solid"):
             continue
@@ -532,6 +628,9 @@ def fetch(spec: Spec, project_dir: Path, providers: list[MediaProvider] | None =
         if v.type == "stage":
             scenes[scene.id] = {"kind": None, "stage": fetch_stage(scene, used, props, warnings,
                                                                    plans if use_vision else None, own.get(scene.id))}
+            if bd := fetch_backdrop(scene, used, props, warnings, plans if use_vision else None,
+                                    own_bd.get(scene.id)):
+                scenes[scene.id]["backdrop"] = bd
             continue
         n, est = wanted[scene.id]
         if v.beats:
@@ -554,7 +653,7 @@ def fetch(spec: Spec, project_dir: Path, providers: list[MediaProvider] | None =
               "photo_brief": brief.write(spec, scenes, project_dir, bool(vision_report and vision_report.get("ok")))}
     (project_dir / "assets.fetch.json").write_text(json.dumps(result, indent=2, ensure_ascii=False))
     credits = [{"scene": sid, **clip["credit"]} for sid, sc in scenes.items()
-               for clip in [*sc.get("clips", []), *sc.get("stage", [])]
+               for clip in [*sc.get("clips", []), *sc.get("stage", []), *([sc["backdrop"]] if sc.get("backdrop") else [])]
                if clip.get("credit") and clip["credit"]["provider"] != "local"]
     (project_dir / "credits.json").write_text(json.dumps(credits, indent=2, ensure_ascii=False))
     for w in warnings:
@@ -673,6 +772,26 @@ def prepare_stage(sid: str, visual: Visual, rows: list[dict], media_dir: Path, p
     return out
 
 
+def prepare_backdrop(sid: str, visual: Visual, row: dict, media_dir: Path, project_dir: Path) -> dict:
+    """A photo/screenshot backdrop cropped to cover stage.backdrop.size, with its blur baked in
+    (cheaper than a CSS filter on every rendered frame)."""
+    from PIL import Image, ImageFilter, ImageOps
+    w, h = (int(x) for x in config.get("stage.backdrop.size"))
+    blur = float(stage_mod.backdrop_settings(visual).get("blur") or 0)
+    with Image.open(row["src"]) as im:
+        im = ImageOps.exif_transpose(im).convert("RGB")
+        if visual.backdrop.kind == "screenshot":      # a page: keep its top (the logo, the headline)
+            im = ImageOps.fit(im, (w, h), Image.LANCZOS, centering=(0.5, 0.0))
+        else:
+            im = ImageOps.fit(im, (w, h), Image.LANCZOS)
+        if blur:
+            im = im.filter(ImageFilter.GaussianBlur(blur))
+        dst = media_dir / f"{sid}_backdrop.jpg"
+        im.save(dst, quality=88)
+    cr = row.get("credit") or {}
+    return {"file": str(dst.relative_to(project_dir)), "source": f"{cr.get('provider')}:{cr.get('id') or row['src']}"}
+
+
 def prepare(spec: Spec, project_dir: Path) -> dict:
     fetched = json.loads((project_dir / "assets.fetch.json").read_text())
     timeline = json.loads((project_dir / "timeline.json").read_text())
@@ -690,6 +809,8 @@ def prepare(spec: Spec, project_dir: Path) -> dict:
         if a.get("stage") is not None:
             out[sid] = {"kind": None, "stage": prepare_stage(sid, visuals[sid], a["stage"], media_dir, project_dir,
                                                              warnings)}
+            if a.get("backdrop"):
+                out[sid]["backdrop"] = prepare_backdrop(sid, visuals[sid], a["backdrop"], media_dir, project_dir)
             continue
         if not a.get("kind"):
             out[sid] = {"kind": None, "fallback": a.get("fallback")}

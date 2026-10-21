@@ -1,0 +1,203 @@
+{
+  "version": 1,
+  "slug": "backdrops",
+  "voice": "female",
+  "target_duration_s": 35,
+  "look": "stage",
+  "progress_bar": false,
+  "facts": [
+    {
+      "claim": "Kaskus didirikan pada 6 November 1999",
+      "source": "https://id.wikipedia.org/wiki/Kaskus"
+    },
+    {
+      "claim": "Bukalapak mencatatkan saham BUKA di Bursa Efek Indonesia pada Agustus 2021, harga IPO Rp850 per saham",
+      "source": "https://id.wikipedia.org/wiki/Bukalapak"
+    }
+  ],
+  "scenes": [
+    {
+      "id": "s1",
+      "template": "hook",
+      "narration": "Dulu, mau belanja apa pun ya harus ke pasar, tawar-menawar langsung sama penjualnya.",
+      "on_screen_text": "Dulu belanja harus ke pasar",
+      "emphasis": [
+        "pasar"
+      ],
+      "visual": {
+        "type": "stage",
+        "backdrop": {
+          "kind": "photo",
+          "query": "traditional market stalls",
+          "brief": "lorong pasar tradisional, pagi"
+        },
+        "elements": [
+          {
+            "at": "belanja",
+            "kind": "cutout",
+            "query": "woven shopping basket",
+            "name": "shopping-basket",
+            "brief": "keranjang belanja anyaman"
+          },
+          {
+            "at": "tawar-menawar",
+            "kind": "label",
+            "text": "Tawar-menawar"
+          }
+        ]
+      }
+    },
+    {
+      "id": "s2",
+      "template": "explain",
+      "narration": "Lalu forum seperti Kaskus, yang lahir tahun 1999, jadi tempat jual beli online pertama buat banyak orang.",
+      "on_screen_text": "Jual beli pindah ke forum",
+      "emphasis": [
+        "forum"
+      ],
+      "visual": {
+        "type": "stage",
+        "backdrop": {
+          "kind": "screenshot",
+          "url": "https://www.kaskus.co.id",
+          "wayback": "2010"
+        },
+        "elements": [
+          {
+            "at": "forum",
+            "kind": "label",
+            "text": "Forum"
+          },
+          {
+            "at": "1999",
+            "kind": "number",
+            "text": "1999"
+          },
+          {
+            "at": "jual",
+            "kind": "stamp",
+            "text": "FJB"
+          },
+          {
+            "at": "pertama",
+            "kind": "label",
+            "text": "Online pertama"
+          }
+        ]
+      }
+    },
+    {
+      "id": "s3",
+      "template": "explain",
+      "narration": "Tahun 2021, Bukalapak bahkan melantai di bursa, dengan harga perdana delapan ratus lima puluh rupiah per saham.",
+      "on_screen_text": "Bukalapak masuk bursa",
+      "emphasis": [
+        "bursa"
+      ],
+      "visual": {
+        "type": "stage",
+        "backdrop": {
+          "kind": "board",
+          "title": "IDX · Agustus 2021",
+          "items": [
+            "BUKA",
+            "BBCA",
+            "TLKM",
+            "ASII",
+            "BBRI",
+            "BMRI",
+            "UNVR",
+            "ICBP"
+          ]
+        },
+        "elements": [
+          {
+            "at": "Bukalapak",
+            "kind": "logo",
+            "who": "Bukalapak"
+          },
+          {
+            "at": "bursa",
+            "kind": "label",
+            "text": "IPO"
+          },
+          {
+            "at": "delapan",
+            "kind": "number",
+            "text": "Rp850",
+            "clear": true
+          },
+          {
+            "at": "saham",
+            "kind": "label",
+            "text": "per saham"
+          }
+        ]
+      }
+    },
+    {
+      "id": "s4",
+      "template": "explain",
+      "narration": "Sekarang, belanja cukup dari HP. Notifikasi paket datang, saldo terpotong, semua dalam hitungan detik.",
+      "on_screen_text": "Sekarang cukup dari HP",
+      "emphasis": [
+        "HP"
+      ],
+      "visual": {
+        "type": "stage",
+        "backdrop": {
+          "kind": "phone",
+          "title": "Hari ini"
+        },
+        "elements": [
+          {
+            "at": "Sekarang",
+            "kind": "notif",
+            "outlet": "Toko online",
+            "date": "09.40",
+            "text": "Flash sale dimulai!"
+          },
+          {
+            "at": "paket",
+            "kind": "notif",
+            "outlet": "Kurir",
+            "date": "09.41",
+            "text": "Paket kamu sedang dikirim"
+          },
+          {
+            "at": "saldo",
+            "kind": "notif",
+            "outlet": "m-banking",
+            "date": "09.42",
+            "text": "Pembayaran berhasil",
+            "stat": "Rp150.000",
+            "clear": true
+          },
+          {
+            "at": "detik",
+            "kind": "stamp",
+            "text": "BERES"
+          }
+        ]
+      }
+    },
+    {
+      "id": "s5",
+      "template": "cta",
+      "narration": "Kamu masih suka belanja ke pasar? Tulis di komentar.",
+      "on_screen_text": "Masih suka ke pasar?",
+      "cta_type": "comment",
+      "visual": {
+        "type": "icon",
+        "name": "message-circle"
+      }
+    }
+  ],
+  "post": {
+    "caption": "Dari pasar, forum, sampai notifikasi HP: belanja kita berubah cepat.",
+    "hashtags": [
+      "#belanjaonline",
+      "#sejarah"
+    ]
+  }
+}

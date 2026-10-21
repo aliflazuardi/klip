@@ -201,6 +201,8 @@ def _stage_ctx(scene: Scene, t: dict, words: list[dict], media: dict, style: dic
             el["fs"] = round(min(34.0, b["w"] * 0.055), 1)
         elif e.kind == "news":
             el.update(fs=round(b["w"] * 0.07, 1), outlet=e.outlet, date=e.date)
+        elif e.kind == "notif":
+            el.update(fs=round(b["w"] * 0.045, 1), outlet=e.outlet, date=e.date, stat=e.stat)
         elif e.kind in COMPONENTS:
             end = exits.get(i) or (t["start_ms"] + t["duration_ms"]) / 1000
             st_times = stage_mod.step_times(e, times[i], end, words)
@@ -233,17 +235,47 @@ def _stage_ctx(scene: Scene, t: dict, words: list[dict], media: dict, style: dic
         if e.label and e.kind in ("cutout", "photo", "icon", "logo", "screenshot"):
             el["label_font"] = c["label_px"]["s" if b["size"] == "s" else "m"]
         out.append(el)
-    image = None
-    if not stage_mod.is_builtin(bg):
+    image, backdrop = None, None
+    if v.backdrop:
+        backdrop = _backdrop_ctx(scene, media, warnings)
+        if backdrop is None:                  # its photo/page couldn't be had: the default set
+            bg = config.get("stage.default_background")
+        elif backdrop.get("image"):
+            image = backdrop["image"]
+    elif not stage_mod.is_builtin(bg):
         path = ROOT / bg
         if not path.is_file():
             raise ComposeError(f"{scene.id}: stage background {bg!r} is neither a built-in "
                                f"({', '.join(config.get('stage.backgrounds'))}) nor an image file")
         image = {"src": f"stage/{path.name}", "path": str(path)}
-    tone = stage_mod.tone(bg)
-    return {"bg": bg, "builtin": stage_mod.is_builtin(bg), "image": image, "elements": out, "tone": tone, "area": area,
+    tone = stage_mod.tone(bg, v if backdrop else None)
+    title_style = (backdrop or {}).get("title") or config.get("stage.title.style")
+    return {"bg": bg, "builtin": stage_mod.is_builtin(bg), "image": image, "backdrop": backdrop, "elements": out,
+            "tone": tone, "area": area, "title_style": title_style,
             "title": _headline(scene.on_screen_text, scene.emphasis), "list_no": list_no,
             "hook": scene.template == "hook", "continues": False, "next_same": False, "bg_from": 0.0, "bg_to": 0.0}
+
+
+def _backdrop_ctx(scene: Scene, media: dict, warnings: list[str]) -> dict | None:
+    """Template context for a scene's backdrop: kind, darkening, tint, title style, and the prepared
+    image (photo/screenshot), the board's cells or the phone's header. None when its file is missing."""
+    v = scene.visual
+    b = v.backdrop
+    d = stage_mod.backdrop_settings(v)
+    out = {"kind": b.kind, "dim": float(d.get("dim") or 0), "tint": b.tint, "title": d.get("title"),
+           "header": b.title, "cfg": d}
+    if b.kind in ("photo", "screenshot"):
+        row = media.get("backdrop")
+        if not row:
+            warnings.append(f"{scene.id}: no {b.kind} for the backdrop; using the default background")
+            return None
+        out["image"] = {"src": row["file"].replace("\\", "/"), "path": None}
+    elif b.kind == "board":
+        w, h = (int(x) for x in config.get("stage.backdrop.size"))
+        n_rows = int(h // float(d["row_px"])) + 1
+        out["rows"] = stage_mod.board_rows(b.items, int(d["cols"]), n_rows,
+                                           int(hashlib.sha256(scene.id.encode()).hexdigest()[:4], 16) % len(b.items))
+    return out
 
 
 def stage_title_bottom(scene: Scene) -> float:
@@ -253,9 +285,13 @@ def stage_title_bottom(scene: Scene) -> float:
     text = (scene.on_screen_text or "") + (" 1/3 " if scene.template == "list_item" else "")
     if not text.strip():
         return t["top"]
-    width = 900 if t["style"] == "plain" else 840
-    lines = max(1, -(-len(text) * 0.56 * font // width))    # ~0.56 em per character
-    return t["top"] + lines * font * 1.1 + (8 if t["style"] == "plain" else 28)
+    style = t["style"]
+    if scene.visual.type == "stage" and scene.visual.backdrop:
+        style = stage_mod.backdrop_settings(scene.visual).get("title") or style
+    width = 900 if style in ("plain", "box") else 840
+    per_char = 0.68 if style == "box" else 0.56       # ~em per character (box is all caps)
+    lines = max(1, -(-len(text) * per_char * font // width))
+    return t["top"] + lines * font * (1.28 if style == "box" else 1.1) + (8 if style == "plain" else 28)
 
 
 def caption_style(style: dict, stage: bool) -> dict:
@@ -640,7 +676,8 @@ def run(spec: Spec, project_dir: Path) -> dict:
         st = s.get("stage") or {}
         files = [(project_dir / e["src"], out / e["src"]) for e in st.get("elements", []) if e.get("src")]
         if st.get("image"):
-            files.append((Path(st["image"]["path"]), out / st["image"]["src"]))
+            src = Path(st["image"]["path"]) if st["image"]["path"] else project_dir / st["image"]["src"]
+            files.append((src, out / st["image"]["src"]))
         for src, dst in files:
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(src, dst)

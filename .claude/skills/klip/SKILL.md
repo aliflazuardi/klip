@@ -71,8 +71,9 @@ re-render; unchanged stages are cached. Tell the user about any check you couldn
     captioned (its text is already on screen) unless `outro.captions` is on.
 - Look: `"look": "stage"` (set when the user asks for it, or `klip new --stage`) means the
   illustrated explainer look for the whole video: use `visual.type: "stage"` for at least 70%
-  (klip.yaml `stage.look_min_share`) of the hook/explain/list_item scenes, keep them on one
-  background so the stage carries across cuts, and keep stock footage for the few moments a real
+  (klip.yaml `stage.look_min_share`) of the hook/explain/list_item scenes, keep the scenes of one
+  beat on one set so the stage carries across cuts (switch sets with a `backdrop` when the story
+  moves to a place, a page, the market or a phone), and keep stock footage for the few moments a real
   shot says it better (often the hook). `stat`, `myth_fact`, `compare` and `cta` scenes keep their
   own cards. `validate` errors if the share is too low. Without `look` (= `"mixed"`), pick per scene.
 - Style: leave `"style"` unset (default) unless the user names one or CLAUDE.md / CLAUDE.local.md
@@ -106,7 +107,25 @@ re-render; unchanged stages are cached. Tell the user about any check you couldn
     `background` on which `elements` build up, each popping in on its `at` word and staying.
     Backgrounds: `grid` (dot-grid paper, the default and the calmest), `studio` (a wall over a
     light desk), `spotlight` (a dark desk under a light, for tense or "investigation" beats), the
-    older textured `desk`, `paper`, `kraft`, `board`, or an image path. Use it for scenes about money,
+    older textured `desk`, `paper`, `kraft`, `board`, or an image path.
+    **Backdrops: switch the set with the story** (90secondslab never stays on plain paper: an
+    apothecary shelf for "rokok dijual di apotek", the red IDX board for an MSCI crash, Kaskus 2010
+    for nostalgia, an m-banking screen for KPR instalments, an old map for a card game's history).
+    `"backdrop"` replaces `background` on a stage scene: `{"kind": "photo", "query": "old
+    apothecary shelves"}` (a place or surface, 2–4 English words; or `who` = a Wikipedia article
+    whose lead image is the set: a painting, an old map; or `path`; add `brief` for the photo
+    brief, which asks for `<scene>-bg.jpg`), `{"kind": "screenshot", "url": …, "wayback": "2010"}`
+    (a page filling the frame), `{"kind": "board", "items": ["BBCA -2,1%", "GOTO +4,8%", …],
+    "title": "IDX · 15 Okt 2026"}` (a market/departure board; signed numbers turn green/red; use
+    real codes, and numbers only when they are real figures in `facts`, else codes alone), or
+    `{"kind": "phone", "title": "autodebet · tgl 5 Jan"}` (an app screen; put `notif` elements on
+    it: `outlet` = the app, `text` = the line, `stat` = a big amount, `date` = the corner note;
+    they stack down the screen). Optional `dim` (0–0.9), `blur`, `tint` ("#7A0F14" for a red
+    crash) and `tone`. On photo/page/board sets the title becomes caps in dark boxes with the
+    `emphasis` in an accent box, and the bottom darkens for the captions. Plan 2–4 sets per video,
+    one per beat (consecutive scenes on the same backdrop carry it across the cut); `validate` warns
+    when 5+ stage scenes share one set. Full example: `examples/backdrops.json`.
+    Use stage for scenes about money,
     numbers, causes and effects, or things stock footage shows badly (local food, Indonesian
     institutions). Kinds: `cutout` (`query` = one English object/person, e.g. "soybeans",
     "stressed businessman"; background removed, sticker look), `photo` (photo card), `icon`
@@ -186,8 +205,8 @@ re-render; unchanged stages are cached. Tell the user about any check you couldn
     one photo first become hero + two small; 4–6 shrink to a grid. Aim for 1–3 props per stage
     page and `"clear": true` to start the next page rather than piling up 6 small ones (`pos`
     tl…br only to force a place). Works with `hook`, `explain` and `list_item` (the
-    on_screen_text becomes a left-aligned title with the `emphasis` words marked). Keep consecutive stage scenes on the same
-    background: it stays on screen and only the props change. Example: narration "Rupiah
+    on_screen_text becomes a left-aligned title with the `emphasis` words marked). Keep consecutive stage scenes of one beat on
+    the same set: it stays on screen and only the props change. Example: narration "Rupiah
     melemah, jadi barang impor mahal: kedelai, pakan ayam, dan BBM" → `{"type": "stage",
     "background": "grid", "elements": [{"at": "Rupiah", "kind": "stack", "name": "coins"},
     {"at": "impor", "kind": "number", "text": "Rp18rb", "tone": "down"}, {"at": "kedelai",

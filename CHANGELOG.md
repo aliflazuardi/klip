@@ -10,6 +10,15 @@ All notable changes to Klip are listed here. The format follows
 
 - A scene's `"mascot"` takes `show` (only these mascots appear, e.g. to introduce one) and `scale`
   (up to 2.2× taller, for a scene about the mascots themselves; the props area makes room).
+- Stage backdrops: a stage scene's `"backdrop"` swaps the plain set for a themed one as the story
+  moves: `photo` (a place or surface from stock, a Wikipedia image such as an old map, or your
+  `<scene>-bg.jpg`), `screenshot` (a web page, also from the Wayback Machine), `board` (a market
+  board whose `+`/`-` cells turn green/red) or `phone` (an app screen). Each takes `dim`, `blur`,
+  `tint` and `tone`; settings live in `klip.yaml` `stage.backdrop`. Busy sets get boxed caps titles
+  (`stage.title.style: box`) and a darker bottom for the captions. Example: `examples/backdrops.json`.
+- `notif` stage element: a phone notification card (app, line, big amount, time) that slides down;
+  several stack down the screen.
+- `validate` suggests switching sets when five or more stage scenes all use one.
 
 ### Fixed
 
