@@ -6,6 +6,8 @@ All notable changes to Klip are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-21
+
 ### Added
 
 - Mascots: a brand pack's `mascot.cast` (folders of pose SVGs) stand above the stage captions,
@@ -80,6 +82,9 @@ All notable changes to Klip are listed here. The format follows
   underline marker, and hidden during pauses.
 - The cta narration is no longer captioned by default (`outro.captions`), so the sign-off doesn't
   appear twice.
+- Stage props search Unsplash, Pexels, Pixabay and Wikimedia Commons (`stage.photos.providers`);
+  Openverse stays for b-roll only (its rate limit stalled prop searches).
+- Renderer: gsap 3.15.0. GitHub Actions: astral-sh/setup-uv 7.
 
 ### Fixed
 
@@ -136,7 +141,8 @@ First public release.
 - `klip.local.yaml` for personal overrides, deep-merged over `klip.yaml`.
 - `klip --version`.
 
-[Unreleased]: https://github.com/aliflazuardi/klip/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/aliflazuardi/klip/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/aliflazuardi/klip/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/aliflazuardi/klip/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/aliflazuardi/klip/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/aliflazuardi/klip/releases/tag/v0.1.0

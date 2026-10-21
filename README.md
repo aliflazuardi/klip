@@ -31,9 +31,16 @@ edge-tts (free), and stock media comes from free sources.
 ## Features
 
 - 7 scene templates (hook, explain, stat, numbered list, myth/fact, compare, CTA) plus
-  illustrated `stage` scenes; TikTok safe-zone layout.
+  illustrated `stage` scenes: cut-out photos, real people, logos, charts from real data, news
+  cards, screenshots, and 8 animated **motion components** (kinetic type, split, flow, meter,
+  cycle, timeline, funnel, reel); TikTok safe-zone layout.
+- **Photo brief:** stage props come from your photo folder first, then Unsplash, Pexels, Pixabay
+  and Wikimedia Commons; `klip photos` lists the props that still want a photo from you.
+- **Mascots** from a brand pack that lip-sync the narration, point at props and react; scenes can
+  alternate female and male narrators, and each mascot speaks its own voice.
 - Word-synced, TikTok-style captions with emphasis words and a pronunciation lexicon.
-- Livelier TTS: per-scene delivery presets (rate / pitch / volume).
+- Natural TTS: edge-tts (free), Gemini or ElevenLabs, whole-script takes with forced alignment,
+  per-scene delivery presets.
 - Stock b-roll from your own library, Pexels, Pixabay and Openverse, with a Claude **vision
   check** that rates candidates against the narration; fast cuts, never repeated footage.
 - Music with ducking, automatic sound effects, -14 LUFS loudness.
@@ -122,7 +129,8 @@ uv run klip batch examples/batch.yaml                           # many videos in
 OpenRouter…) with `llm.provider: openai` and `LLM_BASE_URL` / `LLM_MODEL` in `.env`.
 Add `--stage` for the illustrated [stage look](docs/USAGE.md#the-stage-look-illustrated-explainer) on most scenes.
 
-Other commands: `validate`, `say` (hear a line through the TTS + lexicon), `run <stage>`,
+Other commands: `validate`, `photos` (the photo brief), `say` (hear a line through the TTS +
+lexicon), `ab-voice`, `run <stage>`,
 `voices`, `styles`, `report`, `schema`, `doctor`, `--version`. See `uv run klip --help`.
 
 A 45 s video takes about 2–2.5 minutes on an Apple Silicon laptop, mostly the headless Chrome
