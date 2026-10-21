@@ -491,6 +491,9 @@ tl.set("{{ ms }} .mouth", { opacity: 1 }, {{ b }}); tl.set("{{ ms }} .mouth-open
 {% for t in m.blinks %}
 tl.fromTo("{{ ms }} .eye", { scaleY: 1 }, { scaleY: 0.1, duration: 0.07, yoyo: true, repeat: 1, ease: "none", immediateRender: false }, {{ t }});
 {% endfor %}
+{% if brand.outro and brand.outro.lift is not none %}
+tl.to("{{ ms }}", { y: -{{ mc.outro_lift_px }}, duration: 0.45, ease: "power2.inOut" }, {{ brand.outro.start }});
+{% endif %}
 {% set halves = (total / mc.bob_s) | int %}
 {% if halves >= 2 %}
 tl.fromTo("{{ ms }} .ms-body", { y: 0 }, { y: -{{ mc.bob_px }}, duration: {{ mc.bob_s }}, yoyo: true, repeat: {{ (halves // 2) * 2 - 1 }}, ease: "sine.inOut" }, {{ m.bob_delay }});

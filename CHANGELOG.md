@@ -11,6 +11,13 @@ All notable changes to Klip are listed here. The format follows
 - A scene's `"mascot"` takes `show` (only these mascots appear, e.g. to introduce one) and `scale`
   (up to 2.2× taller, for a scene about the mascots themselves; the props area makes room).
 
+### Fixed
+
+- Gemini TTS waits as long as a rate limit asks (the free tier allows 3 requests a minute, and a
+  dialogue makes one per narrator turn) instead of failing after short retries.
+- The mascots' closing pose waits for a held reaction to finish (Gulung's roll at a "hoaks" stamp
+  was cut short), and the mascots rise when the outro badge slides up under them.
+
 ## [0.3.0] - 2026-10-21
 
 ### Added

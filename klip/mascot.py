@@ -204,7 +204,7 @@ def plan(spec: Spec, scenes: list[dict], words: list[dict], style: dict, caption
             mouth[who] += _flaps(sw, c["mouth"])
         for name, pose in (auto.get("cta") or {}).items():
             if name in events:
-                events[name].append((sc["start"], pose, None))
+                events[name].append((sc["start"], pose, SOFT))
     out = []
     for k, m in enumerate(cast):
         name = m["name"]
@@ -252,10 +252,23 @@ def _merge_spans(spans: list[tuple[float, float]]) -> list[tuple[float, float]]:
     return out
 
 
+SOFT = -1.0     # hold value of an automatic closing pose: it waits for a held reaction to finish
+
+
 def _segments(events: list[tuple[float, str, float | None]], have: set[str]) -> list[dict]:
     """Pose timeline [{t, pose}] from events (t, pose, hold): a held pose returns to netral unless
-    another pose starts first. Unknown poses are skipped (lint reports them)."""
+    another pose starts first; a SOFT pose waits until a held pose before it has ended (so the
+    closing pose doesn't cut a reaction short). Unknown poses are skipped (lint reports them)."""
     evs = sorted((e for e in events if e[1] in have), key=lambda e: e[0])
+    held_until = -1.0
+    shifted = []
+    for t, pose, hold in evs:
+        if hold == SOFT:
+            t, hold = max(t, held_until), None
+        elif hold:
+            held_until = max(held_until, t + hold)
+        shifted.append((t, pose, hold))
+    evs = sorted(shifted, key=lambda e: e[0])
     out = [{"t": 0.0, "pose": "netral"}]
     for i, (t, pose, hold) in enumerate(evs):
         out.append({"t": round(t, 3), "pose": pose})

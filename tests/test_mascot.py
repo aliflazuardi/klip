@@ -135,3 +135,8 @@ def test_scene_shows_some_mascots_bigger():
     cap = comp.caption_style(STYLE, True)["top"]
     assert ctx["scenes"][0]["stage"]["area"][1] <= mascot.top(STYLE, cap, 2) - STYLE["mascot"]["clear_px"]
     assert ctx["scenes"][2]["stage"]["area"][1] > ctx["scenes"][0]["stage"]["area"][1]
+
+
+def test_closing_pose_waits_for_a_held_reaction():
+    segs = mascot._segments([(11.9, "tunjuk", 1.5), (12.2, "netral", mascot.SOFT)], {"netral", "tunjuk"})
+    assert segs == [{"t": 0.0, "pose": "netral"}, {"t": 11.9, "pose": "tunjuk"}, {"t": 13.4, "pose": "netral"}]

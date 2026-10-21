@@ -58,6 +58,7 @@ elevenlabs:
 # text itself is read verbatim.
 gemini_tts:
   model: gemini-3.8-flash-tts
+  max_wait_s: 70                    # on a rate limit (HTTP 429), wait what the API asks, up to this
   style: >-
     Narator video edukasi pendek berbahasa Indonesia untuk TikTok: santai, hangat, penasaran,
     seperti ngobrol dengan teman, tempo agak cepat, logat Jakarta yang netral.
@@ -583,6 +584,7 @@ styles:
       bob_px: 5                     # idle up/down
       bob_s: 1.4                    # half a bob
       enter_s: 0.35
+      outro_lift_px: 80             # rise this far when an outro overlay badge slides up under them
     # "Simpan dulu biar nggak lupa" pill on list videos, shown when list item `at_item` starts
     # (first run of list_item scenes only). A spec can override with "save_nudge": true/false.
     save_nudge:
