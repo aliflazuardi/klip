@@ -134,7 +134,7 @@ renders all of them (`uv run klip preview examples/code-gallery.json`).
 | `three-terrain.html` | Three.js: a wireframe terrain flyover (HUD look) |
 | `three-particles.html` | Three.js: a particle galaxy that gathers into a ring on the key moment |
 | `three-globe.html` | Three.js: a globe turned toward its places, which light up as arcs fly between them |
-| `light-beam.html` | Canvas, cinematic look: a beam strikes the centre of hairline rings on the key word and shoots through; flare, shockwave, dust, HUD brackets and readouts |
+| `light-beam.html` | Canvas, cinematic look: a beam strikes the centre of hairline rings on the key word (`at`) and shoots through, a pulse races out on `out`; flare, shockwave, dust, HUD brackets and readouts |
 
 Card text uses `--k-paper-ink` (the look's ink when it reads on `paper`, else its bg), so the starters
 work on light and dark looks.
