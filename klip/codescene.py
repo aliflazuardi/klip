@@ -174,6 +174,39 @@ def lint_scene(scene: Scene, spec: Spec | None = None) -> list[tuple[str, str]]:
     return out
 
 
+# ---- world: one code layer under a run of code scenes
+
+WORLD_ID = "world"
+
+
+def world_run(spec: Spec) -> list[Scene]:
+    """The consecutive code scenes the world runs under (spec.world.scenes, else every code scene)."""
+    w = spec.world
+    ids = [s.id for s in spec.scenes]
+    picked = w.scenes or [s.id for s in spec.scenes if s.visual.type == "code"]
+    if not picked:
+        raise CodeSceneError("a world needs code scenes to run under")
+    if missing := [i for i in picked if i not in ids]:
+        raise CodeSceneError(f"world.scenes: no scene {', '.join(missing)}")
+    if WORLD_ID in ids:
+        raise CodeSceneError(f"a scene can't be called {WORLD_ID!r} when the spec has a world")
+    idx = sorted(ids.index(i) for i in picked)
+    if idx != list(range(idx[0], idx[-1] + 1)):
+        raise CodeSceneError("world.scenes must be consecutive scenes")
+    run = [spec.scenes[i] for i in idx]
+    if not_code := [s.id for s in run if s.visual.type != "code"]:
+        raise CodeSceneError(f"world.scenes must be code scenes ({', '.join(not_code)} isn't)")
+    return run
+
+
+def world_scene(spec: Spec) -> Scene:
+    """The world as a code scene (for lint and compose): its narration is the whole run's."""
+    w, run = spec.world, world_run(spec)
+    return Scene.model_validate({"id": WORLD_ID, "template": "explain", "narration": " ".join(s.narration for s in run),
+                                 "visual": {"type": "code", "code": {"file": w.file, "assets": w.assets,
+                                                                     "include": w.include, "libs": w.libs}}})
+
+
 # ---- look bible
 
 def look(spec: Spec, style: dict) -> dict:
@@ -259,7 +292,7 @@ def texture_css(name: str, strength: float) -> Markup:
         "riso": f"background-image: url(\"{fine}\"), url(\"{coarse}\"); mix-blend-mode: multiply; "
                 f"filter: sepia(.4) saturate(2); opacity: {min(1, s * 0.8)};",
         "film": f"background-image: radial-gradient(ellipse at 50% 48%, rgba(0,0,0,0) 40%, rgba(0,0,0,.75) 100%), "
-                f"url(\"{fine}\"); background-size: 100% 100%, 600px 1020px; mix-blend-mode: hard-light; "
+                f"url(\"{fine}\"); background-size: 100% 100%, 1200px 2040px; mix-blend-mode: hard-light; "
                 f"opacity: {s};",
     }[name]
     return Markup(css)
@@ -296,6 +329,7 @@ def scene_ctx(scene: Scene, t: dict, words: list[dict], lk: dict, caption_top: f
         "captions": c.captions, "libs": list(c.libs),
         "assets": [{"path": str(ROOT / a), "src": f"code/{sid}/{Path(a).name}"} for a in c.assets],
         "meta": {"id": sid, "start": round(start / 1000, 3), "dur": round(dur / 1000, 3), "words": rel,
+                 "fps": config.get("render.fps", 30),
                  "text": scene.on_screen_text or "", "emphasis": scene.emphasis, "hook": scene.template == "hook", "texture": texture,
                  "safe": safe_area(caption_top)},
     }

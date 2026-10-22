@@ -297,6 +297,7 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; 
 /* Code scenes (visual.type "code"): the scene file's markup over the look's bg, the texture on top */
 .scene.code { background: var(--k-bg); color: var(--k-ink); font-family: var(--k-body); }
 .k-world { position: absolute; inset: 0; }
+.scene.code.on-world { background: transparent; }     /* the world layer shows through */
 .k-tex { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
 .k-tex-hud i { position: absolute; width: 70px; height: 70px; border: 0 solid rgba(255,255,255,.55); }
 .k-tex-hud i:nth-child(1) { left: 40px; top: 160px; border-left-width: 3px; border-top-width: 3px; }
@@ -315,6 +316,7 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; 
 .k-ms .mouth-open { opacity: 0; }
 .k-error { position: absolute; left: 40px; right: 40px; top: 300px; padding: 24px; z-index: 99; background: #D7263D; color: #fff;
            font: 700 34px/1.3 monospace; white-space: pre-wrap; }
+{% if world %}{{ world.css }}{% endif %}
 {% for s in scenes if s.code %}
 {{ s.code.css }}
 {% endfor %}
@@ -407,8 +409,13 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; 
   <img id="{{ m.id }}" class="media clip" src="{{ m.src }}" alt="" data-start="{{ m.start }}" data-duration="{{ m.dur }}" data-track-index="2" />
   {% endif %}
 {% endfor %}{% endfor %}
+{% if world %}
+  <section id="sc-world" class="scene clip code world" data-start="{{ world.meta.start }}" data-duration="{{ world.meta.dur }}" data-track-index="1">
+    <div class="k-world">{{ world.markup }}</div>
+  </section>
+{% endif %}
 {% for s in scenes if not s.hidden %}
-  <section id="sc-{{ s.id }}" class="scene clip{{ ' has-media' if s.media }}{{ (' stage tone-' ~ s.stage.tone) if s.stage }}{{ ' code' if s.code }}" data-start="{{ s.start }}" data-duration="{{ s.dur }}" data-track-index="0"
+  <section id="sc-{{ s.id }}" class="scene clip{{ ' has-media' if s.media }}{{ (' stage tone-' ~ s.stage.tone) if s.stage }}{{ ' code' if s.code }}{{ ' on-world' if s.get('on_world') }}" data-start="{{ s.start }}" data-duration="{{ s.dur }}" data-track-index="0"
            style="--c1: {{ s.c1 }}; --c2: {{ s.c2 }};">
     {% if s.stage %}
     {% include "scenes/stage.html.j2" %}
@@ -489,6 +496,12 @@ function klipCount(sel, from, c, at, dur) {
 {% endif %}
 {% if code %}
 {% include "scenes/code_kit.js.j2" %}
+{% endif %}
+{% if world %}
+// ---- world (one layer under scenes {{ world.meta.scenes | map(attribute="id") | join(", ") }})
+klipScene({{ world.meta | tojson }}, function (k) {
+{{ world.js }}
+});
 {% endif %}
 {% for s in scenes if not s.hidden %}
 // ---- scene {{ s.id }} ({{ s.template }}{{ ', stage' if s.stage }}{{ ', code' if s.code }})

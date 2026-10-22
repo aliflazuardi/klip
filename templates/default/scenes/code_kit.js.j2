@@ -14,7 +14,15 @@ function klipScene(meta, body) {
     id: meta.id, root, tl: sub, dur: meta.dur, W: 1080, H: 1920, words: meta.words, text: meta.text,
     emphasis: meta.emphasis, look: KLIP_LOOK, safe: meta.safe, lib: { THREE: window.THREE },
     // the music's beats in this scene: [{t (scene s), n (beat number in the video), down (bar start), s (0-1 strength)}]
-    beats: meta.beats || [], bpm: meta.bpm ?? null, period: meta.period ?? null,
+    beats: meta.beats || [], bpm: meta.bpm ?? null, period: meta.period ?? null, fps: meta.fps || 30,
+    // the world layer only: the scenes it runs under, [{id, start, end}] in its own seconds
+    scenes: meta.scenes || [],
+    // world: which of k.scenes is on at t ({id, start, end, i, p: 0-1 through it}), or null
+    sceneAt(t) {
+      const sc = meta.scenes || [];
+      for (let i = 0; i < sc.length; i++) if (t < sc[i].end || i === sc.length - 1) return { ...sc[i], i, p: Math.max(0, Math.min(1, (t - sc[i].start) / (sc[i].end - sc[i].start))) };
+      return null;
+    },
     $: (sel) => root.querySelector(sel),
     $$: (sel) => Array.from(root.querySelectorAll(sel)),
     // when the voice says `phrase` (scene seconds), at or after `after`
@@ -332,6 +340,44 @@ function klipScene(meta, body) {
   };
   k.onBeat = function (fn, o = {}) {
     for (const b of pick(o)) fn(b.t, b);
+  };
+  // ---- motion: frames are sharp stills, so fast things strobe. Two fixes for canvas scenes:
+  // k.trail(ctx, pos, t, {length, samples, width, color, head}): a tapered, fading streak behind a moving
+  // point, where pos(t) -> {x, y} is the point's path (cheap: one stroke).
+  k.trail = function (ctx, pos, t, o = {}) {
+    const T = { ...KIT.trail, ...o }, c = o.color || P.accent, n = Math.max(2, T.samples);
+    const pts = [];
+    for (let i = 0; i <= n; i++) { const ti = t - T.length * (1 - i / n); if (ti >= (o.from ?? 0)) pts.push(pos(ti)); }
+    if (pts.length < 2) return;
+    const rgb = (() => { const h = c.replace("#", ""); const v = parseInt(h, 16); return [v >> 16 & 255, v >> 8 & 255, v & 255].join(","); })();
+    ctx.save(); ctx.lineCap = "round"; ctx.globalCompositeOperation = o.blend || "lighter";
+    for (let i = 1; i < pts.length; i++) {
+      const f = i / (pts.length - 1);                 // 0 at the tail, 1 at the head
+      ctx.beginPath(); ctx.moveTo(pts[i - 1].x, pts[i - 1].y); ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.lineWidth = Math.max(0.5, T.width * f); ctx.strokeStyle = "rgba(" + rgb + "," + (f * f * T.opacity) + ")"; ctx.stroke();
+    }
+    if (T.head) { const p = pts[pts.length - 1]; ctx.beginPath(); ctx.arc(p.x, p.y, T.width * 0.6, 0, Math.PI * 2);
+                  ctx.fillStyle = "rgba(" + rgb + "," + T.opacity + ")"; ctx.fill(); }
+    ctx.restore();
+  };
+  // k.motionBlur(ctx, draw, {samples, shutter}) -> fn(t): real motion blur for a canvas that draw(t) repaints
+  // whole: it is drawn at `samples` instants across the shutter (share of a frame) and averaged. Costs
+  // samples x the drawing; use it in k.frame instead of draw: k.frame(k.motionBlur(ctx, draw)).
+  k.motionBlur = function (ctx, draw, o = {}) {
+    const M = { ...KIT.motion_blur, ...o }, cv = ctx.canvas, n = Math.max(1, M.samples | 0);
+    const acc = document.createElement("canvas"); acc.width = cv.width; acc.height = cv.height;
+    const a = acc.getContext("2d");
+    return function (t) {
+      if (n === 1) { draw(t); return; }
+      a.clearRect(0, 0, acc.width, acc.height);
+      for (let i = 0; i < n; i++) {
+        draw(t - (M.shutter / k.fps) * (1 - i / (n - 1)));   // the last sample is t itself
+        a.globalAlpha = 1 / (i + 1);                       // running mean of the samples
+        a.drawImage(cv, 0, 0);
+      }
+      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = "copy";
+      ctx.drawImage(acc, 0, 0); ctx.restore();
+    };
   };
   // ---- light: glow, bloom, flares (cheap bloom: threshold, shrink, blur, add back; defaults in code.kit.glow)
   // k.glow(ctx) -> glow(): call it at the end of each k.frame, after drawing; the canvas's bright parts

@@ -262,3 +262,43 @@ def test_paper_ink_contrasts_with_paper(repo):
     light = _spec({"id": "s1", "template": "hook", "narration": "a"})
     lk = codescene.look(light, style)
     assert lk["palette"]["paper-ink"] == lk["palette"]["ink"]
+
+
+def test_world_runs_under_consecutive_code_scenes(repo):
+    world = {"file": "specs/s1.html"}
+    a = {"id": "a", "template": "hook", "narration": "matahari terbit", "visual": code()}
+    b = {"id": "b", "template": "explain", "narration": "lalu terbenam", "visual": code()}
+    c = {"id": "c", "template": "cta", "narration": "ikuti kami"}
+    spec = _spec(a, b, c, world=world)
+    assert [s.id for s in codescene.world_run(spec)] == ["a", "b"]
+    assert codescene.world_scene(spec).narration == "matahari terbit lalu terbenam"
+    ws = words(("matahari", 100), ("terbit", 600), scene="a") + words(("lalu", 2100), ("terbenam", 2500), scene="b") \
+        + words(("ikuti", 4100), ("kami", 4400), scene="c")
+    ctx, _ = compose.build_context(spec, _timeline(("a", 2000), ("b", 2000), ("c", 1000)), ws, {"scenes": {}})
+    w = ctx["world"]["meta"]
+    assert w["start"] == 0 and w["dur"] == 4.0 and w["texture"] == "none"
+    assert w["scenes"] == [{"id": "a", "start": 0, "end": 2.0}, {"id": "b", "start": 2.0, "end": 4.0}]
+    assert [x["text"] for x in w["words"]] == ["matahari", "terbit", "lalu", "terbenam"] and w["words"][2]["t"] == 2.1
+    assert [bool(s.get("on_world")) for s in ctx["scenes"]] == [True, True, False]
+
+    gap = _spec(a, c, b, world=world)
+    with pytest.raises(codescene.CodeSceneError, match="consecutive"):
+        codescene.world_run(gap)
+    with pytest.raises(codescene.CodeSceneError, match="must be code scenes"):
+        codescene.world_run(_spec(a, b, c, world={**world, "scenes": ["b", "c"]}))
+    (repo / "specs" / "w.html").write_text("<script>k.tl.set({}, {}, k.at('terbenam')); k.at('bulan');</script>")
+    world_issues = [i for i in lint(_spec(a, b, world={"file": "specs/w.html"})) if i.where == "world"]
+    assert [i.message for i in world_issues if i.level == "error"] == ["specs/w.html: k.at('bulan') is not in the narration"]
+
+
+def test_dark_bg_below_video_black_warns(repo):
+    s = {"id": "s1", "template": "hook", "narration": "matahari terbit", "visual": code()}
+    issues = lint(_spec(s, look_bible={"palette": {"bg": "#0A0A0A"}}))
+    assert any("darker than video black" in i.message for i in issues if i.level == "warning")
+    assert not any("video black" in i.message for i in lint(_spec(s, look_bible={"preset": "cinematic"})))
+
+
+def test_kit_has_motion_helpers():
+    from klip.paths import TEMPLATES_DIR
+    kit = (TEMPLATES_DIR / "default" / "scenes" / "code_kit.js.j2").read_text()
+    assert "k.trail = function" in kit and "k.motionBlur = function" in kit and "sceneAt(t)" in kit

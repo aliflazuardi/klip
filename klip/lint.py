@@ -195,14 +195,32 @@ def _lint_code(spec: Spec, s: Scene, err, warn) -> None:
         (err if level == "error" else warn)(s.id, msg)
 
 
-def _lint_code_look(spec: Spec, err) -> None:
+def _lint_code_look(spec: Spec, err, warn=None) -> None:
     if not any(s.visual.type == "code" for s in spec.scenes):
         return
     from klip import codescene
     try:
-        codescene.look(spec, config.style(spec.style))
+        lk = codescene.look(spec, config.style(spec.style))
     except (codescene.CodeSceneError, KeyError) as e:
         err("look_bible", str(e).strip('"'))
+        return
+    bg = lk["palette"]["bg"]
+    if warn and codescene.luminance(bg) < float(config.get("code.min_bg_luma")):
+        warn("look_bible", f"bg {bg} is darker than video black: the video flattens it and glows fading into it "
+                           f"band; lift it a little (the cinematic preset uses #16120F)")
+
+
+def _lint_world(spec: Spec, err, warn) -> None:
+    if not spec.world:
+        return
+    from klip import codescene
+    try:
+        ws = codescene.world_scene(spec)
+    except codescene.CodeSceneError as e:
+        err("world", str(e))
+        return
+    for level, msg in codescene.lint_scene(ws, spec):
+        (err if level == "error" else warn)("world", msg)
 
 
 def _lint_look(spec: Spec, err) -> None:
@@ -236,7 +254,8 @@ def lint(spec: Spec) -> list[Issue]:
     err = lambda where, msg: issues.append(Issue("error", where, msg))      # noqa: E731
     warn = lambda where, msg: issues.append(Issue("warning", where, msg))   # noqa: E731
     _lint_look(spec, err)
-    _lint_code_look(spec, err)
+    _lint_code_look(spec, err, warn)
+    _lint_world(spec, err, warn)
     _lint_sets(spec, warn)
     _lint_mascots(spec, err)
     if config.get("post.lowercase_hashtags", True):

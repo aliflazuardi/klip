@@ -140,6 +140,7 @@ k.frame((t) => {
   }
   if (t > tOut && t < tOut + 1.4) {                            // the exit: a pulse races out past the rings
     const q = clamp((t - tOut) / 1.4), p = at(40 + 1150 * ease.out(q));
+    k.trail(ctx, (ti) => at(40 + 1150 * ease.out(clamp((ti - tOut) / 1.4))), t, { from: tOut, width: 8, length: 0.25 });
     k.flare(ctx, p.x, p.y, { size: 34, strength: 1 - 0.7 * q, streak: 240, rot: CFG.angle });
   }
   // readouts

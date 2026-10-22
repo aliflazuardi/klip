@@ -1920,6 +1920,58 @@
       },
       "title": "Visual",
       "type": "object"
+    },
+    "World": {
+      "additionalProperties": false,
+      "description": "One code layer under a run of consecutive code scenes (see docs/CODE-SCENES.md, \"One world\"): a single\npicture the camera travels through while the scenes change on top, instead of a cut per scene. Its\n`k` spans the run: k.words / k.at cover every scene's narration, k.scenes says when each one plays.",
+      "properties": {
+        "file": {
+          "description": "Repo-relative world file, e.g. 'specs/<slug>/world.html'.",
+          "pattern": "\\.html$",
+          "title": "File",
+          "type": "string"
+        },
+        "scenes": {
+          "description": "Ids of the consecutive code scenes it runs under; empty = every code scene (they must be consecutive).",
+          "items": {
+            "type": "string"
+          },
+          "title": "Scenes",
+          "type": "array"
+        },
+        "assets": {
+          "description": "As in a code scene.",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 20,
+          "title": "Assets",
+          "type": "array"
+        },
+        "include": {
+          "description": "As in a code scene.",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 8,
+          "title": "Include",
+          "type": "array"
+        },
+        "libs": {
+          "description": "As in a code scene.",
+          "items": {
+            "const": "three",
+            "type": "string"
+          },
+          "title": "Libs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "file"
+      ],
+      "title": "World",
+      "type": "object"
     }
   },
   "additionalProperties": false,
@@ -2024,6 +2076,18 @@
       ],
       "default": null,
       "description": "Art direction for code scenes (palette, fonts, texture, motion); unset = the style's."
+    },
+    "world": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/World"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "One code layer the camera travels through under a run of consecutive code scenes (their own bg turns transparent)."
     },
     "mascots": {
       "anyOf": [

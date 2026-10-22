@@ -404,13 +404,40 @@ def music_beats(spec: Spec, total_s: float, warnings: list[str]) -> dict:
     return out
 
 
-def code_ctx(look: dict | None, scenes: list[dict], style: dict) -> dict | None:
+def _world_ctx(spec: Spec, scenes: list[dict], by_scene: dict, look: dict, style: dict) -> dict | None:
+    """The world layer (spec.world): one code section spanning its run of scenes, which turn transparent
+    over it. Its k.words cover the whole run; k.scenes = [{id, start, end}] in world seconds."""
+    if not spec.world:
+        return None
+    try:
+        run, ws = codescene.world_run(spec), codescene.world_scene(spec)
+    except codescene.CodeSceneError as e:
+        raise ComposeError(str(e)) from None
+    ids = [s.id for s in run]
+    covered = [s for s in scenes if s["id"] in ids]
+    start, end = covered[0]["start"], covered[-1]["start"] + covered[-1]["dur"]
+    words = [w for i in ids for w in by_scene.get(i, [])]
+    try:
+        ctx = codescene.scene_ctx(ws, {"start_ms": start * 1000, "duration_ms": (end - start) * 1000}, words, look,
+                                  caption_style(style, True)["top"])
+    except codescene.CodeSceneError as e:
+        raise ComposeError(str(e)) from None
+    ctx.update(texture="none", texture_css=codescene.texture_css("none", 0), sfx=[])
+    ctx["meta"].update(texture="none", hook=False, text="",
+                       scenes=[{"id": s["id"], "start": round(s["start"] - start, 3), "end": round(s["start"] + s["dur"] - start, 3)}
+                               for s in covered])
+    for s in covered:
+        s["on_world"] = True
+    return ctx
+
+
+def code_ctx(look: dict | None, scenes: list[dict], style: dict, world: dict | None = None) -> dict | None:
     """Head context for code scenes: look-bible CSS vars, @font-face rows, caption font, three.js."""
     if not look:
         return None
     return {"vars": codescene.css_vars(look), "faces": codescene.font_faces(), "kit": codescene.cfg("kit"),
             "caption_font": look["families"].get("caption"),
-            "three": any("three" in s["code"]["libs"] for s in scenes if s.get("code")),
+            "three": any("three" in c["libs"] for c in [*(s["code"] for s in scenes if s.get("code")), *([world] if world else [])]),
             "cast": codescene.cast_ctx(style) if any((s.get("code") or {}).get("meta", {}).get("mascots")
                                                       for s in scenes) else None}
 
@@ -441,9 +468,11 @@ def build_context(spec: Spec, timeline: dict, words: list[dict],
     for s in scenes:
         if s.get("code"):                     # the outro may have stretched the scene before the cta
             s["code"]["meta"]["dur"] = s["dur"]
+    world = None
     if look:
         music = music_beats(spec, _s(timeline["total_ms"]), warnings)
-        for s in scenes:
+        world = _world_ctx(spec, scenes, by_scene, look, style)
+        for s in scenes + ([{"code": world, "start": world["meta"]["start"], "dur": world["meta"]["dur"]}] if world else []):
             if s.get("code"):
                 s["code"]["meta"]["beats"] = beats_mod.in_scene(music, s["start"], s["dur"])
                 s["code"]["meta"]["bpm"], s["code"]["meta"]["period"] = music["bpm"], music["period"]
@@ -510,7 +539,7 @@ def build_context(spec: Spec, timeline: dict, words: list[dict],
         "stage": {"cfg": config.get("stage"),
                   "bgs": [{"key": b, "css": stage_mod.background_css(b), "grain": stage_mod.grain_css(b)}
                           for b in stage_bgs]} if any(s.get("stage") for s in scenes) else None,
-        "code": code_ctx(look, scenes, style), "code_look": look,
+        "code": code_ctx(look, scenes, style, world), "code_look": look, "world": world,
         "font_files": FONT_FILES, "slug": spec.slug, "cut_zoom": config.get("cuts.cut_zoom", 1.12),
         "sfx": sfx_events(scenes, page_ctx, end_card=bool(brand["end_card"]), nudge=brand["save_nudge"],
                           outro=brand["outro"])
@@ -759,6 +788,9 @@ def run(spec: Spec, project_dir: Path) -> dict:
             shutil.copyfile(f["src"], out / "fonts" / f["file"])
         if ctx["code"]["three"]:
             (out / "three.min.js").write_text(codescene.three_script(), encoding="utf-8")
+    for a in (ctx["world"] or {}).get("assets", []):
+        (out / a["src"]).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(a["path"], out / a["src"])
     for s in ctx["scenes"]:
         for a in (s.get("code") or {}).get("assets", []):
             (out / a["src"]).parent.mkdir(parents=True, exist_ok=True)

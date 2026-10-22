@@ -400,6 +400,9 @@ code:
     texture_strength: null
     line: 6
     motion: snappy
+  # A look's bg darker than this luminance (0-1) is below video black (16/255): H.264 flattens it and
+  # gradients fading into it band, so validate warns.
+  min_bg_luma: 0.063
   # Default strength (0-1) per texture, and what each eases set holds (GSAP ease names).
   textures: {none: 0, paper: 0.55, watercolor: 0.6, halftone: 0.35, grain: 0.5, hud: 0.6, riso: 0.5, film: 0.3}
   eases:
@@ -413,7 +416,7 @@ code:
     # dark motion-graphics look (the "Opus made this" showreels): warm near-black, hairline strokes,
     # one glowing accent, film grain + vignette, slow expo eases. Pair with k.glow / k.bloom / k.flare.
     cinematic:
-      palette: {bg: "#0E0C0B", paper: "#1A1714", ink: "#F2ECE4", muted: "#7A6F66", line: "#4A4039"}
+      palette: {bg: "#16120F", paper: "#1F1A16", ink: "#F2ECE4", muted: "#7A6F66", line: "#4A4039"}
       fonts: {display: jakarta, body: jakarta, mono: mono}
       texture: film
       line: 1.5
@@ -439,6 +442,11 @@ code:
     # k.flare: core radius (px), brightness, ray count, ray rotation (deg), anamorphic streak half-length (px)
     flare: {size: 60, strength: 1.0, rays: 4, rot: 45, streak: 420}
     pulse_decay_s: 0.22               # k.pulse: how fast a beat's 1 falls back toward 0 (exp time constant)
+    # k.trail: streak length (s of the path behind the point), points along it, width at the head (px),
+    # opacity at the head, whether to draw a dot on the head
+    trail: {length: 0.35, samples: 18, width: 6, opacity: 0.9, head: true}
+    # k.motionBlur: draws per frame (cost) and shutter (share of a frame the blur spans; 0.5 = film's 180°)
+    motion_blur: {samples: 4, shutter: 0.5}
     type_cps: 24                      # k.type: typewriter characters per second
     # mascot acting (rig.walk/enter/exit/jump/hop/turn/point): walking speed, step length in time,
     # body bob and foot lift per step, jump height, turn time, how long a point holds its pose

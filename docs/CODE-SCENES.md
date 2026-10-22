@@ -113,6 +113,35 @@ finds the tempo of tracks with a beat well; a track with no steady beat (ambient
 swells) can still get a grid, and compose warns when its confidence is low. Watch that the
 pulses land, or set `"music": {"beats": false}` in the spec.
 
+### Motion: trails and motion blur
+
+Every frame is a sharp still, so something that moves far between frames strobes. For canvas scenes
+(defaults in klip.yaml `code.kit.trail` / `code.kit.motion_blur`):
+
+| | |
+|---|---|
+| `k.trail(ctx, pos, t, {length, width, color, from})` | A tapered streak behind a moving point, fading to the tail: `pos(t)` returns its `{x, y}` at any time, `length` = seconds of path behind it. Cheap: one stroke. |
+| `k.frame(k.motionBlur(ctx, draw, {samples, shutter}))` | Real motion blur for a canvas that `draw(t)` repaints whole: drawn at `samples` instants over `shutter` (share of a frame, 0.5 = film's 180°) and averaged. Costs `samples` times the drawing. |
+
+### One world: a camera that travels across scenes
+
+Code scenes cut from one to the next. For a single place the camera travels through (a map, a
+road, a timeline you fly along), give the spec a `world`: one code file drawn under a run of
+consecutive code scenes, whose own backgrounds turn transparent so the world shows through.
+
+```json
+"world": {"file": "specs/<slug>/world.html", "scenes": ["s2", "s3", "s4"]}
+```
+
+- `scenes` empty = every code scene (they must be consecutive). `assets`, `include`, `libs` as in a scene.
+- In the world file, `k` spans the run: `k.dur` is the run's length, `k.words` / `k.at("…")` cover
+  every scene's narration, `k.scenes` = `[{id, start, end}]` and `k.sceneAt(t)` → `{id, i, p}` tell
+  which scene is on, so the camera can move to scene *i*'s place as it starts.
+- The scenes on top draw only what their line needs (a headline, a label, a mascot):
+  `examples/code-scenes/worlds/title-only.html`. Textures stay on the scenes.
+- Starter: `examples/code-scenes/worlds/journey.html` (a camera flight along a glowing path, one
+  stop per scene), rendered by `examples/code-world.json`.
+
 ### Light: glow, bloom, flares
 
 Dark looks live on light. These make the bright parts of a picture bleed (defaults in klip.yaml
@@ -127,6 +156,12 @@ Dark looks live on light. These make the bright parts of a picture bleed (defaul
 
 Glow is for dark looks: on a light background everything is above the threshold and the frame
 washes out. Keep the bright things few (one accent) so the glow means something.
+
+**Dark looks and banding.** H.264 (and TikTok's re-encode) flattens near-black and smooths fine
+grain away, so a glow fading into a very dark ground shows rings. Keep `bg` above video black
+(validate warns under klip.yaml `code.min_bg_luma`; the cinematic preset uses `#16120F`) and use the
+`film` or `grain` texture: its grain dithers the gradient, and `film` grain is 2 px so it survives
+the encode.
 
 `k.layout` holds what the kit used: `headlineTop`, `cast` spots, `scrim`, and `outro` (when the
 style's outro badge slides up over this scene: its time and top, keep that area clear).

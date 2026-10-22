@@ -299,6 +299,18 @@ class CodeScene(_Strict):
                                            "the pop), on top of the automatic cut whoosh.")
 
 
+class World(_Strict):
+    """One code layer under a run of consecutive code scenes (see docs/CODE-SCENES.md, "One world"): a single
+    picture the camera travels through while the scenes change on top, instead of a cut per scene. Its
+    `k` spans the run: k.words / k.at cover every scene's narration, k.scenes says when each one plays."""
+    file: str = Field(pattern=r"\.html$", description="Repo-relative world file, e.g. 'specs/<slug>/world.html'.")
+    scenes: list[str] = Field(default_factory=list, description="Ids of the consecutive code scenes it runs under; "
+                                                                "empty = every code scene (they must be consecutive).")
+    assets: list[str] = Field(default_factory=list, max_length=20, description="As in a code scene.")
+    include: list[str] = Field(default_factory=list, max_length=8, description="As in a code scene.")
+    libs: list[CodeLib] = Field(default_factory=list, description="As in a code scene.")
+
+
 class Visual(_Strict):
     type: VisualType = "solid"
     query: str | None = Field(None, description="English keywords for stock search (the scene's first shot).")
@@ -553,6 +565,8 @@ class Spec(_Strict):
                                                  "stage.look_min_share). 'mixed' = pick per scene.")
     look_bible: LookBible | None = Field(None, description="Art direction for code scenes (palette, fonts, "
                                                            "texture, motion); unset = the style's.")
+    world: World | None = Field(None, description="One code layer the camera travels through under a run of "
+                                                  "consecutive code scenes (their own bg turns transparent).")
     mascots: bool | list[str] | None = Field(None, description="Which of the style's mascots appear: unset/true = "
                                                                "the whole cast, false = none, or a list of names "
                                                                "(e.g. ['napa']).")

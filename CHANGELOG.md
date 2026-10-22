@@ -34,6 +34,13 @@ All notable changes to Klip are listed here. The format follows
   texture (grain + dark vignette) and `cinematic` motion (slow expo eases).
 - Starter `light-beam.html`: a beam of light strikes a set of hairline rings on the key word and
   shoots through, with a flare, shockwave, dust and HUD readouts (in the starter gallery).
+- Code scenes: `k.trail(ctx, pos, t)` (a tapered streak behind a moving point) and
+  `k.motionBlur(ctx, draw)` (sub-frame motion blur for a canvas), settings in klip.yaml
+  `code.kit.trail` / `code.kit.motion_blur`; light-beam's exit pulse leaves a trail.
+- Spec `world`: one code layer under a run of consecutive code scenes, so a camera can travel through
+  one place while the scenes change on top (`k.scenes`, `k.sceneAt(t)`, words of the whole run).
+  Starter `examples/code-scenes/worlds/journey.html`, example `examples/code-world.json`.
+- Validate warns when a code look's `bg` is darker than video black (it flattens and gradients band).
 - Code scenes follow the music: compose finds the beats of the video's music track (klip/beats.py,
   pure Python, cached; settings in klip.yaml `code.beats`) and passes them as `k.beats`, `k.bpm` and
   `k.period`. `k.pulse(t)` (1 on a beat, decaying) and `k.onBeat(fn)` put motion on them. Spec
@@ -69,6 +76,8 @@ All notable changes to Klip are listed here. The format follows
 
 ### Changed
 
+- Cinematic preset: bg lifted to `#16120F` (the old `#0E0C0B` sat below video black) and `film` grain
+  is 2 px, so it survives the encode and dithers dark gradients instead of letting them band.
 - Faster renders (a 59 s video: about 2 min → 1.5 min). HyperFrames encodes at `render.crf` and post
   copies that video stream into final.mp4 instead of encoding it a second time (post ~33 s → ~14 s;
   `render.reencode: true` restores the re-encode, now at `render.preset: veryfast`). `render.workers:
