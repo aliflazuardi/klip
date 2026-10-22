@@ -16,7 +16,8 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 from klip import config
-from klip import codescene, mascot, motion
+from klip import beats as beats_mod
+from klip import codescene, ffmpeg, mascot, motion
 from klip import stage as stage_mod
 from klip.captions import CaptionWord, emphasis_mask, norm, paginate, tokenize
 from klip.paths import RENDERER_DIR, ROOT, TEMPLATES_DIR
@@ -378,6 +379,31 @@ def _code_ctx(spec: Spec, scene: Scene, t: dict, words: list[dict], look: dict, 
     return ctx
 
 
+def music_beats(spec: Spec, total_s: float, warnings: list[str]) -> dict:
+    """The music track's beats over the video (k.beats), or none when there's no music or no steady pulse."""
+    from klip.stages.post import pick_track
+    none = {"bpm": None, "period": None, "beats": []}
+    try:
+        track = pick_track(spec)
+    except FileNotFoundError:
+        return none                           # post reports a missing track
+    if not track or not spec.music.beats:
+        return none
+    try:
+        out = beats_mod.for_video(track, total_s)
+    except ffmpeg.FFmpegError as e:
+        warnings.append(f"music beats: couldn't read {track.name}: {str(e).splitlines()[0]}")
+        return none
+    if not out["beats"]:
+        log.info("music: no beat in %s (it only swells); k.beats is empty", track.name)
+    elif out["confidence"] < float(beats_mod.cfg("warn_confidence")):
+        warnings.append(f"music beats: {track.name} has no clear beat (confidence {out['confidence']}, "
+                        f"{out['bpm']} BPM); watch that pulses land, or set music.beats: false")
+    else:
+        log.info("music: %s BPM in %s (confidence %s)", out["bpm"], track.name, out["confidence"])
+    return out
+
+
 def code_ctx(look: dict | None, scenes: list[dict], style: dict) -> dict | None:
     """Head context for code scenes: look-bible CSS vars, @font-face rows, caption font, three.js."""
     if not look:
@@ -415,6 +441,12 @@ def build_context(spec: Spec, timeline: dict, words: list[dict],
     for s in scenes:
         if s.get("code"):                     # the outro may have stretched the scene before the cta
             s["code"]["meta"]["dur"] = s["dur"]
+    if look:
+        music = music_beats(spec, _s(timeline["total_ms"]), warnings)
+        for s in scenes:
+            if s.get("code"):
+                s["code"]["meta"]["beats"] = beats_mod.in_scene(music, s["start"], s["dur"])
+                s["code"]["meta"]["bpm"], s["code"]["meta"]["period"] = music["bpm"], music["period"]
     if outro and outro["mode"] != "card" and (prev := scenes[-2].get("code")) and prev["meta"].get("mascots"):
         cta = spec.scenes[-1]                 # the cta's speaker says the closing line over that scene
         if who := mascot.speaker(spec, cta, style):

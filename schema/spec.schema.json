@@ -872,6 +872,12 @@
           "default": null,
           "description": "Explicit track path (overrides mood).",
           "title": "Track"
+        },
+        "beats": {
+          "default": true,
+          "description": "Code scenes follow the track's beats (k.beats, k.pulse). Turn off for a track without a steady beat (ambient, orchestral swells).",
+          "title": "Beats",
+          "type": "boolean"
         }
       },
       "title": "Music",

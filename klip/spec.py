@@ -501,6 +501,8 @@ class HookVariant(_Strict):
 class Music(_Strict):
     mood: str | None = Field("calm", description="Picks a track from assets/music/<mood>/; null = no music.")
     track: str | None = Field(None, description="Explicit track path (overrides mood).")
+    beats: bool = Field(True, description="Code scenes follow the track's beats (k.beats, k.pulse). Turn off for "
+                                          "a track without a steady beat (ambient, orchestral swells).")
 
 
 class Post(_Strict):

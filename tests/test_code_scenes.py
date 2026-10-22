@@ -123,7 +123,7 @@ def test_compose_inlines_scoped_scene_with_kit(repo):
     env.filters["rgba"] = compose.rgba
     html = env.get_template("index.html.j2").render(**ctx)
     assert 'class="scene clip code"' in html and "function klipScene" in html
-    assert html.count('klipScene({"dur"') == 2 and 'k.at("matahari")' in html
+    assert html.count('klipScene({"beats": []') == 2 and 'k.at("matahari")' in html
     assert "--k-bg: #F3EDE2;" in html and 'font-family: "Fraunces"' in html
     assert 'class="k-tex k-tex-grain"' in html and "three.min.js" not in html
 

@@ -438,10 +438,22 @@ code:
     glow: {strength: 1.0, threshold: 0.35, radius: 10, levels: [3, 8]}
     # k.flare: core radius (px), brightness, ray count, ray rotation (deg), anamorphic streak half-length (px)
     flare: {size: 60, strength: 1.0, rays: 4, rot: 45, streak: 420}
+    pulse_decay_s: 0.22               # k.pulse: how fast a beat's 1 falls back toward 0 (exp time constant)
     type_cps: 24                      # k.type: typewriter characters per second
     # mascot acting (rig.walk/enter/exit/jump/hop/turn/point): walking speed, step length in time,
     # body bob and foot lift per step, jump height, turn time, how long a point holds its pose
     act: {walk_px_s: 380, step_s: 0.26, bob_px: 10, foot_px: 14, lean_deg: 4, jump_px: 110, turn_s: 0.16, point_hold_s: 1.4}
+  # Beat tracking of the music track for k.beats / k.pulse (klip/beats.py). The track is decoded to
+  # mono at sample_rate, split at split_hz into low (kick, bass) and high bands, hop = samples per
+  # onset frame. Tempo is searched in bpm_min..bpm_max with a soft preference for bpm_prior; each beat
+  # snaps to an onset within snap_s of the grid when that onset is over onset_floor x a loud hit (the
+  # 95th percentile). max_track_s: only the first this many seconds are read. A track where under
+  # min_attacks of the hops rise by attack_rise (log energy) or more has no beats (a pad that only
+  # swells). warn_confidence: below this tempo confidence (z-score of the autocorrelation; clear beats
+  # ≈2.5-3.5) compose warns that the beat may be off; spec music.beats: false turns beats off.
+  beats: {sample_rate: 8000, hop: 128, split_hz: 180, bpm_min: 70, bpm_max: 180, bpm_prior: 115,
+          snap_s: 0.06, onset_floor: 0.3, attack_rise: 0.3, min_attacks: 0.04, max_track_s: 600,
+          warn_confidence: 2.0}
   safe_top: 230                     # k.safe: below the TikTok top bar / branding strip
   safe_gap: 40                      # px kept clear above the captions
   # klip preview: stills per code scene (its start, each k.at cue, the middle, the end), at most

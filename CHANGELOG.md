@@ -34,6 +34,11 @@ All notable changes to Klip are listed here. The format follows
   texture (grain + dark vignette) and `cinematic` motion (slow expo eases).
 - Starter `light-beam.html`: a beam of light strikes a set of hairline rings on the key word and
   shoots through, with a flare, shockwave, dust and HUD readouts (in the starter gallery).
+- Code scenes follow the music: compose finds the beats of the video's music track (klip/beats.py,
+  pure Python, cached; settings in klip.yaml `code.beats`) and passes them as `k.beats`, `k.bpm` and
+  `k.period`. `k.pulse(t)` (1 on a beat, decaying) and `k.onBeat(fn)` put motion on them. Spec
+  `music.beats: false` turns it off; compose warns when a track's beat is unclear. The light-beam
+  starter breathes on the beat and rings out an echo on every bar.
 - `klip preview` records with a free draft voice (`voices.preview_engine`, edge) unless the final
   engine's takes are already cached, so previews never spend Gemini or ElevenLabs quota.
 - Code scenes: `sfx` cues (`{at, sfx, offset_s}`) put sound effects on a scene's own beats.

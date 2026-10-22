@@ -13,6 +13,8 @@ function klipScene(meta, body) {
   const k = {
     id: meta.id, root, tl: sub, dur: meta.dur, W: 1080, H: 1920, words: meta.words, text: meta.text,
     emphasis: meta.emphasis, look: KLIP_LOOK, safe: meta.safe, lib: { THREE: window.THREE },
+    // the music's beats in this scene: [{t (scene s), n (beat number in the video), down (bar start), s (0-1 strength)}]
+    beats: meta.beats || [], bpm: meta.bpm ?? null, period: meta.period ?? null,
     $: (sel) => root.querySelector(sel),
     $$: (sel) => Array.from(root.querySelectorAll(sel)),
     // when the voice says `phrase` (scene seconds), at or after `after`
@@ -316,6 +318,20 @@ function klipScene(meta, body) {
     gsap.set(el, { strokeDasharray: len, strokeDashoffset: len });
     sub.to(el, { strokeDashoffset: 0, duration: o.dur || 0.8, ease: o.ease || KLIP_LOOK.ease.out }, at);
     return el;
+  };
+  // ---- music: k.pulse(t) is 1 on a beat and falls off (for k.frame); k.onBeat(fn) places tweens on beats.
+  // Both are no-ops without music (k.beats is empty), so a scene still works on a silent track.
+  // {down: only bar starts, every: every nth beat, decay (s), from / to (scene s)}
+  const pick = (o) => k.beats.filter((b) => (!o.down || b.down) && (!o.every || b.n % o.every === 0) &&
+                                            b.t >= (o.from ?? 0) && b.t <= (o.to ?? k.dur));
+  k.pulse = function (t, o = {}) {
+    const decay = o.decay ?? KIT.pulse_decay_s;
+    let last = null;
+    for (const b of pick(o)) { if (b.t <= t) last = b; else break; }
+    return last ? Math.exp(-(t - last.t) / decay) * (o.strength ? 0.4 + 0.6 * last.s : 1) : 0;
+  };
+  k.onBeat = function (fn, o = {}) {
+    for (const b of pick(o)) fn(b.t, b);
   };
   // ---- light: glow, bloom, flares (cheap bloom: threshold, shrink, blur, add back; defaults in code.kit.glow)
   // k.glow(ctx) -> glow(): call it at the end of each k.frame, after drawing; the canvas's bright parts

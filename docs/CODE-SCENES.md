@@ -92,6 +92,25 @@ Start every scene from these, so it is legible and on-brand before you add what 
 | `k.count(el, {to, from, at, dur, decimals, prefix, suffix})` | A number counting up, Indonesian format (`1.234,5`). |
 | `k.draw(path, at, {dur})` | A stroke drawing on. |
 
+### Music: beats
+
+Klip finds the beats of the video's music track (the one `klip render` mixes in, which starts with
+the video and loops), so a scene can move with the music as well as the voice:
+
+| | |
+|---|---|
+| `k.beats` | `[{t, n, down, s}]`: the beats in this scene (scene seconds), `n` = beat number in the video, `down` = the first beat of a bar, `s` = strength 0–1. Empty without music. |
+| `k.bpm`, `k.period` | The tempo, and seconds per beat (`null` without music). |
+| `k.pulse(t, {down, every, decay, strength})` | For `k.frame`: 1 on a beat, falling off over `decay` s (klip.yaml `code.kit.pulse_decay_s`). `down: true` = bars only, `every: 2` = every other beat, `strength: true` = scaled by the hit's strength. 0 without music. |
+| `k.onBeat(fn, {down, every, from, to})` | Calls `fn(t, beat)` for each beat, to put tweens on them: `k.onBeat((t) => k.tl.fromTo(el, {scale: 1.05}, {scale: 1, duration: 0.3}, t))`. |
+
+Keep the voice in charge: the story's reveals stay on `k.at` words, and the beat adds life
+(a breathing glow, a flash on bars, cuts inside a scene). Scenes must still read without music,
+since `k.beats` is empty then. The tracker (klip/beats.py, settings in klip.yaml `code.beats`)
+finds the tempo of tracks with a beat well; a track with no steady beat (ambient, orchestral
+swells) can still get a grid, and compose warns when its confidence is low. Watch that the
+pulses land, or set `"music": {"beats": false}` in the spec.
+
 ### Light: glow, bloom, flares
 
 Dark looks live on light. These make the bright parts of a picture bleed (defaults in klip.yaml
@@ -134,7 +153,7 @@ renders all of them (`uv run klip preview examples/code-gallery.json`).
 | `three-terrain.html` | Three.js: a wireframe terrain flyover (HUD look) |
 | `three-particles.html` | Three.js: a particle galaxy that gathers into a ring on the key moment |
 | `three-globe.html` | Three.js: a globe turned toward its places, which light up as arcs fly between them |
-| `light-beam.html` | Canvas, cinematic look: a beam strikes the centre of hairline rings on the key word (`at`) and shoots through, a pulse races out on `out`; flare, shockwave, dust, HUD brackets and readouts |
+| `light-beam.html` | Canvas, cinematic look: a beam strikes the centre of hairline rings on the key word (`at`) and shoots through, a pulse races out on `out`; breathes on the music's beat (`beat`); flare, shockwave, dust, HUD brackets and readouts |
 
 Card text uses `--k-paper-ink` (the look's ink when it reads on `paper`, else its bg), so the starters
 work on light and dark looks.
