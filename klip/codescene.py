@@ -275,13 +275,41 @@ def scene_ctx(scene: Scene, t: dict, words: list[dict], lk: dict, caption_top: f
         "captions": c.captions, "libs": list(c.libs),
         "assets": [{"path": str(ROOT / a), "src": f"code/{sid}/{Path(a).name}"} for a in c.assets],
         "meta": {"id": sid, "start": round(start / 1000, 3), "dur": round(dur / 1000, 3), "words": rel,
-                 "text": scene.on_screen_text or "", "emphasis": scene.emphasis, "texture": texture,
+                 "text": scene.on_screen_text or "", "emphasis": scene.emphasis, "hook": scene.template == "hook", "texture": texture,
                  "safe": safe_area(caption_top)},
     }
 
 
+def layout(style: dict, sc: dict, brand: dict, caption_top: float) -> dict:
+    """Where the kit puts things in this scene: the headline's top (below the series pill when it shows
+    here), the scrims, each mascot's spot (as on stage scenes) and the outro badge if it lands here."""
+    from klip import mascot
+    kit = cfg("kit")
+    top = float(kit["headline"]["top"])
+    pill = brand.get("series")
+    if pill and any(sp["start"] < sc["end"] - 1e-3 and sp["end"] > sc["start"] + 1e-3 for sp in pill["spans"]):
+        top = max(top, pill["top"] + pill["font_size"] * 1.25 + 20 + float(kit["headline"]["pill_gap"]))
+    c = mascot.settings(style)
+    cast = []
+    if c.get("cast"):
+        h, y = float(c["height"]), mascot.top(style, caption_top)
+        for m in c["cast"]:
+            w = round(h * mascot._aspect(mascot._poses(m["dir"])["netral"]), 1)
+            x = mascot.SAFE_X[0] + float(c["inset_px"]) if m.get("side", "left") == "left" \
+                else mascot.SAFE_X[1] - float(c["inset_px"]) - w
+            cast.append({"name": m["name"], "x": round(x, 1), "y": round(y, 1), "w": w, "h": h})
+    out = {"headlineTop": round(top, 1), "cast": cast,
+           "scrim": {"top": kit["scrim"]["top_px"], "bottomFrom": caption_top - kit["scrim"]["bottom_above"],
+                     "bottom": kit["scrim"]["bottom_px"]}}
+    o = brand.get("outro")
+    if o and sc["start"] <= o["start"] < sc["end"]:
+        out["outro"] = {"t": round(o["start"] - sc["start"], 3), "top": o["top"]}
+    return out
+
+
 def uses_mascots(js: str) -> bool:
-    return bool(MASCOT_RE.search(js))
+    """The script places mascots: k.mascot("…") or the kit's k.cast()."""
+    return bool(MASCOT_RE.search(js) or re.search(r"\bk\.cast\(", js))
 
 
 def cast_ctx(style: dict) -> dict:

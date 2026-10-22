@@ -20,6 +20,9 @@ All notable changes to Klip are listed here. The format follows
 - `libs: ["three"]` on a code scene loads Three.js (renderer dependency `three`).
 - Code scenes: `include` (shared scripts for several scenes) and `k.mascot(name)`, a brand
   mascot rig with poses, lip sync on the scene's narration and blinks.
+- Code scenes: a standard kit in `k` (`stage`, `camera`, `headline`, `cast`, `scrim`, `chip`, `pop`,
+  `shake`, `type`, `count`, `draw`) that knows the series pill, the mascots' spots and the look, so a
+  new scene starts legible and on-brand (settings in klip.yaml `code.kit`).
 
 ## [0.4.0] - 2026-10-21
 

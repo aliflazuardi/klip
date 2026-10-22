@@ -65,6 +65,27 @@ One HTML fragment: markup, any `<style>` blocks and exactly one inline `<script>
 CSS variables: `--k-<colour>` for every palette entry (`--k-bg`, `--k-ink`, `--k-accent`, …),
 `--k-display`, `--k-body`, `--k-mono`, `--k-font-<key>` for every bundled font, `--k-line`.
 
+### The standard kit
+
+Start every scene from these, so it is legible and on-brand before you add what is unique to it
+(defaults in klip.yaml `code.kit`):
+
+| | |
+|---|---|
+| `const { svg, cam } = k.stage()` | A full-frame SVG behind the scene's HTML (filled with the look's `bg`), with a camera group `cam` to draw into. |
+| `k.camera(cam, {to, origin, at, dur})` | A slow push-in (to `code.kit.camera_zoom` by the scene's end). Works on SVG groups and HTML. |
+| `k.headline({text, size, top, at, align, scrim})` | The scene's `on_screen_text`, placed below the series pill when it shows, emphasis and ALL-CAPS words in the accent, popping in word by word. Adds a top scrim. |
+| `k.cast({scrim, only})` | The style's mascots at the same spots as on stage scenes, over a bottom scrim: `const { napa, gulung } = k.cast()`. |
+| `k.scrim("top" \| "bottom", {height, color})` | A band of the look's `bg` so type stays readable over a busy picture. |
+| `k.chip(text, x, y, {bg, color, size, rot, at})` | A label chip; pops in at `at`. |
+| `k.pop(el, at)`, `k.shake(el, at)` | Pop in with the look's pop ease; a short shake. |
+| `k.type(el, at, {cps})` | Typewriter text. |
+| `k.count(el, {to, from, at, dur, decimals, prefix, suffix})` | A number counting up, Indonesian format (`1.234,5`). |
+| `k.draw(path, at, {dur})` | A stroke drawing on. |
+
+`k.layout` holds what the kit used: `headlineTop`, `cast` spots, `scrim`, and `outro` (when the
+style's outro badge slides up over this scene: its time and top, keep that area clear).
+
 **Rendering is a seek, not a playback.** Every frame is the timeline jumped to that time, so:
 no `Math.random` (use `k.rand`), no `Date` / `performance.now`, no `requestAnimationFrame`
 (use `k.frame`), no `setTimeout`, no CSS `transition` / `@keyframes`, no network, no imports.

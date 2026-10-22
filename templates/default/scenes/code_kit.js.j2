@@ -1,5 +1,6 @@
 // ---- scene kit `k` for code scenes (contract: docs/CODE-SCENES.md)
 const KLIP_LOOK = {{ code_look | tojson }};
+const KLIP_KIT = {{ code.kit | tojson }};
 const KLIP_CAST = {{ (code.cast or none) | tojson }};
 let klipMascotN = 0;
 const klipNorm = (s) => String(s).toLowerCase().replace(/[^\p{L}\p{N}_]/gu, "");
@@ -97,6 +98,117 @@ function klipScene(meta, body) {
       sub.fromTo(body, { y: 0 }, { y: -KLIP_CAST.bob_px, duration: half, yoyo: true, repeat: reps - 1, ease: "sine.inOut" }, (n % 3) * 0.3);
     }
     return rig;
+  };
+  // ---- the standard kit: layout and motion helpers, so a scene starts legible and on-brand
+  const KIT = KLIP_KIT, L = meta.layout || { cast: [], scrim: {} }, P = KLIP_LOOK.palette;
+  const worldEl = root.querySelector(".k-world");
+  const isSvg = (el) => el instanceof SVGElement;
+  const one = (x) => (typeof x === "string" ? root.querySelector(x) : x);
+  k.layout = L;
+  // a full-frame SVG behind the scene's HTML, with a camera group: const { svg, cam } = k.stage()
+  k.stage = function (o = {}) {
+    const svg = k.el("svg", { viewBox: "0 0 1080 1920", width: 1080, height: 1920, class: "k-stage" });
+    Object.assign(svg.style, { position: "absolute", left: 0, top: 0 });
+    worldEl.prepend(svg);
+    if (o.bg !== false) k.el("rect", { width: 1080, height: 1920, fill: o.bg || P.bg }, svg);
+    return { svg, cam: k.el("g", { class: "k-cam" }, svg) };
+  };
+  // a slow push-in over the whole scene: k.camera(cam, {to, origin: "540 760", from, at, dur})
+  k.camera = function (target, o = {}) {
+    const el = one(target), origin = o.origin || "540 760";
+    const to = { scale: o.to ?? KIT.camera_zoom, duration: o.dur ?? k.dur - (o.at || 0), ease: o.ease || "none" };
+    if (isSvg(el)) to.svgOrigin = origin; else to.transformOrigin = origin.split(" ").map((v) => v + "px").join(" ");
+    sub.fromTo(el, { scale: o.from ?? 1 }, to, o.at || 0);
+    return el;
+  };
+  // a band of the look's bg behind the headline ("top") or the mascots and captions ("bottom")
+  k.scrim = function (where = "top", o = {}) {
+    const top = where === "top", c = o.color || P.bg, s = L.scrim || {};
+    const el = k.el("div", { class: "k-scrim" }, worldEl);
+    Object.assign(el.style, { position: "absolute", left: 0, right: 0, zIndex: 2, pointerEvents: "none",
+      top: (top ? 0 : o.from ?? s.bottomFrom) + "px", height: (top ? o.height ?? s.top : o.height ?? s.bottom) + "px",
+      background: top ? `linear-gradient(180deg, ${c} 0%, ${c}E6 45%, ${c}00 100%)`
+                      : `linear-gradient(0deg, ${c} 0%, ${c}F0 50%, ${c}00 100%)` });
+    return el;
+  };
+  // the scene's headline (on_screen_text by default) below the series pill; emphasis and ALL-CAPS
+  // words in the accent; pops in word by word at `at`. k.headline({text, size, top, at, align, scrim})
+  k.headline = function (o = {}) {
+    const h = KIT.headline;
+    if (o.scrim !== false) k.scrim("top");
+    const el = k.el("div", { class: "k-headline" }, worldEl);
+    const emph = (o.emphasis || k.emphasis || []).join(" ").split(/\s+/).map(klipNorm).filter(Boolean);
+    for (const w of String(o.text ?? k.text).split(/\s+/).filter(Boolean)) {
+      const caps = w === w.toUpperCase() && /\p{L}/u.test(w);
+      const s = k.el("span", { class: "k-hw", text: w }, el);
+      if (caps || emph.includes(klipNorm(w))) s.style.color = o.accent || P.accent;
+      el.append(" ");
+    }
+    Object.assign(el.style, { position: "absolute", left: k.safe.x + "px", width: k.safe.w + "px", zIndex: 4,
+      top: (o.top ?? L.headlineTop ?? h.top) + "px", textAlign: o.align || "left", color: o.color || P.ink,
+      font: `800 ${o.size || (meta.hook ? h.hook_size : h.size)}px/${h.line_height} var(--k-display)`,
+      letterSpacing: "-0.02em", textShadow: `0 6px 0 ${P.bg}, 0 14px 30px rgba(0,0,0,.45)` });
+    if (o.at !== false) sub.from(el.querySelectorAll(".k-hw"), { y: 40, opacity: 0, duration: 0.3, stagger: h.stagger_s,
+                                                                 ease: KLIP_LOOK.ease.out }, o.at ?? 0.05);
+    return el;
+  };
+  // the style's mascots at their usual spots (as on stage scenes), over a bottom scrim: k.cast() -> {napa, gulung}
+  k.cast = function (o = {}) {
+    if (o.scrim !== false && L.cast.length) k.scrim("bottom");
+    const out = {};
+    for (const m of L.cast) {
+      if (o.only && !o.only.includes(m.name)) continue;
+      const r = k.mascot(m.name, { x: m.x, y: m.y, h: m.h, parent: worldEl });
+      r.el.style.zIndex = 3;
+      out[m.name] = r;
+    }
+    return out;
+  };
+  // a label chip: k.chip("KASIR", x, y, {bg, color, size, rot, at}) pops in at `at`
+  k.chip = function (text, x, y, o = {}) {
+    const el = k.el("div", { class: "k-chip", text }, o.parent || worldEl);
+    Object.assign(el.style, { position: "absolute", left: x + "px", top: y + "px", padding: "10px 26px 14px", zIndex: 3,
+      borderRadius: "16px", background: o.bg || P.ink, color: o.color || P.bg, whiteSpace: "nowrap",
+      font: `800 ${o.size || KIT.chip.size}px/1.1 var(--k-display)`, boxShadow: "0 14px 30px rgba(0,0,0,.35)",
+      transform: `rotate(${o.rot || 0}deg)` });
+    if (o.at != null) k.pop(el, o.at);
+    return el;
+  };
+  // pop in (scale from 0 with the look's pop ease)
+  k.pop = function (target, at, o = {}) {
+    const el = one(target);
+    const from = { scale: 0, rotation: o.rot ?? 0 };
+    if (isSvg(el)) from.transformOrigin = "50% 50%";
+    sub.from(el, { ...from, duration: o.dur || 0.35, ease: KLIP_LOOK.ease.pop }, at);
+    return el;
+  };
+  // shake: k.shake(el, at, {px, times})
+  k.shake = function (target, at, o = {}) {
+    sub.fromTo(one(target), { x: 0 }, { x: o.px || 10, duration: 0.05, yoyo: true, repeat: (o.times || 3) * 2 - 1,
+                                       ease: "none", immediateRender: false }, at);
+  };
+  // typewriter: the element's text types out from `at` (cps characters a second)
+  k.type = function (target, at, o = {}) {
+    const el = one(target), full = o.text ?? el.textContent, cps = o.cps || KIT.type_cps;
+    k.frame((t) => { el.textContent = full.slice(0, Math.max(0, Math.min(full.length, Math.floor((t - at) * cps)))); });
+    return el;
+  };
+  // a number counting up from `at`: k.count(el, {to, from, at, dur, decimals, prefix, suffix}), Indonesian format
+  k.count = function (target, o = {}) {
+    const el = one(target), from = o.from || 0, at = o.at || 0, dur = o.dur || KIT.count_s, ease = gsap.parseEase("power2.out");
+    const fmt = (v) => {
+      const [whole, frac] = Math.abs(v).toFixed(o.decimals || 0).split(".");
+      return (o.prefix || "") + (v < 0 ? "-" : "") + whole.replace(/\B(?=(\d{3})+(?!\d))/g, ".") + (frac ? "," + frac : "") + (o.suffix || "");
+    };
+    k.frame((t) => { el.textContent = fmt(from + (o.to - from) * ease(Math.max(0, Math.min(1, (t - at) / dur)))); });
+    return el;
+  };
+  // draw an SVG path / line / shape's stroke on from `at`
+  k.draw = function (target, at, o = {}) {
+    const el = one(target), len = el.getTotalLength ? el.getTotalLength() : 1000;
+    gsap.set(el, { strokeDasharray: len, strokeDashoffset: len });
+    sub.to(el, { strokeDashoffset: 0, duration: o.dur || 0.8, ease: o.ease || KLIP_LOOK.ease.out }, at);
+    return el;
   };
   const tex = root.querySelector(".k-tex");
   if (tex && meta.texture === "grain") {           // film grain jumps 12 times a second

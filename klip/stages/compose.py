@@ -381,7 +381,7 @@ def code_ctx(look: dict | None, scenes: list[dict], style: dict) -> dict | None:
     """Head context for code scenes: look-bible CSS vars, @font-face rows, caption font, three.js."""
     if not look:
         return None
-    return {"vars": codescene.css_vars(look), "faces": codescene.font_faces(),
+    return {"vars": codescene.css_vars(look), "faces": codescene.font_faces(), "kit": codescene.cfg("kit"),
             "caption_font": look["families"].get("caption"),
             "three": any("three" in s["code"]["libs"] for s in scenes if s.get("code")),
             "cast": codescene.cast_ctx(style) if any((s.get("code") or {}).get("meta", {}).get("mascots")
@@ -467,6 +467,9 @@ def build_context(spec: Spec, timeline: dict, words: list[dict],
     total = _s(timeline["total_ms"])
     brand = branding(spec, style, scenes, total)
     brand["outro"] = outro_badge(outro, brand, scenes)
+    for s in scenes:
+        if s.get("code"):
+            s["code"]["meta"]["layout"] = codescene.layout(style, s, brand, caption_style(style, True)["top"])
     stage_bgs = sorted({s["stage"]["bg"] for s in scenes if s.get("stage") and s["stage"]["builtin"]})
     ctx = {
         "total": total, "style": style, "scenes": scenes, "pages": page_ctx, "brand": brand, "mascots": mascots,

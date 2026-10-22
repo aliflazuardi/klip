@@ -62,7 +62,8 @@ the lines, kinetic type, 3D, "kayak video motion graphic", "bikin kayak video Op
    the motif, the camera). A brand pack's style may already give one.
 2. Each code scene gets `"visual": {"type": "code", "code": {"file": "specs/<slug>/<id>.html"}}`
    and you write that file: markup + `<style>` + one `<script>` animating on `k.tl`, every beat on
-   `k.at("kata")`. A new picture per line; characters and props move on the words; the camera
+   `k.at("kata")`. Start from the standard kit (`k.stage`, `k.headline`, `k.cast`, `k.camera`, `k.chip`,
+   `k.count`…; see the doc) so type, scrims and mascots are placed for you. A new picture per line; characters and props move on the words; the camera
    moves; nothing important outside `k.safe`.
 3. `uv run klip validate specs/<slug>.json` (also lints the scene files), then
    `uv run klip preview specs/<slug>.json` and **read every contact sheet** in

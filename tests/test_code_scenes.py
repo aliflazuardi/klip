@@ -155,3 +155,21 @@ def test_mascot_names_and_poses_are_checked_against_the_cast(repo, monkeypatch):
     msgs = [i.message for i in lint(spec) if i.where == "s1"]
     assert any("k.mascot('budi')" in m for m in msgs) and any("pose 'joget'" in m for m in msgs)
     assert not any("k.mascot('napa')" in m or "pose 'kaget'" in m for m in msgs)
+
+
+def test_kit_layout_puts_the_headline_under_the_series_pill_and_mascots_on_their_spots(monkeypatch):
+    from klip import config, mascot
+    style = {**config.style("default"), "mascot": {**mascot.settings(config.style("default")),
+                                                   "cast": [{"name": "a", "dir": "x", "side": "left"},
+                                                            {"name": "b", "dir": "y", "side": "right"}]}}
+    monkeypatch.setattr(mascot, "_poses", lambda d: {"netral": '<svg viewBox="0 0 200 200"></svg>'})
+    sc = {"start": 0.0, "end": 3.0}
+    pill = {"top": 262, "font_size": 34, "spans": [{"start": 0.0, "end": 3.0}]}
+    with_pill = codescene.layout(style, sc, {"series": pill, "outro": None}, 1290)
+    without = codescene.layout(style, {"start": 3.0, "end": 6.0}, {"series": pill, "outro": None}, 1290)
+    assert with_pill["headlineTop"] > 262 + 34 and without["headlineTop"] == config.get("code.kit.headline.top")
+    h = mascot.settings(style)["height"]
+    a, b = with_pill["cast"]
+    assert a["x"] == 60 + mascot.settings(style)["inset_px"] and b["x"] + b["w"] == 960 - mascot.settings(style)["inset_px"]
+    assert a["y"] == mascot.top(style, 1290) and a["h"] == h == b["w"]
+    assert codescene.uses_mascots("const c = k.cast();") and not codescene.uses_mascots("k.camera(x)")

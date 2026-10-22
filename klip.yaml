@@ -399,6 +399,17 @@ code:
     snappy: {in: "power3.in", out: "power3.out", inOut: "power3.inOut", pop: "back.out(2.2)"}
     smooth: {in: "sine.in", out: "sine.out", inOut: "sine.inOut", pop: "power2.out"}
     bouncy: {in: "back.in(1.6)", out: "back.out(1.8)", inOut: "back.inOut(1.4)", pop: "elastic.out(1, 0.5)"}
+  # The standard kit (k.headline, k.scrim, k.cast, k.chip, k.camera, k.type, k.count…): defaults so a
+  # new scene starts legible and on-brand. headline.top is pushed below the series pill when it shows.
+  kit:
+    headline: {size: 92, hook_size: 104, top: 250, pill_gap: 30, line_height: 1.05, stagger_s: 0.06}
+    # scrims: bands of the look's bg behind the headline (top_px tall) and behind the mascots +
+    # captions (from bottom_above px above the captions' top, bottom_px tall)
+    scrim: {top_px: 600, bottom_above: 330, bottom_px: 560}
+    chip: {size: 52}
+    camera_zoom: 1.08                 # k.camera: scale reached at the scene's end
+    count_s: 1.2                      # k.count: default count-up length
+    type_cps: 24                      # k.type: typewriter characters per second
   safe_top: 230                     # k.safe: below the TikTok top bar / branding strip
   safe_gap: 40                      # px kept clear above the captions
   # klip preview: stills per code scene (its start, each k.at cue, the middle, the end), at most
