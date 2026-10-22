@@ -43,6 +43,9 @@ One HTML fragment: markup, any `<style>` blocks and exactly one inline `<script>
 - `"include": ["specs/<slug>/lib.js"]` runs shared scripts before the scene's own, inside it (with
   `k`): drawing helpers and motifs several scenes use. Includes are linted like the scene.
 - `"texture": "grain"` overrides the look bible's texture for this scene.
+- `"sfx": [{"at": "salah", "sfx": "hit"}, {"at": "ingat", "sfx": "riser", "offset_s": -1}]` puts sound
+  effects on the scene's own beats (effects in klip.yaml `sfx.dir`: whoosh, pop, ding, riser, hit). The
+  cut whoosh and caption cues stay automatic. A riser that should end on the word takes `offset_s: -1`.
 
 ## The scene kit `k`
 

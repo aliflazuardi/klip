@@ -269,6 +269,15 @@ CodeLib = Literal["three"]
 Texture = Literal["none", "paper", "watercolor", "halftone", "grain", "hud", "riso"]
 
 
+class CodeSfx(_Strict):
+    """A sound effect on a code scene's beat."""
+    at: str = Field(min_length=1, description="Narration word (or phrase) the effect lands on, as in k.at().")
+    sfx: str = Field(min_length=1, description="Effect name: a file in klip.yaml sfx.dir (whoosh, pop, ding, riser, "
+                                               "hit).")
+    offset_s: float = Field(0.0, ge=-3, le=3, description="Shift from the word (s); a riser that should END on "
+                                                          "the word takes about -1.")
+
+
 class CodeScene(_Strict):
     """A scene whose look and motion are code Claude writes (see docs/CODE-SCENES.md): markup, <style>
     and one <script> that animates on the scene kit `k` (a GSAP timeline at the scene's start, the
@@ -285,6 +294,9 @@ class CodeScene(_Strict):
     captions: bool = Field(True, description="false = no captions on this scene (it shows its own words, e.g. "
                                              "kinetic type).")
     texture: Texture | None = Field(None, description="This scene's texture instead of the look bible's.")
+    sfx: list[CodeSfx] = Field(default_factory=list, max_length=12,
+                               description="Sound effects on this scene's own beats (the stamp, the bar filling, "
+                                           "the pop), on top of the automatic cut whoosh.")
 
 
 class Visual(_Strict):

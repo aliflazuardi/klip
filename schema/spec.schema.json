@@ -327,12 +327,53 @@
           "default": null,
           "description": "This scene's texture instead of the look bible's.",
           "title": "Texture"
+        },
+        "sfx": {
+          "description": "Sound effects on this scene's own beats (the stamp, the bar filling, the pop), on top of the automatic cut whoosh.",
+          "items": {
+            "$ref": "#/$defs/CodeSfx"
+          },
+          "maxItems": 12,
+          "title": "Sfx",
+          "type": "array"
         }
       },
       "required": [
         "file"
       ],
       "title": "CodeScene",
+      "type": "object"
+    },
+    "CodeSfx": {
+      "additionalProperties": false,
+      "description": "A sound effect on a code scene's beat.",
+      "properties": {
+        "at": {
+          "description": "Narration word (or phrase) the effect lands on, as in k.at().",
+          "minLength": 1,
+          "title": "At",
+          "type": "string"
+        },
+        "sfx": {
+          "description": "Effect name: a file in klip.yaml sfx.dir (whoosh, pop, ding, riser, hit).",
+          "minLength": 1,
+          "title": "Sfx",
+          "type": "string"
+        },
+        "offset_s": {
+          "default": 0.0,
+          "description": "Shift from the word (s); a riser that should END on the word takes about -1.",
+          "maximum": 3,
+          "minimum": -3,
+          "title": "Offset S",
+          "type": "number"
+        }
+      },
+      "required": [
+        "at",
+        "sfx"
+      ],
+      "title": "CodeSfx",
       "type": "object"
     },
     "Compare": {

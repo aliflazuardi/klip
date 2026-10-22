@@ -25,6 +25,11 @@ All notable changes to Klip are listed here. The format follows
   new scene starts legible and on-brand (settings in klip.yaml `code.kit`).
 - `klip preview` records with a free draft voice (`voices.preview_engine`, edge) unless the final
   engine's takes are already cached, so previews never spend Gemini or ElevenLabs quota.
+- Code scenes: `sfx` cues (`{at, sfx, offset_s}`) put sound effects on a scene's own beats.
+
+### Fixed
+
+- `post.txt` no longer repeats hashtags that the caption already contains.
 
 ## [0.4.0] - 2026-10-21
 

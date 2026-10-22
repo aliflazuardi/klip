@@ -140,6 +140,14 @@ def lint_scene(scene: Scene, spec: Spec | None = None) -> list[tuple[str, str]]:
     for phrase in cues(frag.js):
         if _phrase_at(tokens, phrase) is None:
             out.append(("error", f"{c.file}: k.at({phrase!r}) is not in the narration"))
+    sfx_dir = ROOT / config.get("sfx.dir")
+    for cue in c.sfx:
+        if _phrase_at(tokens, cue.at) is None:
+            out.append(("error", f"visual.code.sfx: {cue.at!r} is not in the narration"))
+        if not any((sfx_dir / f"{cue.sfx}{ext}").is_file() for ext in (".wav", ".mp3")):
+            have = sorted({p.stem for p in sfx_dir.glob("*.*")}) if sfx_dir.is_dir() else []
+            out.append(("error", f"visual.code.sfx: no effect {cue.sfx!r} in {config.get('sfx.dir')} "
+                                 f"({', '.join(have) or 'empty'})"))
     names = {Path(a).name for a in c.assets}
     for a in c.assets:
         if not (ROOT / a).is_file():
@@ -341,6 +349,17 @@ def flaps(style: dict, words: list[dict], s0: float) -> list[list[float]]:
     """Mouth (open, close) pairs for these words, in seconds from s0."""
     from klip import mascot
     return [[round(a - s0, 3), round(b - s0, 3)] for a, b in mascot._flaps(words, mascot.settings(style)["mouth"])]
+
+
+def sfx_cues(scene: Scene, words: list[dict]) -> list[dict]:
+    """[{t (absolute s), sfx}] for the scene's visual.code.sfx, from the voice's word times."""
+    tokens = [w["text"].strip() for w in words]
+    out = []
+    for cue in scene.visual.code.sfx:
+        i = _phrase_at(tokens, cue.at)
+        if i is not None:
+            out.append({"t": round(max(words[i]["startMs"] / 1000 + cue.offset_s, 0.0), 3), "sfx": cue.sfx})
+    return out
 
 
 def cue_times(scene: Scene, words: list[dict]) -> list[tuple[float, str]]:

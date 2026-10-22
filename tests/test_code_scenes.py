@@ -173,3 +173,19 @@ def test_kit_layout_puts_the_headline_under_the_series_pill_and_mascots_on_their
     assert a["x"] == 60 + mascot.settings(style)["inset_px"] and b["x"] + b["w"] == 960 - mascot.settings(style)["inset_px"]
     assert a["y"] == mascot.top(style, 1290) and a["h"] == h == b["w"]
     assert codescene.uses_mascots("const c = k.cast();") and not codescene.uses_mascots("k.camera(x)")
+
+
+@needs_renderer
+def test_code_scene_sfx_cues_land_on_their_words(repo):
+    (repo / "assets" / "sfx").mkdir(parents=True)
+    (repo / "assets" / "sfx" / "pop.wav").write_bytes(b"wav")
+    spec = _spec({"id": "s1", "template": "hook", "narration": "matahari terbit",
+                  "visual": code(assets=["specs/farm.png"], sfx=[{"at": "terbit", "sfx": "pop", "offset_s": -0.1}])})
+    assert not [i for i in lint(spec) if i.where == "s1" and i.level == "error"]
+    ws = words(("matahari", 100), ("terbit", 900))
+    ctx, _ = compose.build_context(spec, _timeline(("s1", 2000)), ws, {"scenes": {}})
+    assert {"t": 0.8, "moment": "code_cue", "sfx": "pop"} in ctx["sfx"]
+    bad = _spec({"id": "s1", "template": "hook", "narration": "matahari terbit",
+                 "visual": code(assets=["specs/farm.png"], sfx=[{"at": "bulan", "sfx": "boom"}])})
+    msgs = [i.message for i in lint(bad) if i.where == "s1"]
+    assert any("'bulan' is not in the narration" in m for m in msgs) and any("no effect 'boom'" in m for m in msgs)

@@ -372,6 +372,7 @@ def _code_ctx(spec: Spec, scene: Scene, t: dict, words: list[dict], look: dict, 
         ctx = codescene.scene_ctx(scene, t, words, look, caption_style(style, True)["top"])
     except codescene.CodeSceneError as e:
         raise ComposeError(str(e)) from None
+    ctx["sfx"] = codescene.sfx_cues(scene, words)
     if codescene.uses_mascots(str(ctx["js"])) and mascot.names(style):
         ctx["meta"]["mascots"] = codescene.mascot_meta(spec, scene, style, words, t["start_ms"])
     return ctx
@@ -653,6 +654,8 @@ def sfx_events(scenes: list[dict], pages: list[dict], end_card: bool = False,
                 add("stage_number" if st["count"] and comp["kind"] in ("meter", "funnel") else "stage_pop", st["t"])
             if comp and comp["kind"] == "reel":
                 add("stage_number", round(comp["from"] + comp["dur"], 3))
+        for cue in (s.get("code") or {}).get("sfx", []):     # a code scene's own beats
+            out.append({"t": cue["t"], "moment": "code_cue", "sfx": cue["sfx"]})
         if s["template"] == "list_item":
             add("list_badge", s["start"] + 0.05)
         elif s["template"] == "myth_fact":
