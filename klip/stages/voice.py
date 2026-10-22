@@ -180,6 +180,13 @@ def _whole_take(scenes: list[Scene], engine: TTSEngine, voice_id: str, rate: str
     clips at the pauses between scenes."""
     texts = [apply_lexicon(s.tts_override or s.narration, lex).strip() for s in scenes]
     src, words = synthesize_cached(engine, " ".join(texts), voice_id, rate)
+    return _split_take(scenes, texts, src, words, offset, audio_dir, lambda sc: rate)
+
+
+def _split_take(scenes: list[Scene], texts: list[str], src: Path, words: list[Word], offset: float,
+                audio_dir: Path, rate_of) -> list[dict]:
+    """One recorded take of several scenes → per-scene clips cut at the pauses between scenes, with
+    each scene's words (times relative to its clip)."""
     total = ffmpeg.duration_ms(src)
     words = [Word(w.text, min(w.start_ms + offset, total), min(w.end_ms + offset, total)) for w in words]
     owner = [i for i, t in enumerate(texts) for _ in tokenize(t)]
@@ -200,8 +207,61 @@ def _whole_take(scenes: list[Scene], engine: TTSEngine, voice_id: str, rate: str
         dst = audio_dir / f"{scene.id}.wav"
         ffmpeg.run(["-ss", f"{a / 1000:.3f}", "-to", f"{b / 1000:.3f}", "-i", str(src), "-c:a", "pcm_s16le", str(dst)])
         mine = [Word(w.text, max(w.start_ms - a, 0), max(w.end_ms - a, 0)) for w, o in zip(timed, owner) if o == i]
-        takes.append({"scene": scene, "audio": dst, "words": mine, "pro": prosody.for_scene(scene, rate)})
+        takes.append({"scene": scene, "audio": dst, "words": mine, "pro": prosody.for_scene(scene, rate_of(scene))})
     return takes
+
+
+def dialogue_cached(engine, lines: list[tuple[str, str]], voices: dict[str, str]) -> tuple[Path, list[Word]]:
+    """A multi-speaker take from the cache, else one engine.synthesize_dialogue request (then aligned)."""
+    cache = CACHE_DIR / "tts"
+    cache.mkdir(parents=True, exist_ok=True)
+    key = _cache_key(engine.name, json.dumps(voices, sort_keys=True), "dialogue", json.dumps(lines, ensure_ascii=False),
+                     tag=getattr(engine, "cache_tag", None))
+    audio, meta = cache / f"{key}{getattr(engine, 'ext', '.wav')}", cache / f"{key}.json"
+    if audio.exists() and meta.exists():
+        return audio, [Word.from_dict(d) for d in json.loads(meta.read_text())]
+    if isinstance(engine, CacheOnly):
+        raise NotCached(f"{engine.name}: no cached dialogue take")
+    words = engine.synthesize_dialogue(lines, voices, audio)
+    if not words:
+        from klip.align import align_audio
+        words = align_audio(audio, " ".join(text for _, text in lines))
+    meta.write_text(json.dumps([w.to_dict() for w in words], ensure_ascii=False))
+    return audio, words
+
+
+def speaker_names(spec: Spec, voices: list[str]) -> dict[str, str]:
+    """Labels for the dialogue script, per logical voice: the mascot with that voice (Napa, Gulung),
+    else the voice itself ("Female", "Male")."""
+    from klip.mascot import settings, video_style
+    cast = {m.get("voice"): m["name"] for m in settings(video_style(spec)).get("cast") or [] if m.get("voice")}
+    return {v: (cast.get(v) or v).capitalize() for v in voices}
+
+
+def dialogue_ok(engine, spec: Spec, whole: bool) -> bool:
+    """Record the whole video as one multi-speaker take: a whole-take engine that can (Gemini), on,
+    and exactly two narrators taking turns."""
+    inner = engine.engine if isinstance(engine, CacheOnly) else engine
+    return (whole and hasattr(inner, "synthesize_dialogue") and bool(config.get(f"{inner.name}_tts.dialogue"))
+            and len({v for v, _ in turns(spec)}) == 2)
+
+
+def _dialogue_take(spec: Spec, engine, lex: dict, offset: float, audio_dir: Path) -> tuple[list[dict], dict]:
+    """The whole duet in one request: one labelled line per narrator turn, cut into scenes like a whole take."""
+    tns = turns(spec)
+    names = speaker_names(spec, list(dict.fromkeys(v for v, _ in tns)))
+    voices = {v: config.voice_id(v, engine.name) for v in names}
+    scenes = [s for _, ss in tns for s in ss]
+    texts = [apply_lexicon(s.tts_override or s.narration, lex).strip() for s in scenes]
+    lines, k = [], 0
+    for v, ss in tns:
+        lines.append((names[v], " ".join(texts[k:k + len(ss)])))
+        k += len(ss)
+    src, words = dialogue_cached(engine, lines, {names[v]: voices[v] for v in names})
+    voice_of = {s.id: v for v, ss in tns for s in ss}
+    takes = _split_take(scenes, texts, src, words, offset, audio_dir,
+                        lambda sc: spec.speech_rate or config.default_rate(voice_of[sc.id]))
+    return [{**tk, "voice": voice_of[tk["scene"].id], "turn_end": False} for tk in takes], voices
 
 
 def turns(spec: Spec) -> list[tuple[str, list[Scene]]]:
@@ -250,11 +310,14 @@ def run(spec: Spec, project_dir: Path, engine: TTSEngine | None = None, draft: b
     # each narrator's turn is recorded on its own (a whole take per turn keeps the intonation
     # flowing within it); the voice and its default rate follow the turn
     takes, voices = [], {}
-    for k, (v, scenes) in enumerate(turns(spec)):
-        voices[v] = config.voice_id(v, engine.name)
-        rate = spec.speech_rate or config.default_rate(v)
-        got = (_whole_take if whole else _scene_takes)(scenes, engine, voices[v], rate, lex, offset, audio_dir, k == 0)
-        takes += [{**tk, "voice": v, "turn_end": j == len(got) - 1} for j, tk in enumerate(got)]
+    if dialogue_ok(engine, spec, whole):     # a duet: one multi-speaker request for the whole video
+        takes, voices = _dialogue_take(spec, engine, lex, offset, audio_dir)
+    else:
+        for k, (v, scenes) in enumerate(turns(spec)):
+            voices[v] = config.voice_id(v, engine.name)
+            rate = spec.speech_rate or config.default_rate(v)
+            got = (_whole_take if whole else _scene_takes)(scenes, engine, voices[v], rate, lex, offset, audio_dir, k == 0)
+            takes += [{**tk, "voice": v, "turn_end": j == len(got) - 1} for j, tk in enumerate(got)]
     rate = spec.speech_rate or config.default_rate(spec.voice)
 
     scenes, all_words = [], []
@@ -287,7 +350,8 @@ def run(spec: Spec, project_dir: Path, engine: TTSEngine | None = None, draft: b
     timeline = {
         "total_ms": round(cursor, 1), "voice": spec.voice, "voice_id": voices.get(spec.voice) or next(iter(voices.values())),
         "voices": voices,
-        "engine": engine.name, "draft": draft, "take": "whole" if whole else "scene", "speech_rate": rate,
+        "engine": engine.name, "draft": draft,
+        "take": "dialogue" if dialogue_ok(engine, spec, whole) else "whole" if whole else "scene", "speech_rate": rate,
         "scenes": scenes,
         "words_per_second": round(spec.word_count / (sum(s["audio_ms"] for s in scenes) / 1000), 3),
     }

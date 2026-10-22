@@ -8,6 +8,9 @@ All notable changes to Klip are listed here. The format follows
 
 ### Added
 
+- Gemini duets in one request: a video that alternates two narrators is recorded as a single
+  multi-speaker take (`gemini_tts.dialogue`, on by default with `voices.take: whole`), then cut into
+  scenes. One request per video instead of one per narrator turn, and more natural hand-offs.
 - **Director mode: code scenes.** `visual.type: "code"` renders a scene from an HTML/CSS/JS file
   written against the scene kit `k` (GSAP timeline, `k.at("word")` cues, `k.frame` for canvas and
   Three.js, seeded random). Validation lints the files (no clock, random, network or rAF; cue words

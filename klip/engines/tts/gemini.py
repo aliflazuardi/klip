@@ -71,8 +71,6 @@ class GeminiTTS:
 
     def synthesize(self, text: str, voice_id: str, rate: str, out_path: Path,
                    pitch: str = "+0Hz", volume: str = "+0%") -> list[Word]:
-        if not self.key:
-            raise TTSError("GEMINI_API_KEY is not set (add it to .env)")
         c = config.get("gemini_tts")
         body = {"model": c["model"],
                 "input": [{"type": "user_input", "content": [{
@@ -80,6 +78,24 @@ class GeminiTTS:
                     "annotations": [{"type": "speech_metadata", "style": c["style"]}]}]}],
                 "response_format": {"type": "audio"},
                 "generation_config": {"speech_config": [{"voice": voice_id}]}}
+        return self._request(body, out_path)
+
+    def synthesize_dialogue(self, lines: list[tuple[str, str]], voices: dict[str, str], out_path: Path) -> list[Word]:
+        """A two-speaker script in ONE request: lines = [(speaker, text)], voices = {speaker: voice id}.
+        Each line is its own text turn annotated with its speaker (and the style); no word timings."""
+        if len(voices) > 2:
+            raise TTSError("Gemini multi-speaker TTS takes at most 2 speakers")
+        c = config.get("gemini_tts")
+        turns = [{"type": "text", "text": text,
+                  "annotations": [{"type": "speech_metadata", "speaker": who, "style": c["style"]}]} for who, text in lines]
+        body = {"model": c["model"], "input": [{"type": "user_input", "content": turns}],
+                "response_format": {"type": "audio"},
+                "generation_config": {"speech_config": [{"speaker": who, "voice": v} for who, v in voices.items()]}}
+        return self._request(body, out_path)
+
+    def _request(self, body: dict, out_path: Path) -> list[Word]:
+        if not self.key:
+            raise TTSError("GEMINI_API_KEY is not set (add it to .env)")
         req = urllib.request.Request(URL, data=json.dumps(body, ensure_ascii=False).encode(), method="POST",
                                      headers={"x-goog-api-key": self.key, "Content-Type": "application/json"})
         last = None

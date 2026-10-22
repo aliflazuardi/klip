@@ -215,6 +215,16 @@ energetic +16 Hz median pitch and ~5% faster; warm -7 Hz and ~5% slower. Overrid
 with `"delivery": "calm"` etc., tune the presets in `klip.yaml` (`prosody`), and preview one
 with `uv run klip say "teks" --delivery energetic`.
 
+### Duets in one take (Gemini)
+
+When a video alternates two narrators (scenes with `"voice": "female"` / `"male"`, or a mascot duet)
+and `voices.engine: gemini` with `voices.take: whole`, the whole script is recorded as **one
+multi-speaker request**: each narrator turn is a line for its speaker (the mascot's name, else
+"Female" / "Male"), then the take is aligned and cut into scenes. A duet costs 1 request instead of
+one per turn (the free tier allows 10 a day), and the hand-offs flow like a real conversation, so
+it usually runs a little shorter than turn-by-turn takes. `gemini_tts.dialogue: false` goes back to
+one request per turn. The timeline's `take` says which was used (`dialogue`, `whole` or `scene`).
+
 ## Fast cuts
 
 Every shot shows its own clip: a source is used once per video (checked by provider id and by

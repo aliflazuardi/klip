@@ -62,6 +62,10 @@ elevenlabs:
 gemini_tts:
   model: gemini-3.8-flash-tts
   max_wait_s: 70                    # on a rate limit (HTTP 429), wait what the API asks, up to this
+  # A two-voice video (a duet: scenes alternate female and male) is recorded as ONE multi-speaker
+  # request instead of one per narrator turn (needs voices.take: whole): fewer requests on the
+  # free tier, and the hand-offs flow like a real conversation. false = one request per turn.
+  dialogue: true
   style: >-
     Narator video edukasi pendek berbahasa Indonesia untuk TikTok: santai, hangat, penasaran,
     seperti ngobrol dengan teman, tempo agak cepat, logat Jakarta yang netral.
