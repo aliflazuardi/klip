@@ -113,7 +113,8 @@ uv run klip mcp-config --install     # adds "klip" to Claude Desktop's config (b
 ```
 
 Restart Claude Desktop and ask the same thing in a chat. Tools: `get_spec_schema`,
-`list_voices`, `list_templates`, `list_styles`, `validate_spec`, `render_spec`, `job_status`,
+`list_voices`, `list_templates`, `list_styles`, `get_brand_guide`, `validate_spec`, `preview_spec`
+(contact-sheet stills to check before rendering), `photo_brief`, `render_spec`, `job_status`,
 `list_jobs`. `uv run klip mcp-config` without `--install` just prints the entry.
 
 ### With the CLI only

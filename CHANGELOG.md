@@ -55,6 +55,10 @@ All notable changes to Klip are listed here. The format follows
 - MCP tool `get_brand_guide(style)`: returns a brand pack's `skill/SKILL.md` and its mascot cast, so
   Claude Desktop sessions follow the brand (voice, series, mascots) without a separately installed skill.
 - `list_styles` now lists each brand's mascots (name, voice, side) and whether it has a brand guide.
+- MCP tool `preview_spec`: the `klip preview` contact sheets returned as images (plus the stills'
+  times and labels), so Claude Desktop can look before it renders. `validate_spec`, `preview_spec`
+  and `render_spec` take `scene_files` (code-scene HTML/JS saved to `specs/<slug>/`), which brings
+  director mode to Claude Desktop.
 
 ### Fixed
 

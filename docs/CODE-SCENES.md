@@ -9,8 +9,10 @@ Use them when the video should look designed shot by shot: illustrated stories, 
 out a line, kinetic type, data that builds into a picture, 3D. They take longer to write than a
 template, so the loop below (preview → look → fix) is part of the job, not optional.
 
-Director mode needs a writer that can create files (Claude Code). `klip new` and the MCP server
-write template and stage specs.
+Claude Code writes the scene files itself. From Claude Desktop, the MCP tools `validate_spec`,
+`preview_spec` and `render_spec` take them as `scene_files` (`{"s1.html": "…"}`, saved to
+`specs/<slug>/`), and `preview_spec` returns the contact sheets as images, so the preview loop
+below works there too. `klip new` writes template and stage specs only.
 
 ## The scene file
 
