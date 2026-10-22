@@ -122,7 +122,19 @@ def test_mcp_lists_all_tools():
         async with Client(mcp_server.server) as c:
             return {t.name for t in (await c.list_tools()).tools}
     assert asyncio.run(go()) == {"get_spec_schema", "list_voices", "list_templates", "list_styles",
-                                 "validate_spec", "render_spec", "photo_brief", "job_status", "list_jobs"}
+                                 "validate_spec", "render_spec", "photo_brief", "job_status", "list_jobs",
+                                 "get_brand_guide"}
+
+
+def test_mcp_brand_guide_and_styles(tmp_path, monkeypatch):
+    monkeypatch.setattr(mcp_server, "ROOT", tmp_path)
+    (tmp_path / "brands" / "acme" / "skill").mkdir(parents=True)
+    (tmp_path / "brands" / "acme" / "skill" / "SKILL.md").write_text("# Acme voice")
+    g = call("get_brand_guide", {"style": "acme"})
+    assert g["found"] and g["guide"] == "# Acme voice"
+    missing = call("get_brand_guide", {"style": "nope"})
+    assert not missing["found"] and missing["available"] == ["acme"]
+    assert "has_brand_guide" in call("list_styles")["default"]
 
 
 def test_mcp_schema_and_lists():

@@ -52,6 +52,9 @@ All notable changes to Klip are listed here. The format follows
 - `klip preview` ends with Claude's review of the contact sheets (score per scene, issues with fixes:
   unreadable text, overlaps, safe area, empty frames, off-script, off-style, error boxes), saved to
   `preview/review.json` and carried into `qa.json`. Settings in klip.yaml `code.review`; `--no-review`.
+- MCP tool `get_brand_guide(style)`: returns a brand pack's `skill/SKILL.md` and its mascot cast, so
+  Claude Desktop sessions follow the brand (voice, series, mascots) without a separately installed skill.
+- `list_styles` now lists each brand's mascots (name, voice, side) and whether it has a brand guide.
 
 ### Fixed
 
@@ -59,6 +62,14 @@ All notable changes to Klip are listed here. The format follows
 - Code scenes: a mascot pose set at the scene's very start (`pose(name, 0)`) now shows from frame 0.
 - Code scenes: the mascot walk no longer breaks `klip render` (HyperFrames' strict lint rejects template
   literals in `querySelector`); `klip validate` now flags that pattern in scene files too.
+
+### Changed
+
+- MCP instructions: for a named channel/brand, call `get_brand_guide` before writing; never ask the
+  user who the mascots are or which voice they use.
+- Warga Nalar skill: mascot summary at the top (Napa = female, asks; Gulung = male, explains; on by
+  default), per-scene voice rule for duets, 8–9 scenes allowed for duets, and the invalid
+  `bg: "malam"` replaced with `bg: "solid"`.
 
 ## [0.4.0] - 2026-10-21
 

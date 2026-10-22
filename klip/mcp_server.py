@@ -25,6 +25,10 @@ from klip.spec import Spec, export_schema
 INSTRUCTIONS = """Klip turns an Indonesian topic into a TikTok video (1080x1920 MP4 with voiceover,
 word-synced captions, b-roll, music). Workflow:
 1. Call get_spec_schema once: it returns the JSON Schema, the writing guide, and an example spec.
+   BRAND: if the user names a channel or brand (e.g. "Warga Nalar", "/warga-nalar") or a style from
+   list_styles, call get_brand_guide(style) BEFORE writing and follow it: it sets the voice, series,
+   visual rules and the mascot cast (who speaks, which voice, which role). Never ask the user who the
+   mascots are or which voice they use; the brand guide and list_styles already say.
 2. Research the facts for the topic (cite real sources in facts[]), then write the spec yourself.
    Voice: "suara cowok" = male, "suara cewek" = female (default female).
    Look: if the user asks for the stage / illustrated / collage / 90secondslab look ("pakai stage",
@@ -107,9 +111,31 @@ def list_templates() -> dict[str, Any]:
 
 @server.tool()
 def list_styles() -> dict[str, Any]:
-    """Visual styles a spec can pick with "style"."""
-    return {name: {k: config.style(name).get(k) for k in ("accent_color", "emphasis_color", "transition")}
-            for name in config.styles()}
+    """Visual styles a spec can pick with "style", with each brand's mascot cast (name, voice, side)."""
+    out = {}
+    for name in config.styles():
+        st = config.style(name)
+        info = {k: st.get(k) for k in ("accent_color", "emphasis_color", "transition")}
+        cast = (st.get("mascot") or {}).get("cast") or []
+        if cast:
+            info["mascots"] = [{k: m.get(k) for k in ("name", "voice", "side")} for m in cast]
+        info["has_brand_guide"] = (ROOT / "brands" / name / "skill" / "SKILL.md").is_file()
+        out[name] = info
+    return out
+
+
+@server.tool()
+def get_brand_guide(style: str) -> dict[str, Any]:
+    """A brand's writing and visual guide (its SKILL.md: voice, series, mascots and their roles, fact rules).
+    Call this before writing any spec for a branded channel, e.g. style="warga-nalar"."""
+    path = ROOT / "brands" / style / "skill" / "SKILL.md"
+    if not path.is_file():
+        return {"style": style, "found": False,
+                "available": sorted(d.name for d in (ROOT / "brands").iterdir()
+                                    if (d / "skill" / "SKILL.md").is_file())}
+    st = config.style(style) if style in config.styles() else {}
+    return {"style": style, "found": True, "guide": path.read_text(encoding="utf-8"),
+            "mascot": st.get("mascot")}
 
 
 @server.tool()
