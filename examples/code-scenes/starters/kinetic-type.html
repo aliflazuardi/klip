@@ -1,0 +1,32 @@
+<!-- Starter: kinetic type. The scene's on_screen_text slams in word by word, each word as the voice
+     says it (else spread over the narration); emphasis and ALL-CAPS words in the accent, bigger.
+     Set captions: false on the scene when the words repeat the narration. -->
+<div class="kt"></div>
+<style>
+.kt { position: absolute; left: 70px; right: 70px; top: 300px; bottom: 520px; display: flex; flex-direction: column;
+      justify-content: center; gap: 6px; }
+.kt span { display: block; font: 800 150px/0.98 var(--k-display); letter-spacing: -0.04em; color: var(--k-ink);
+           transform-origin: 0 60%; }
+.kt span.em { color: var(--k-accent); font-size: 190px; }
+</style>
+<script>
+const CFG = { text: k.text, shapes: 7 };                     // edit: the words, how many background shapes
+const { cam } = k.stage();
+const r = k.rand(5);
+for (let i = 0; i < CFG.shapes; i++) {                        // slow-turning shapes behind the type
+  const s = 120 + r() * 260, g = k.el("rect", { x: r() * 1080 - s / 2, y: 200 + r() * 1300, width: s, height: s,
+    rx: s * 0.18, fill: i % 3 ? k.look.palette.muted : k.look.palette.accent, opacity: 0.12 }, cam);
+  k.tl.fromTo(g, { rotation: r() * 40 }, { rotation: r() * 120 - 60, svgOrigin: "540 960", duration: k.dur, ease: "none" }, 0);
+}
+k.camera(cam, { to: 1.06 });
+const box = k.$(".kt"), list = String(CFG.text).split(/\s+/).filter(Boolean);
+const emph = new Set((k.emphasis || []).join(" ").toLowerCase().split(/\s+/));
+list.forEach((w, i) => {
+  const caps = w === w.toUpperCase() && /\p{L}/u.test(w);
+  const el = k.el("span", { class: caps || emph.has(w.toLowerCase()) ? "em" : "", text: w }, box);
+  const t = k.find(w) ?? k.beat(i / Math.max(1, list.length));
+  k.tl.from(el, { x: -120, scale: 1.4, opacity: 0, duration: 0.28, ease: k.look.ease.pop }, t);
+  if (caps) k.shake(el, t + 0.28, { px: 6, times: 2 });
+});
+k.cast();
+</script>

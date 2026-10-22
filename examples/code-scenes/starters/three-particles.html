@@ -1,0 +1,40 @@
+<!-- Starter (Three.js): a particle galaxy that spins, then pulls together into a ring on the scene's
+     key moment (CFG.at, else halfway). Needs "libs": ["three"]. -->
+<div id="gl"></div>
+<style>#gl { position: absolute; inset: 0; }</style>
+<script>
+const CFG = { count: 3500, arms: 3, at: null, gather: 1.4 };
+const THREE = k.lib.THREE, P = k.look.palette, r = k.rand(11);
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1); renderer.setSize(1080, 1920); renderer.setClearColor(new THREE.Color(P.bg));
+k.$("#gl").appendChild(renderer.domElement);
+const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(50, 1080 / 1920, 0.1, 100);
+cam.position.set(0, 8.5, 11.5); cam.lookAt(0, -1.6, 0);
+const n = CFG.count, from = new Float32Array(n * 3), to = new Float32Array(n * 3), colors = new Float32Array(n * 3);
+const ca = new THREE.Color(P.accent), ci = new THREE.Color(P.ink);
+for (let i = 0; i < n; i++) {
+  const arm = i % CFG.arms, d = Math.pow(r(), 0.7) * 3.6, a = d * 1.1 + (arm / CFG.arms) * Math.PI * 2 + (r() - 0.5) * 0.5;
+  from.set([Math.cos(a) * d, (r() - 0.5) * 0.4, Math.sin(a) * d], i * 3);
+  const b = (i / n) * Math.PI * 2;
+  const rr = 3.0 + (r() - 0.5) * 0.14;
+  to.set([Math.cos(b) * rr, (r() - 0.5) * 0.06, Math.sin(b) * rr], i * 3);
+  const c = ci.clone().lerp(ca, Math.min(1, d / 4 + r() * 0.3));
+  colors.set([c.r, c.g, c.b], i * 3);
+}
+const geo = new THREE.BufferGeometry();
+geo.setAttribute("position", new THREE.BufferAttribute(from.slice(), 3));
+geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+const pts = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.075, vertexColors: true, transparent: true, opacity: 0.95 }));
+scene.add(pts);
+const tg = (CFG.at && k.find(CFG.at)) ?? k.beat(0.5), ease = gsap.parseEase("power3.inOut");
+k.frame((t) => {
+  const p = ease(Math.max(0, Math.min(1, (t - tg) / CFG.gather))), pos = geo.attributes.position.array;
+  for (let i = 0; i < pos.length; i++) pos[i] = from[i] + (to[i] - from[i]) * p;
+  geo.attributes.position.needsUpdate = true;
+  pts.rotation.y = t * 0.25;
+  pts.rotation.x = 0.2 - p * 0.2;
+  renderer.render(scene, cam);
+});
+k.headline();
+k.cast();
+</script>

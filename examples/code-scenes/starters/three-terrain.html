@@ -1,0 +1,31 @@
+<!-- Starter (Three.js): a wireframe terrain flyover, HUD style. The camera glides over rolling
+     hills drawn in the accent, fading into the bg. Needs "libs": ["three"]. Edit CFG. -->
+<div id="gl"></div>
+<style>#gl { position: absolute; inset: 0; }</style>
+<script>
+const CFG = { speed: 6, height: 2.4, segments: [70, 110], tilt: 0.42 };
+const THREE = k.lib.THREE, P = k.look.palette;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1); renderer.setSize(1080, 1920); renderer.setClearColor(new THREE.Color(P.bg));
+k.$("#gl").appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(new THREE.Color(P.bg), 8, 34);
+const cam = new THREE.PerspectiveCamera(55, 1080 / 1920, 0.1, 100);
+const geo = new THREE.PlaneGeometry(30, 46, CFG.segments[0], CFG.segments[1]);
+geo.rotateX(-Math.PI / 2);
+const base = geo.attributes.position.array.slice();
+const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: new THREE.Color(P.accent), wireframe: true }));
+scene.add(mesh);
+// rolling height: a sum of sines (deterministic), sampled further along z as time goes on
+const hgt = (x, z) => CFG.height * (0.55 * Math.sin(x * 0.35 + z * 0.2) + 0.35 * Math.sin(z * 0.45 - x * 0.15) + 0.2 * Math.sin(x * 0.9 + z * 0.7));
+k.frame((t) => {
+  const pos = geo.attributes.position.array, dz = t * CFG.speed;
+  for (let i = 0; i < pos.length; i += 3) pos[i + 1] = hgt(base[i], base[i + 2] - dz) * Math.min(1, Math.abs(base[i]) / 4 + 0.15);
+  geo.attributes.position.needsUpdate = true;
+  cam.position.set(Math.sin(t * 0.3) * 1.2, 3.2 + Math.sin(t * 0.5) * 0.3, 12);
+  cam.lookAt(0, 0.4 - CFG.tilt * 2, -6);
+  renderer.render(scene, cam);
+});
+k.headline();
+k.cast();
+</script>

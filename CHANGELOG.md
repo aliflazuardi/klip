@@ -26,6 +26,10 @@ All notable changes to Klip are listed here. The format follows
 - `klip preview` records with a free draft voice (`voices.preview_engine`, edge) unless the final
   engine's takes are already cached, so previews never spend Gemini or ElevenLabs quota.
 - Code scenes: `sfx` cues (`{at, sfx, offset_s}`) put sound effects on a scene's own beats.
+- Code scene starters in `examples/code-scenes/starters/` (kinetic type, split comparison, document,
+  timeline, road, big counter, and Three.js terrain, particles and globe), all rendered by
+  `examples/code-gallery.json`; `k.find` / `k.beat` for scenes that time themselves on any narration;
+  `--k-paper-ink` for card text that reads on light and dark looks.
 - Code scenes: the mascot rig acts: `walk` (footsteps, bob, lean), `enter` / `exit`, `jump`, `hop`,
   `turn`, `point` at a prop, `nod`, `wiggle`. Feet are found in the pose SVGs automatically (or marked
   `foot-l` / `foot-r`); settings in klip.yaml `code.kit.act`.

@@ -1,6 +1,7 @@
 """Code scenes (visual.type "code"): spec rules, parsing, lint, look bible, compose."""
 
 import re
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
@@ -212,3 +213,23 @@ def test_kit_and_scenes_avoid_template_literal_selectors(repo):
     (repo / "specs" / "q.html").write_text("<div></div><script>document.querySelector(`#a${1}`);</script>")
     spec = _spec({"id": "s1", "template": "hook", "narration": "a b", "visual": code("specs/q.html")})
     assert any("template literals in querySelector" in i.message for i in lint(spec))
+
+
+def test_the_starter_gallery_uses_every_starter_and_lints_clean():
+    from klip.paths import ROOT
+    from klip.spec import load_spec
+    spec = load_spec(ROOT / "examples" / "code-gallery.json")
+    used = {Path(s.visual.code.file).name for s in spec.scenes}
+    assert used == {p.name for p in (ROOT / "examples" / "code-scenes" / "starters").glob("*.html")}
+    assert not [str(i) for i in lint(spec) if i.level == "error"]
+
+
+def test_paper_ink_contrasts_with_paper(repo):
+    from klip import config
+    style = config.style("default")
+    dark = _spec({"id": "s1", "template": "hook", "narration": "a"},
+                 look_bible={"palette": {"bg": "#101418", "paper": "#F4EFE6", "ink": "#F4EFE6"}})
+    assert codescene.look(dark, style)["palette"]["paper-ink"] == "#101418"      # light ink on light paper: use bg
+    light = _spec({"id": "s1", "template": "hook", "narration": "a"})
+    lk = codescene.look(light, style)
+    assert lk["palette"]["paper-ink"] == lk["palette"]["ink"]

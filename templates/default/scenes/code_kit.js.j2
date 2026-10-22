@@ -17,13 +17,24 @@ function klipScene(meta, body) {
     $$: (sel) => Array.from(root.querySelectorAll(sel)),
     // when the voice says `phrase` (scene seconds), at or after `after`
     at(phrase, after = 0) {
+      const t = k.find(phrase, after);
+      if (t !== null) return t;
+      console.warn(`klip ${meta.id}: k.at(${JSON.stringify(phrase)}) not in the narration`);
+      return Math.min(after, meta.dur);
+    },
+    // like k.at, but null when the phrase isn't said (reusable scenes: time on a word if it's there)
+    find(phrase, after = 0) {
       const want = String(phrase).split(/\s+/).map(klipNorm).filter(Boolean);
       for (let i = 0; i + want.length <= words.length; i++) {
         if (words[i].t + 1e-3 < after) continue;
         if (want.every((w, j) => words[i + j].n === w)) return words[i].t;
       }
-      console.warn(`klip ${meta.id}: k.at(${JSON.stringify(phrase)}) not in the narration`);
-      return Math.min(after, meta.dur);
+      return null;
+    },
+    // a share of the scene's spoken part (0 = first word, 1 = last word ends): k.beat(0.5)
+    beat(share) {
+      const a = words.length ? words[0].t : 0, b = words.length ? words[words.length - 1].end : meta.dur;
+      return a + (b - a) * Math.max(0, Math.min(1, share));
     },
     // fn(t) on every frame of the scene (canvas, Three.js): a pure function of scene time t
     frame(fn) {

@@ -54,6 +54,8 @@ One HTML fragment: markup, any `<style>` blocks and exactly one inline `<script>
 | `k.tl` | A GSAP timeline that starts with the scene. Times are scene seconds, 0 … `k.dur`. Put every animation on it. |
 | `k.dur` | The scene's length in seconds. |
 | `k.at("phrase", after = 0)` | When the voice says the phrase (scene seconds), at or after `after`. Validation checks every literal phrase is in the narration. Use it for every beat. |
+| `k.find("phrase", after)` | Like `k.at`, but `null` when the phrase isn't said: for reusable scenes (`k.find(w) ?? k.beat(0.5)`). |
+| `k.beat(share)` | A point in the scene's spoken part: 0 = the first word, 1 = when the last word ends. |
 | `k.words` | `[{text, t, end}]`, the narration's words with scene-relative times. |
 | `k.frame(fn)` | `fn(t)` on every frame, for canvas 2D or Three.js. `fn` must draw from `t` alone. |
 | `k.rand(seed)` | A seeded random generator: `const r = k.rand(7); r()` → [0, 1). |
@@ -98,6 +100,28 @@ no `Math.random` (use `k.rand`), no `Date` / `performance.now`, no `requestAnima
 (use `k.frame`), no `setTimeout`, no CSS `transition` / `@keyframes`, no network, no imports.
 `klip validate` rejects them. A script that throws paints a red box in its scene, so you see it in
 the preview.
+
+## Starters
+
+Don't start from a blank file. `examples/code-scenes/starters/` holds scenes to copy into
+`specs/<slug>/` and edit: each has a `CFG` block at the top of its script (labels, values, the word
+a beat lands on) and takes its colours and fonts from the look bible. `examples/code-gallery.json`
+renders all of them (`uv run klip preview examples/code-gallery.json`).
+
+| starter | for |
+|---|---|
+| `kinetic-type.html` | the scene's on-screen text slamming in word by word as it is said (a hook, a punchline) |
+| `split-compare.html` | A vs B: two cards with counting values and bars, the winner lights up |
+| `paper-doc.html` | a document as evidence: the key line gets a marker, a stamp thumps down |
+| `path-timeline.html` | a timeline or route drawing itself, milestones popping on their words |
+| `road-traffic.html` | a top-down road with lanes of different density and speed, our car in the accent |
+| `counter-hero.html` | one big number counting up inside a filling ring |
+| `three-terrain.html` | Three.js: a wireframe terrain flyover (HUD look) |
+| `three-particles.html` | Three.js: a particle galaxy that gathers into a ring on the key moment |
+| `three-globe.html` | Three.js: a globe turned toward its places, which light up as arcs fly between them |
+
+Card text uses `--k-paper-ink` (the look's ink when it reads on `paper`, else its bg), so the starters
+work on light and dark looks.
 
 ## The look bible
 

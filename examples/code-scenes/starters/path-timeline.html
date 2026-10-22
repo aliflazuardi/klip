@@ -1,0 +1,29 @@
+<!-- Starter: a timeline / route. A path draws itself across the frame and each milestone pops on its
+     word (else spread over the narration). Edit CFG.points (2-6). -->
+<style>
+.ms-lab { position: absolute; width: 300px; transform: translateX(-50%); text-align: center; }
+.ms-lab b { display: block; font: 800 76px/1 var(--k-display); color: var(--k-accent); }
+.ms-lab span { display: block; margin-top: 6px; font: 700 42px/1.15 var(--k-body); color: var(--k-ink); }
+</style>
+<script>
+const CFG = { points: [{ label: "1998", text: "Awal", at: null }, { label: "2008", text: "Krisis", at: null },
+                       { label: "2015", text: "Bangkit", at: null }, { label: "2024", text: "Sekarang", at: null }] };
+const { svg, cam } = k.stage();
+k.headline();
+const n = CFG.points.length, top = 520, bottom = 1040;
+const pts = CFG.points.map((p, i) => ({ ...p, x: 160 + (760 * i) / Math.max(1, n - 1), y: i % 2 ? top + 90 : bottom - 120 }));
+const d = pts.map((p, i) => (i ? `C ${pts[i - 1].x + 120} ${pts[i - 1].y}, ${p.x - 120} ${p.y}, ${p.x} ${p.y}` : `M ${p.x} ${p.y}`)).join(" ");
+k.el("path", { d, fill: "none", stroke: k.look.palette.ink, "stroke-width": k.look.line * 2.2, opacity: 0.15, "stroke-linecap": "round" }, cam);
+const line = k.el("path", { d, fill: "none", stroke: k.look.palette.accent, "stroke-width": k.look.line * 2.2, "stroke-linecap": "round" }, cam);
+const times = pts.map((p, i) => (p.at && k.find(p.at)) ?? k.beat((i + 0.3) / n));
+k.draw(line, times[0], { dur: Math.max(0.6, times[n - 1] - times[0] + 0.3), ease: "power1.inOut" });
+pts.forEach((p, i) => {
+  const dot = k.el("circle", { cx: p.x, cy: p.y, r: 30, fill: k.look.palette.paper, stroke: k.look.palette.accent, "stroke-width": 10 }, cam);
+  k.pop(dot, times[i]);
+  const lab = k.el("div", { class: "ms-lab", html: `<b>${p.label}</b><span>${p.text}</span>` }, k.root.querySelector(".k-world"));
+  Object.assign(lab.style, { left: p.x + "px", top: (i % 2 ? p.y - 170 : p.y + 50) + "px", zIndex: 3 });
+  k.tl.from(lab, { y: 30, opacity: 0, duration: 0.3, ease: k.look.ease.out }, times[i] + 0.1);
+});
+k.camera(cam, { to: 1.05 });
+k.cast();
+</script>

@@ -60,7 +60,8 @@ the lines, kinetic type, 3D, "kayak video motion graphic", "bikin kayak video Op
    4–7 named colours with one accent, fonts (`jakarta`, `fraunces`, `fredoka`, `anton`, `mono`),
    a texture, `motion`, and `notes` that fix the art direction (style, the recurring character,
    the motif, the camera). A brand pack's style may already give one.
-2. Each code scene gets `"visual": {"type": "code", "code": {"file": "specs/<slug>/<id>.html"}}`
+2. Each code scene gets `"visual": {"type": "code", "code": {"file": "specs/<slug>/<id>.html"}}`;
+   start by copying the closest starter from `examples/code-scenes/starters/` (see the doc's table)
    and you write that file: markup + `<style>` + one `<script>` animating on `k.tl`, every beat on
    `k.at("kata")`. Start from the standard kit (`k.stage`, `k.headline`, `k.cast`, `k.camera`, `k.chip`,
    `k.count`…; see the doc) so type, scrims and mascots are placed for you. Give the scene's big beats a

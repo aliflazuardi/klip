@@ -199,6 +199,9 @@ def look(spec: Spec, style: dict) -> dict:
         out["texture_strength"] = cfg("textures")[out["texture"]]
     out["ease"] = cfg("eases")[out["motion"]]
     out["tone"] = "light" if luminance(out["palette"]["bg"]) >= 0.5 else "dark"
+    pal = out["palette"]           # text on a paper card: ink if it contrasts with paper, else the bg colour
+    if "paper-ink" not in pal and "paper" in pal:
+        pal["paper-ink"] = pal["ink"] if abs(luminance(pal["paper"]) - luminance(pal["ink"])) >= 0.4 else pal["bg"]
     return out
 
 
