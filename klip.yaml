@@ -401,11 +401,27 @@ code:
     line: 6
     motion: snappy
   # Default strength (0-1) per texture, and what each eases set holds (GSAP ease names).
-  textures: {none: 0, paper: 0.55, watercolor: 0.6, halftone: 0.35, grain: 0.5, hud: 0.6, riso: 0.5}
+  textures: {none: 0, paper: 0.55, watercolor: 0.6, halftone: 0.35, grain: 0.5, hud: 0.6, riso: 0.5, film: 0.3}
   eases:
     snappy: {in: "power3.in", out: "power3.out", inOut: "power3.inOut", pop: "back.out(2.2)"}
     smooth: {in: "sine.in", out: "sine.out", inOut: "sine.inOut", pop: "power2.out"}
     bouncy: {in: "back.in(1.6)", out: "back.out(1.8)", inOut: "back.inOut(1.4)", pop: "elastic.out(1, 0.5)"}
+    cinematic: {in: "expo.in", out: "expo.out", inOut: "expo.inOut", pop: "power4.out"}
+  # Named looks a look bible can start from ("preset": "cinematic"): applied over the style's
+  # look_bible, under the spec's own fields. A preset leaves the accent to the style unless it sets one.
+  looks:
+    # dark motion-graphics look (the "Opus made this" showreels): warm near-black, hairline strokes,
+    # one glowing accent, film grain + vignette, slow expo eases. Pair with k.glow / k.bloom / k.flare.
+    cinematic:
+      palette: {bg: "#0E0C0B", paper: "#1A1714", ink: "#F2ECE4", muted: "#7A6F66", line: "#4A4039"}
+      fonts: {display: jakarta, body: jakarta, mono: mono}
+      texture: film
+      line: 1.5
+      motion: cinematic
+      notes: >-
+        Near-black ground, one light source in the accent and everything else dim. Hairline strokes
+        (k.look.line), lots of empty space, small mono readouts. Light does the work: glow on what
+        matters (k.glow / k.bloom), a flare where things meet (k.flare). Slow camera drift, long eases.
   # The standard kit (k.headline, k.scrim, k.cast, k.chip, k.camera, k.type, k.count…): defaults so a
   # new scene starts legible and on-brand. headline.top is pushed below the series pill when it shows.
   kit:
@@ -416,6 +432,12 @@ code:
     chip: {size: 52}
     camera_zoom: 1.08                 # k.camera: scale reached at the scene's end
     count_s: 1.2                      # k.count: default count-up length
+    # k.glow / k.bloom: strength = how much light is added back, threshold = brightness (0-1) below
+    # which nothing glows, radius = the tight glow's blur (px; each further level is 3x wider),
+    # levels = downscale per glow layer (bigger = cheaper and softer)
+    glow: {strength: 1.0, threshold: 0.35, radius: 10, levels: [3, 8]}
+    # k.flare: core radius (px), brightness, ray count, ray rotation (deg), anamorphic streak half-length (px)
+    flare: {size: 60, strength: 1.0, rays: 4, rot: 45, streak: 420}
     type_cps: 24                      # k.type: typewriter characters per second
     # mascot acting (rig.walk/enter/exit/jump/hop/turn/point): walking speed, step length in time,
     # body bob and foot lift per step, jump height, turn time, how long a point holds its pose

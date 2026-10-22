@@ -36,6 +36,9 @@
      "visual": {"type": "code", "code": {"file": "examples/code-scenes/starters/three-particles.html", "libs": ["three"]}}},
     {"id": "globe", "template": "explain", "narration": "Bola dunia yang berputar, dengan tempat yang menyala dan garis penghubung.",
      "on_screen_text": "Dunia yang terhubung",
-     "visual": {"type": "code", "code": {"file": "examples/code-scenes/starters/three-globe.html", "libs": ["three"]}}}
+     "visual": {"type": "code", "code": {"file": "examples/code-scenes/starters/three-globe.html", "libs": ["three"]}}},
+    {"id": "beam", "template": "explain", "narration": "Seberkas cahaya melesat masuk, menghantam pusat lingkaran, lalu menembus keluar.",
+     "on_screen_text": "Satu titik TEMU",
+     "visual": {"type": "code", "code": {"file": "examples/code-scenes/starters/light-beam.html", "texture": "film"}}}
   ]
 }

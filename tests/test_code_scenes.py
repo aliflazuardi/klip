@@ -224,6 +224,35 @@ def test_the_starter_gallery_uses_every_starter_and_lints_clean():
     assert not [str(i) for i in lint(spec) if i.level == "error"]
 
 
+def test_cinematic_preset_sits_between_the_style_and_the_spec(repo):
+    from klip import config
+    style = {**config.style("default"), "look_bible": {"texture": "paper", "line": 6}}
+    spec = _spec({"id": "s1", "template": "hook", "narration": "a"},
+                 look_bible={"preset": "cinematic", "palette": {"accent": "#FF8A3D"}, "line": 2})
+    lk = codescene.look(spec, style)
+    preset = config.get("code.looks.cinematic")
+    assert lk["palette"]["bg"] == preset["palette"]["bg"] and lk["tone"] == "dark"
+    assert lk["texture"] == "film" and lk["texture_strength"] == config.get("code.textures.film")
+    assert lk["ease"]["inOut"] == "expo.inOut" and lk["line"] == 2 and lk["palette"]["accent"] == "#FF8A3D"
+    assert "preset" not in lk
+    branded = codescene.look(_spec({"id": "s1", "template": "hook", "narration": "a"}),
+                             {**style, "look_bible": {"preset": "cinematic"}})
+    assert branded["palette"]["accent"] == style["accent_color"] and branded["texture"] == "film"
+    bad = _spec({"id": "s1", "template": "hook", "narration": "a"}, look_bible={"preset": "noir"})
+    with pytest.raises(codescene.CodeSceneError, match="unknown look 'noir'"):
+        codescene.look(bad, style)
+
+
+def test_film_texture_keeps_its_vignette_still_while_the_grain_jumps(repo):
+    css = str(codescene.texture_css("film", 0.3))
+    assert "radial-gradient" in css and "opacity: 0.3" in css
+    from klip.paths import ROOT
+    kit = (ROOT / "templates" / "default" / "scenes" / "code_kit.js.j2").read_text()
+    assert '"film" ? "0px 0px, "' in kit
+    for helper in ("k.glow = function", "k.bloom = function", "k.flare = function"):
+        assert helper in kit
+
+
 def test_paper_ink_contrasts_with_paper(repo):
     from klip import config
     style = config.style("default")

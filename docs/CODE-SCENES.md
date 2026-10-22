@@ -92,6 +92,21 @@ Start every scene from these, so it is legible and on-brand before you add what 
 | `k.count(el, {to, from, at, dur, decimals, prefix, suffix})` | A number counting up, Indonesian format (`1.234,5`). |
 | `k.draw(path, at, {dur})` | A stroke drawing on. |
 
+### Light: glow, bloom, flares
+
+Dark looks live on light. These make the bright parts of a picture bleed (defaults in klip.yaml
+`code.kit.glow` / `code.kit.flare`):
+
+| | |
+|---|---|
+| `const glow = k.glow(ctx, {strength, threshold, radius})` | Glow for a 2D canvas: call `glow()` at the end of each `k.frame`, after drawing. Pixels brighter than `threshold` (0–1) bleed light in their own colour, a tight and a wide halo. |
+| `const render = k.bloom(renderer, scene, camera, {…})` | Three.js with bloom: call `render()` in `k.frame` instead of `renderer.render`. The light goes on a canvas over the WebGL one; `render.ctx` is that overlay's 2D context. |
+| `k.flare(ctx, x, y, {size, color, strength, rays, rot, streak})` | A lens flare: hot core, halo, thin rays, an anamorphic streak. Draw it after `glow()` (on `render.ctx` over Three.js). |
+| `k.glow(el, {radius, color})` | On any other element (SVG, text): a CSS glow in its own colour. |
+
+Glow is for dark looks: on a light background everything is above the threshold and the frame
+washes out. Keep the bright things few (one accent) so the glow means something.
+
 `k.layout` holds what the kit used: `headlineTop`, `cast` spots, `scrim`, and `outro` (when the
 style's outro badge slides up over this scene: its time and top, keep that area clear).
 
@@ -119,6 +134,7 @@ renders all of them (`uv run klip preview examples/code-gallery.json`).
 | `three-terrain.html` | Three.js: a wireframe terrain flyover (HUD look) |
 | `three-particles.html` | Three.js: a particle galaxy that gathers into a ring on the key moment |
 | `three-globe.html` | Three.js: a globe turned toward its places, which light up as arcs fly between them |
+| `light-beam.html` | Canvas, cinematic look: a beam strikes the centre of hairline rings on the key word and shoots through; flare, shockwave, dust, HUD brackets and readouts |
 
 Card text uses `--k-paper-ink` (the look's ink when it reads on `paper`, else its bg), so the starters
 work on light and dark looks.
@@ -140,14 +156,19 @@ film.
 }
 ```
 
+- `preset`: a named look to start from (klip.yaml `code.looks`). `"cinematic"` is the dark
+  motion-graphics look: warm near-black, hairline strokes (`line: 1.5`), film texture, slow expo
+  eases, notes on lighting; it keeps the style's accent unless you set one. The fields you set
+  override it: `{"preset": "cinematic", "palette": {"accent": "#FF8A3D"}}`.
 - `palette`: named colours. Keep it to 4–7, with **one** accent that carries the story.
 - `fonts`: keys from klip.yaml `code.fonts`: `jakarta` (Plus Jakarta Sans), `fraunces` (serif,
   with italics), `fredoka` (round, friendly), `anton` (condensed caps), `mono` (JetBrains Mono).
   `caption` changes the captions' font for the whole video.
-- `texture`: `paper`, `watercolor`, `halftone`, `grain`, `hud`, `riso` or `none`, drawn over the
+- `texture`: `paper`, `watercolor`, `halftone`, `grain`, `hud`, `riso`, `film` (grain and a dark
+  vignette, for dark looks) or `none`, drawn over the
   scene and under the captions. `texture_strength` 0–1.
-- `line`: the stroke width for drawn art (`var(--k-line)`). `motion`: `snappy`, `smooth` or
-  `bouncy` sets `k.look.ease`.
+- `line`: the stroke width for drawn art (`var(--k-line)`). `motion`: `snappy`, `smooth`,
+  `bouncy` or `cinematic` (slow expo eases) sets `k.look.ease`.
 - `notes`: the art direction in words: style, characters, recurring props, camera. Write it
   before the first scene and follow it in every one.
 

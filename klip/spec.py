@@ -266,7 +266,7 @@ class Backdrop(_Strict):
 
 
 CodeLib = Literal["three"]
-Texture = Literal["none", "paper", "watercolor", "halftone", "grain", "hud", "riso"]
+Texture = Literal["none", "paper", "watercolor", "halftone", "grain", "hud", "riso", "film"]
 
 
 class CodeSfx(_Strict):
@@ -378,6 +378,9 @@ class LookFonts(_Strict):
 class LookBible(_Strict):
     """Art direction shared by every code scene so the video reads as one film. Unset fields come from
     the style's look_bible (brand pack), then klip.yaml code.look."""
+    preset: str | None = Field(None, description="A named look to start from (klip.yaml code.looks, e.g. "
+                                                 "'cinematic': dark, hairline, glowing accent, film grain). "
+                                                 "The fields below override it.")
     palette: dict[str, str] = Field(default_factory=dict, description="Named colours ('bg', 'ink', 'accent', "
                                                                       "'paper', 'sky', …) → CSS vars --k-<name> "
                                                                       "and k.look.palette. 'bg' fills the scene.")
@@ -385,10 +388,11 @@ class LookBible(_Strict):
     texture: Texture | None = Field(None, description="Overlay on every code scene: paper (fibres + vignette), "
                                                       "watercolor (wash blotches), halftone (dot screen), grain "
                                                       "(film grain), hud (scanlines + corner marks), riso (misprint "
-                                                      "grain), none.")
+                                                      "grain), film (grain + dark vignette, for dark looks), none.")
     texture_strength: float | None = Field(None, ge=0, le=1, description="0-1; unset = the texture's default.")
     line: float | None = Field(None, ge=0.5, le=24, description="Stroke width (px) for drawn art: k.look.line.")
-    motion: Literal["snappy", "smooth", "bouncy"] | None = Field(None, description="Default eases in k.look.ease.")
+    motion: Literal["snappy", "smooth", "bouncy", "cinematic"] | None = Field(None, description="Default eases in "
+                                                                                          "k.look.ease.")
     notes: str | None = Field(None, description="Art direction in prose for whoever writes the scenes (style, "
                                                 "characters, camera, motifs). Not rendered.")
 

@@ -316,7 +316,8 @@
                 "halftone",
                 "grain",
                 "hud",
-                "riso"
+                "riso",
+                "film"
               ],
               "type": "string"
             },
@@ -529,6 +530,19 @@
       "additionalProperties": false,
       "description": "Art direction shared by every code scene so the video reads as one film. Unset fields come from\nthe style's look_bible (brand pack), then klip.yaml code.look.",
       "properties": {
+        "preset": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A named look to start from (klip.yaml code.looks, e.g. 'cinematic': dark, hairline, glowing accent, film grain). The fields below override it.",
+          "title": "Preset"
+        },
         "palette": {
           "additionalProperties": {
             "type": "string"
@@ -550,7 +564,8 @@
                 "halftone",
                 "grain",
                 "hud",
-                "riso"
+                "riso",
+                "film"
               ],
               "type": "string"
             },
@@ -559,7 +574,7 @@
             }
           ],
           "default": null,
-          "description": "Overlay on every code scene: paper (fibres + vignette), watercolor (wash blotches), halftone (dot screen), grain (film grain), hud (scanlines + corner marks), riso (misprint grain), none.",
+          "description": "Overlay on every code scene: paper (fibres + vignette), watercolor (wash blotches), halftone (dot screen), grain (film grain), hud (scanlines + corner marks), riso (misprint grain), film (grain + dark vignette, for dark looks), none.",
           "title": "Texture"
         },
         "texture_strength": {
@@ -598,7 +613,8 @@
               "enum": [
                 "snappy",
                 "smooth",
-                "bouncy"
+                "bouncy",
+                "cinematic"
               ],
               "type": "string"
             },

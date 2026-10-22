@@ -317,9 +317,102 @@ function klipScene(meta, body) {
     sub.to(el, { strokeDashoffset: 0, duration: o.dur || 0.8, ease: o.ease || KLIP_LOOK.ease.out }, at);
     return el;
   };
+  // ---- light: glow, bloom, flares (cheap bloom: threshold, shrink, blur, add back; defaults in code.kit.glow)
+  // k.glow(ctx) -> glow(): call it at the end of each k.frame, after drawing; the canvas's bright parts
+  // bleed light. On a WebGL canvas (or a THREE renderer) the light goes on a canvas laid over it.
+  // On any other element it sets a CSS glow (drop-shadows in its own colour, or o.color).
+  // {strength, threshold (0-1: darker pixels don't glow), radius (px, the tight glow; wide ones are
+  // larger), levels (downscale per layer)}
+  k.glow = function (src, o = {}) {
+    const G = { ...KIT.glow, ...o };
+    const cv = src.canvas || src.domElement || one(src);
+    if (!(cv instanceof HTMLCanvasElement)) {
+      const r = G.radius, c = o.color || "currentColor";
+      cv.style.filter = `drop-shadow(0 0 ${r * 0.25}px ${c}) drop-shadow(0 0 ${r}px ${c})`;
+      return cv;
+    }
+    let out = src.canvas ? src : null;
+    if (!out && !src.domElement) out = cv.getContext("2d");      // null when it's a WebGL canvas
+    let over = null;
+    if (!out) {
+      over = k.el("canvas", { class: "k-glow", width: cv.width, height: cv.height });
+      Object.assign(over.style, { position: "absolute", left: cv.offsetLeft + "px", top: cv.offsetTop + "px",
+        width: cv.style.width || cv.width + "px", height: cv.style.height || cv.height + "px",
+        pointerEvents: "none", mixBlendMode: "screen" });
+      cv.after(over);
+      out = over.getContext("2d");
+    }
+    const th = Math.min(0.95, Math.max(0, G.threshold));
+    const pass = `brightness(${1 / (1 + th)}) contrast(${(1 + th) / (1 - th)})`;   // (x - th) / (1 - th), clamped
+    const layers = G.levels.map((f, i) => {
+      const c = document.createElement("canvas");
+      c.width = Math.ceil(cv.width / f); c.height = Math.ceil(cv.height / f);
+      return { c, x: c.getContext("2d"), blur: (G.radius * (i ? 3 ** i : 1)) / f };
+    });
+    const glow = function () {
+      out.save();
+      out.setTransform(1, 0, 0, 1, 0, 0);
+      if (over) out.clearRect(0, 0, over.width, over.height);
+      out.globalCompositeOperation = "lighter";
+      out.imageSmoothingEnabled = true;
+      for (const L of layers) {             // read every layer before adding any back (no feedback)
+        L.x.clearRect(0, 0, L.c.width, L.c.height);
+        L.x.filter = `${pass} blur(${L.blur}px)`;
+        L.x.drawImage(cv, 0, 0, L.c.width, L.c.height);
+      }
+      for (const L of layers) {
+        out.globalAlpha = Math.min(1, G.strength / layers.length * 1.6);
+        out.drawImage(L.c, 0, 0, cv.width, cv.height);
+      }
+      out.restore();
+    };
+    glow.ctx = out;          // the overlay's 2D context on WebGL (draw k.flare there after glow())
+    return glow;
+  };
+  // Three.js with bloom: const render = k.bloom(renderer, scene, camera, {strength, threshold, radius});
+  // call render() in k.frame instead of renderer.render. render.ctx is the light overlay (for k.flare).
+  k.bloom = function (renderer, scene, camera, o = {}) {
+    const glow = k.glow(renderer, o);
+    const render = () => { renderer.render(scene, camera); glow(); };
+    render.ctx = glow.ctx;
+    return render;
+  };
+  // a lens flare on a 2D context at (x, y): hot core, soft halo, thin rays and an anamorphic streak.
+  // {size (core radius px), color (default the accent), strength, rays (count), rot (deg), streak (px, 0 = none)}
+  k.flare = function (ctx, x, y, o = {}) {
+    const F = { ...KIT.flare, ...o }, c = o.color || P.accent, s = F.size, a = F.strength;
+    if (a <= 0 || s <= 0) return;
+    const rgba = (hex, al) => { const h = hex.replace("#", ""); const n = parseInt(h.length === 3 ? h.replace(/./g, "$&$&") : h, 16);
+      return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${Math.max(0, Math.min(1, al))})`; };
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    let g = ctx.createRadialGradient(x, y, 0, x, y, s * 5);
+    g.addColorStop(0, rgba(c, 0.35 * a)); g.addColorStop(1, rgba(c, 0));
+    ctx.fillStyle = g; ctx.fillRect(x - s * 5, y - s * 5, s * 10, s * 10);
+    if (F.streak > 0) {
+      g = ctx.createLinearGradient(x - F.streak, 0, x + F.streak, 0);
+      g.addColorStop(0, rgba(c, 0)); g.addColorStop(0.5, rgba(c, 0.6 * a)); g.addColorStop(1, rgba(c, 0));
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.ellipse(x, y, F.streak, Math.max(1, s * 0.06), 0, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.translate(x, y); ctx.rotate((F.rot * Math.PI) / 180);
+    for (let i = 0; i < F.rays; i++) {
+      ctx.rotate((Math.PI * 2) / F.rays);
+      g = ctx.createLinearGradient(0, 0, s * 2.2, 0);
+      g.addColorStop(0, rgba("#FFFFFF", 0.9 * a)); g.addColorStop(0.3, rgba(c, 0.6 * a)); g.addColorStop(1, rgba(c, 0));
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.moveTo(0, -s * 0.07); ctx.lineTo(s * 2.2, 0); ctx.lineTo(0, s * 0.07); ctx.fill();
+    }
+    g = ctx.createRadialGradient(0, 0, 0, 0, 0, s);
+    g.addColorStop(0, rgba("#FFFFFF", a)); g.addColorStop(0.25, rgba("#FFF4E0", 0.9 * a));
+    g.addColorStop(0.6, rgba(c, 0.45 * a)); g.addColorStop(1, rgba(c, 0));
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, s, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  };
   const tex = root.querySelector(".k-tex");
-  if (tex && meta.texture === "grain") {           // film grain jumps 12 times a second
-    k.frame((t) => { const f = Math.floor(t * 12); tex.style.backgroundPosition = `${(f * 137) % 600}px ${(f * 311) % 1020}px`; });
+  if (tex && (meta.texture === "grain" || meta.texture === "film")) {   // film grain jumps 12 times a second
+    const lead = meta.texture === "film" ? "0px 0px, " : "";     // film: the vignette layer stays put
+    k.frame((t) => { const f = Math.floor(t * 12); tex.style.backgroundPosition = `${lead}${(f * 137) % 600}px ${(f * 311) % 1020}px`; });
   }
   try {
     body(k);

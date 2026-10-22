@@ -26,6 +26,14 @@ All notable changes to Klip are listed here. The format follows
 - Code scenes: a standard kit in `k` (`stage`, `camera`, `headline`, `cast`, `scrim`, `chip`, `pop`,
   `shake`, `type`, `count`, `draw`) that knows the series pill, the mascots' spots and the look, so a
   new scene starts legible and on-brand (settings in klip.yaml `code.kit`).
+- Code scenes: light. `k.glow(ctx)` (bloom for a 2D canvas, or a CSS glow on an element),
+  `k.bloom(renderer, scene, camera)` (Three.js with bloom) and `k.flare(ctx, x, y)` (lens flare with
+  rays and an anamorphic streak); defaults in klip.yaml `code.kit.glow` / `code.kit.flare`.
+- `look_bible.preset`: start from a named look in klip.yaml `code.looks`. `"cinematic"` is a dark
+  motion-graphics look (warm near-black, hairline strokes, one glowing accent) with the new `film`
+  texture (grain + dark vignette) and `cinematic` motion (slow expo eases).
+- Starter `light-beam.html`: a beam of light strikes a set of hairline rings on the key word and
+  shoots through, with a flare, shockwave, dust and HUD readouts (in the starter gallery).
 - `klip preview` records with a free draft voice (`voices.preview_engine`, edge) unless the final
   engine's takes are already cached, so previews never spend Gemini or ElevenLabs quota.
 - Code scenes: `sfx` cues (`{at, sfx, offset_s}`) put sound effects on a scene's own beats.

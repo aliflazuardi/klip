@@ -1,0 +1,121 @@
+<!-- Starter (canvas 2D, cinematic look): a beam of light travels in, strikes the centre of a set of
+     hairline rings on the key moment (CFG.at, else a third in) and shoots out the other side: a flare
+     bursts, a shockwave rolls out, dust drifts, HUD brackets and a mono readout frame it. Made for
+     "preset": "cinematic" (k.glow does the light). Edit CFG. -->
+<canvas id="cv" width="1080" height="1920"></canvas>
+<div class="hud"><span class="rd"></span><span class="rd2"></span></div>
+<style>
+#cv { position: absolute; inset: 0; }
+.hud { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; font: 500 22px/1 var(--k-mono);
+       color: var(--k-muted); letter-spacing: 0.12em; }
+.hud span { position: absolute; white-space: nowrap; }
+</style>
+<script>
+const CFG = { at: null, travel: 1.4, angle: 24, cx: 540, cy: 1010, rings: [300, 314, 326], dust: 70,
+              readout: "SIGNAL · LOCK", headline: true, cast: true };
+const P = k.look.palette, line = k.look.line, ctx = k.$("#cv").getContext("2d"), r = k.rand(5);
+const C = { x: CFG.cx, y: CFG.cy }, th = (CFG.angle * Math.PI) / 180, d = { x: Math.cos(th), y: Math.sin(th) };
+const tHit = (CFG.at && k.find(CFG.at)) ?? k.beat(0.33), tIn = Math.max(0, tHit - CFG.travel);
+const ease = { out: gsap.parseEase("expo.out"), inOut: gsap.parseEase("expo.inOut"), soft: gsap.parseEase("power2.out") };
+const clamp = (v) => Math.max(0, Math.min(1, v));
+const at = (s) => ({ x: C.x + d.x * s, y: C.y + d.y * s });        // a point on the beam, s px from the centre
+const rgba = (hex, a) => { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${clamp(a)})`; };
+// dust: slow specks, a few hatch marks (///) like the reference's debris
+const dust = Array.from({ length: CFG.dust }, () => ({ x: r() * 1080, y: 200 + r() * 1400, s: 0.8 + r() * 2.2,
+  a: 0.15 + r() * 0.45, v: 4 + r() * 10, ph: r() * 6.28, hatch: r() < 0.12 }));
+const S = k.safe, B = { x0: S.x - 10, y0: S.y + 20, x1: S.x + S.w + 10, y1: S.y + S.h - 10 };
+const rd = k.$(".rd"), rd2 = k.$(".rd2");
+Object.assign(rd.style, { left: B.x0 + 4 + "px", top: B.y1 - 46 + "px" });
+Object.assign(rd2.style, { right: 1080 - B.x1 + 4 + "px", top: B.y1 - 46 + "px" });
+const glow = k.glow(ctx);
+
+k.frame((t) => {
+  const hit = t - tHit, push = 1 + 0.06 * (t / k.dur) + (hit > 0 ? 0.025 * Math.exp(-hit * 3) : 0);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = P.bg; ctx.fillRect(0, 0, 1080, 1920);
+  // warm light pooling around the strike point, stronger once it hits
+  const pool = 0.10 + (hit > 0 ? 0.10 + 0.25 * Math.exp(-hit * 2) : 0.06 * clamp((t - tIn) / CFG.travel));
+  let g = ctx.createRadialGradient(C.x, C.y, 0, C.x, C.y, 760);
+  g.addColorStop(0, rgba(P.accent, pool)); g.addColorStop(1, rgba(P.accent, 0));
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 1080, 1920);
+  // camera: slow push-in around the centre, a kick on the hit, a drift
+  ctx.setTransform(push, 0, 0, push, C.x * (1 - push) + Math.sin(t * 0.4) * 6, C.y * (1 - push) + Math.cos(t * 0.3) * 4);
+
+  // rings: draw on, then breathe; flash in the accent on the hit
+  const flash = hit > 0 ? Math.exp(-hit * 2.5) : 0;
+  CFG.rings.forEach((R, i) => {
+    const p = ease.out(clamp((t - 0.1 - i * 0.12) / 1.3)), start = -Math.PI / 2 + i * 0.9 + t * 0.05 * (i % 2 ? -1 : 1);
+    ctx.beginPath(); ctx.arc(C.x, C.y, R + Math.sin(t * 1.3 + i) * 1.5, start, start + p * Math.PI * 2 * (i % 2 ? -1 : 1), i % 2 === 1);
+    ctx.lineWidth = line; ctx.strokeStyle = flash > 0.02 ? rgba(P.accent, 0.35 + 0.6 * flash) : rgba(P.ink, 0.28);
+    ctx.stroke();
+  });
+  // ticks around the outer ring, slowly turning
+  const Ro = CFG.rings[CFG.rings.length - 1] + 22, tp = ease.out(clamp((t - 0.5) / 1.2));
+  for (let i = 0; i < 72 * tp; i++) {
+    const a = (i / 72) * Math.PI * 2 + t * 0.03, len = i % 6 ? 6 : 14;
+    ctx.beginPath(); ctx.moveTo(C.x + Math.cos(a) * Ro, C.y + Math.sin(a) * Ro);
+    ctx.lineTo(C.x + Math.cos(a) * (Ro + len), C.y + Math.sin(a) * (Ro + len));
+    ctx.lineWidth = 1; ctx.strokeStyle = rgba(P.ink, i % 6 ? 0.12 : 0.3); ctx.stroke();
+  }
+  // shockwave from the strike
+  if (hit > 0 && hit < 1.6) {
+    const q = ease.soft(hit / 1.6);
+    ctx.beginPath(); ctx.arc(C.x, C.y, 40 + q * 760, 0, Math.PI * 2);
+    ctx.lineWidth = 2 + 6 * (1 - q); ctx.strokeStyle = rgba(P.accent, 0.55 * (1 - q)); ctx.stroke();
+  }
+
+  // incoming beam: a thin trail from off-screen to its travelling head, bright near the head
+  const far = 1100, head = -far * (1 - ease.inOut(clamp((t - tIn) / CFG.travel)));
+  if (t > tIn) {
+    const a = at(-far), b = at(head);
+    g = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
+    g.addColorStop(0, rgba(P.accent, 0)); g.addColorStop(0.7, rgba(P.accent, 0.45)); g.addColorStop(1, rgba("#FFFFFF", 0.95));
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineWidth = 2; ctx.strokeStyle = g; ctx.stroke();
+    for (let s = -far + 60; s < head - 30; s += 110) {          // marker dots left along the path
+      const p = at(s); ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI * 2); ctx.fillStyle = rgba(P.accent, 0.7); ctx.fill();
+    }
+  }
+  // outgoing beam: shoots out of the centre on the hit, thick and hot, then shimmers
+  if (hit > 0) {
+    const u = 1300 * ease.out(clamp(hit / 0.6)), shim = 0.85 + 0.15 * Math.sin(t * 9) * Math.sin(t * 3.7), e = at(u);
+    g = ctx.createLinearGradient(C.x, C.y, e.x, e.y);
+    g.addColorStop(0, rgba(P.accent, shim)); g.addColorStop(1, rgba(P.accent, 0.6 * shim));
+    ctx.beginPath(); ctx.moveTo(C.x, C.y); ctx.lineTo(e.x, e.y); ctx.lineCap = "round";
+    ctx.lineWidth = 7; ctx.strokeStyle = g; ctx.stroke();
+    ctx.lineWidth = 2; ctx.strokeStyle = rgba("#FFF6E8", 0.9 * shim); ctx.stroke();
+  }
+
+  // dust and debris
+  for (const p of dust) {
+    const x = (p.x + t * p.v * 0.6) % 1080, y = p.y - t * p.v, fl = 0.6 + 0.4 * Math.sin(t * 2 + p.ph);
+    if (p.hatch) {
+      ctx.strokeStyle = rgba(P.accent, p.a * fl); ctx.lineWidth = 1.2;
+      for (let j = 0; j < 3; j++) { ctx.beginPath(); ctx.moveTo(x + j * 5, y + 6); ctx.lineTo(x + j * 5 + 6, y - 6); ctx.stroke(); }
+    } else {
+      ctx.beginPath(); ctx.arc(x, y, p.s, 0, Math.PI * 2); ctx.fillStyle = rgba(P.ink, p.a * fl * 0.6); ctx.fill();
+    }
+  }
+
+  // HUD corner brackets (screen space, no camera)
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  const bp = ease.out(clamp(t / 0.8)), L = 34 * bp;
+  ctx.strokeStyle = rgba(P.ink, 0.45); ctx.lineWidth = 1.5;
+  for (const [x, y, sx, sy] of [[B.x0, B.y0, 1, 1], [B.x1, B.y0, -1, 1], [B.x0, B.y1, 1, -1], [B.x1, B.y1, -1, -1]]) {
+    ctx.beginPath(); ctx.moveTo(x + sx * L, y); ctx.lineTo(x, y); ctx.lineTo(x, y + sy * L); ctx.stroke();
+  }
+
+  glow();
+  // the flare: a spark on the travelling head, then a burst that settles into a steady pulse
+  if (t > tIn && hit <= 0) { const h = at(head); k.flare(ctx, h.x, h.y, { size: 26, strength: 0.8, streak: 160 }); }
+  if (hit > 0) {
+    k.flare(ctx, C.x + Math.sin(t * 0.4) * 6, C.y + Math.cos(t * 0.3) * 4, { size: 60 + 120 * Math.exp(-hit * 3) + 6 * Math.sin(t * 5),
+                                                                 strength: 0.85 + 0.15 * Math.sin(t * 7), rot: 45 + t * 4 });
+  }
+  // readouts
+  rd.textContent = "T+" + t.toFixed(2).padStart(5, "0") + "  ·  θ " + CFG.angle.toFixed(1) + "°";
+  rd2.textContent = hit > 0 ? CFG.readout : "TRACKING" + ".".repeat(1 + Math.floor(t * 3) % 3);
+  rd.style.opacity = rd2.style.opacity = bp;
+});
+if (CFG.headline) k.headline({ scrim: false });
+if (CFG.cast) k.cast();
+</script>

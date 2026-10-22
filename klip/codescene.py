@@ -180,14 +180,19 @@ def look(spec: Spec, style: dict) -> dict:
     """The resolved look bible: palette, fonts {role: family}, texture + strength, line, ease, tone."""
     out = copy.deepcopy(cfg("look"))
     out["palette"] = {**out["palette"], "accent": style["accent_color"], "emph": style["emphasis_color"]}
+    own = spec.look_bible.model_dump(exclude_none=True) if spec.look_bible else {}
     layers = [style.get("look_bible") or {}]
-    if spec.look_bible:
-        layers.append(spec.look_bible.model_dump(exclude_none=True))
+    if preset := own.pop("preset", None) or layers[0].get("preset"):
+        if preset not in cfg("looks"):
+            raise CodeSceneError(f"look_bible.preset: unknown look {preset!r} (klip.yaml code.looks: "
+                                 f"{', '.join(cfg('looks'))})")
+        layers.append(cfg("looks")[preset])
+    layers.append(own)
     for layer in layers:
         for k, v in layer.items():
             if k in ("palette", "fonts"):
                 out[k] = {**out[k], **{a: b for a, b in (v or {}).items() if b is not None}}
-            elif v is not None:
+            elif v is not None and k != "preset":
                 out[k] = v
     fonts = cfg("fonts")
     for role, key in out["fonts"].items():
@@ -253,6 +258,9 @@ def texture_css(name: str, strength: float) -> Markup:
                f"radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0) 50%, rgba(0,0,0,.85) 100%); opacity: {s};",
         "riso": f"background-image: url(\"{fine}\"), url(\"{coarse}\"); mix-blend-mode: multiply; "
                 f"filter: sepia(.4) saturate(2); opacity: {min(1, s * 0.8)};",
+        "film": f"background-image: radial-gradient(ellipse at 50% 48%, rgba(0,0,0,0) 40%, rgba(0,0,0,.75) 100%), "
+                f"url(\"{fine}\"); background-size: 100% 100%, 600px 1020px; mix-blend-mode: hard-light; "
+                f"opacity: {s};",
     }[name]
     return Markup(css)
 
