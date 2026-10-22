@@ -1,5 +1,7 @@
 """Code scenes (visual.type "code"): spec rules, parsing, lint, look bible, compose."""
 
+import re
+
 import pytest
 from pydantic import ValidationError
 
@@ -201,3 +203,12 @@ def test_tag_feet_marks_the_two_lowest_ellipses_left_to_right():
     assert codescene.tag_feet(ball) == ball                               # no feet (a rolled-up pose): unchanged
     marked = '<svg viewBox="0 0 10 10"><path class="foot-l" d=""/><path class="foot-r" d=""/></svg>'
     assert 'class="k-foot k-foot-l"' in codescene.tag_feet(marked)       # an SVG's own marks win
+
+
+def test_kit_and_scenes_avoid_template_literal_selectors(repo):
+    from klip.paths import TEMPLATES_DIR
+    kit = (TEMPLATES_DIR / "default" / "scenes" / "code_kit.js.j2").read_text()
+    assert not re.search(r"querySelector(All)?\(\s*`[^`]*\$\{", kit)      # HyperFrames --strict rejects them
+    (repo / "specs" / "q.html").write_text("<div></div><script>document.querySelector(`#a${1}`);</script>")
+    spec = _spec({"id": "s1", "template": "hook", "narration": "a b", "visual": code("specs/q.html")})
+    assert any("template literals in querySelector" in i.message for i in lint(spec))

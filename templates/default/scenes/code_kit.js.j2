@@ -92,7 +92,7 @@ function klipScene(meta, body) {
     // where the previous one ended). Facing: +1 = toward the viewer's right, as the pose SVGs point.
     const A = KIT.act, home = o.x ?? 60;
     let at_x = home, face = (o.mirror ?? c.mirror) ? -1 : 1;
-    const feet = (side) => el.querySelectorAll(`.k-foot-${side}`);
+    const feet = (side) => el.querySelectorAll(side === "l" ? ".k-foot-l" : ".k-foot-r");   // no template literal: HyperFrames lint
     gsap.set(el.querySelectorAll(".k-foot"), { transformOrigin: "50% 50%" });
     const faceTo = (dir, at) => {
       if (dir && dir !== face) { sub.to(flip, { scaleX: dir, duration: A.turn_s, ease: "power2.inOut" }, at); face = dir; }

@@ -37,6 +37,8 @@ All notable changes to Klip are listed here. The format follows
 
 - `post.txt` no longer repeats hashtags that the caption already contains.
 - Code scenes: a mascot pose set at the scene's very start (`pose(name, 0)`) now shows from frame 0.
+- Code scenes: the mascot walk no longer breaks `klip render` (HyperFrames' strict lint rejects template
+  literals in `querySelector`); `klip validate` now flags that pattern in scene files too.
 
 ## [0.4.0] - 2026-10-21
 

@@ -40,6 +40,8 @@ FORBIDDEN = [
     (r"\bimport\s*\(|^\s*import\s", "imports (use visual.code.libs)"),
     (r"window\.__timelines", "registering timelines (use k.tl)"),
     (r"\bdocument\.write\b", "document.write"),
+    (r"querySelector(All)?\(\s*`[^`]*\$\{", "template literals in querySelector (HyperFrames' render lint rejects "
+                                              "them; build the selector with + or use k.$)"),
 ]
 # CSS that animates on wall-clock time instead of the timeline.
 CSS_WARN = [(r"@keyframes|\banimation\s*:", "CSS animations (animate on k.tl instead)"),
