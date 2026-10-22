@@ -15,7 +15,8 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
-from klip import codescene, config
+from klip import codescene, config, sheetcheck
+from klip.engines.llm.base import LLMError
 from klip.engines.render.hyperframes import HyperFramesRenderer
 from klip.pipeline import run_stage
 from klip.spec import Spec
@@ -66,9 +67,10 @@ def sheet(frames: list[tuple[float, str, Path]], title: str, out: Path) -> Path:
 
 
 def run(spec: Spec, project_dir: Path, scene_ids: list[str] | None = None,
-        renderer: HyperFramesRenderer | None = None) -> list[dict]:
+        renderer: HyperFramesRenderer | None = None, review: bool = True) -> dict:
     """Voice + assets (cached) + compose, then stills of the chosen scenes (default: the code scenes,
-    else all). Returns [{scene, sheet, frames: [{t, label, png}]}]."""
+    else all), then (review, and code.review.enabled) Claude's review of the sheets.
+    Returns {rows: [{scene, sheet, frames: [{t, label, png}]}], review: {...} | None, review_error}."""
     from klip.stages import voice
     voice.run_preview(spec, project_dir)       # a draft voice unless the final takes are cached
     for stage in ("assets", "compose"):
@@ -96,4 +98,12 @@ def run(spec: Spec, project_dir: Path, scene_ids: list[str] | None = None,
         out.append({"scene": sid, "sheet": str(path),
                     "frames": [{"t": at, "label": label, "png": str(p)} for at, label, p in frames]})
     (project_dir / "preview" / "preview.json").write_text(json.dumps(out, indent=2, ensure_ascii=False))
-    return out
+    result = {"rows": out, "review": None, "review_error": None}
+    if review and sheetcheck.available():
+        from klip import mascot
+        look = codescene.look(spec, mascot.video_style(spec)) if any(s.visual.type == "code" for s in spec.scenes) else None
+        try:
+            result["review"] = sheetcheck.run(spec, project_dir, out, look)
+        except LLMError as e:              # the sheets are still there to look at by hand
+            result["review_error"] = str(e)
+    return result

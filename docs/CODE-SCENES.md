@@ -144,6 +144,13 @@ previewing never spends Gemini or ElevenLabs quota; the cues follow whichever vo
 - Do the scenes share the palette, line weight, type and characters from the look bible?
 - Is something moving in every frame (no still holds longer than ~1 s; QA fails frozen video)?
 
+Then Claude reviews the sheets on its own (klip.yaml `code.review`, one `claude -p` call on your
+plan): per scene a score out of 5 and the issues it sees (unreadable text, overlaps, outside the safe
+area, empty frames, off-script stills, off-style, error boxes), each with a fix. The list prints after
+the sheets and lands in `projects/<slug>/preview/review.json`; scenes under `min_score` are flagged, and
+`klip render`'s `qa.json` carries the last review (marked stale for scenes edited since; it never fails
+the render). `--no-review` skips it. Treat it as a second pair of eyes: still read the sheets.
+
 Fix the file and preview that scene again. Two or three rounds per scene is normal.
 
 ## Craft: what makes these look designed

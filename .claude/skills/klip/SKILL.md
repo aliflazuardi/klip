@@ -70,7 +70,8 @@ the lines, kinetic type, 3D, "kayak video motion graphic", "bikin kayak video Op
    `uv run klip preview specs/<slug>.json` and **read every contact sheet** in
    `projects/<slug>/preview/`. Fix and re-preview a scene with `-s <id>` until each still shows
    what the voice says at that moment. Two or three rounds per scene is normal.
-   Previews use a free draft voice (no Gemini quota) unless the final takes are already cached;
+   `klip preview` also prints Claude's review of each sheet (score, issues, fixes; `preview/review.json`):
+   fix the real ones, then re-preview. Previews use a free draft voice (no Gemini quota) unless the final takes are already cached;
    only `klip render` records the real voice, so preview as often as you like.
 4. At the review gate, show the script **and the preview sheets**. Render after approval.
 

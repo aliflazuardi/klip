@@ -417,6 +417,10 @@ code:
   safe_gap: 40                      # px kept clear above the captions
   # klip preview: stills per code scene (its start, each k.at cue, the middle, the end), at most
   # max_frames, each min_gap_s apart; sheet_width = px per still on the contact sheet.
+  # klip preview then asks Claude (claude -p, your plan) to review the sheets: unreadable text,
+  # overlaps, outside the safe area, empty frames, off-script stills, off-style, error boxes. Scenes
+  # scoring below min_score (1-5) are flagged; qa.json carries the last review. model null = llm.claude.model.
+  review: {enabled: true, model: null, timeout_s: 300, min_score: 4}
   preview:
     max_frames: 8
     min_gap_s: 0.3

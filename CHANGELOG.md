@@ -26,10 +26,14 @@ All notable changes to Klip are listed here. The format follows
 - `klip preview` records with a free draft voice (`voices.preview_engine`, edge) unless the final
   engine's takes are already cached, so previews never spend Gemini or ElevenLabs quota.
 - Code scenes: `sfx` cues (`{at, sfx, offset_s}`) put sound effects on a scene's own beats.
+- `klip preview` ends with Claude's review of the contact sheets (score per scene, issues with fixes:
+  unreadable text, overlaps, safe area, empty frames, off-script, off-style, error boxes), saved to
+  `preview/review.json` and carried into `qa.json`. Settings in klip.yaml `code.review`; `--no-review`.
 
 ### Fixed
 
 - `post.txt` no longer repeats hashtags that the caption already contains.
+- Code scenes: a mascot pose set at the scene's very start (`pose(name, 0)`) now shows from frame 0.
 
 ## [0.4.0] - 2026-10-21
 

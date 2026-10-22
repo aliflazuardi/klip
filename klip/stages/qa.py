@@ -186,5 +186,8 @@ def run(spec: Spec, project_dir: Path) -> dict:
         check_footage(load("assets.json")),
     ]
     report = {"passed": all(c["ok"] for c in checks), "checks": checks}
+    from klip import sheetcheck
+    if review := sheetcheck.for_qa(spec, project_dir):    # informational: taste doesn't fail a render
+        report["preview_review"] = review
     (project_dir / "qa.json").write_text(json.dumps(report, indent=2, ensure_ascii=False))
     return report
