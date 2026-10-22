@@ -366,6 +366,12 @@ def preview(spec_path: Path, scene: Optional[list[str]] = typer.Option(None, "--
         raise typer.Exit(1) from None
     for r in rows:
         console.print(f"[bold]{r['scene']}[/]: {r['sheet']}  ({len(r['frames'])} stills)")
+    tl = json.loads((project_dir / "timeline.json").read_text())
+    final = config.get("voices.engine", "edge")
+    if tl.get("draft"):
+        console.print(f"voice: draft ({tl['engine']}); `klip render` records with {final}")
+    else:
+        console.print(f"voice: {tl['engine']}" + (" (cached takes, no requests)" if tl["engine"] != "edge" else ""))
 
 
 def _print_qa(report: dict) -> None:

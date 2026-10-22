@@ -12,6 +12,9 @@ voices:
   # natural, returns word timings) | gemini (GEMINI_API_KEY, natural, style-prompted; word timings
   # come from the aligner: `uv sync --extra align`). Compare them: uv run klip ab-voice <spec>
   engine: edge
+  # klip preview records with this engine instead (a draft voice: free, no quota), unless every take of
+  # `engine` is already cached; the stills follow the draft's word times. null = preview with `engine`.
+  preview_engine: edge
   # scene = one TTS call per scene (per-scene delivery presets, but intonation restarts each
   # scene); whole = the whole script in one call, cut into scenes at the pauses: one continuous,
   # natural read (delivery presets don't apply; ElevenLabs/Gemini carry the energy themselves).

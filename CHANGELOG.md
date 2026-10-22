@@ -23,6 +23,8 @@ All notable changes to Klip are listed here. The format follows
 - Code scenes: a standard kit in `k` (`stage`, `camera`, `headline`, `cast`, `scrim`, `chip`, `pop`,
   `shake`, `type`, `count`, `draw`) that knows the series pill, the mascots' spots and the look, so a
   new scene starts legible and on-brand (settings in klip.yaml `code.kit`).
+- `klip preview` records with a free draft voice (`voices.preview_engine`, edge) unless the final
+  engine's takes are already cached, so previews never spend Gemini or ElevenLabs quota.
 
 ## [0.4.0] - 2026-10-21
 

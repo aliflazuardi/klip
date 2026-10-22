@@ -81,6 +81,7 @@ notes) keeps all the scenes in one style. Voice, captions, music, SFX and QA wor
 ```bash
 uv run klip validate specs/<slug>.json      # also lints the scene files
 uv run klip preview specs/<slug>.json       # contact sheets per code scene in projects/<slug>/preview/
+                                            # (draft voice: no Gemini/ElevenLabs quota)
 uv run klip preview specs/<slug>.json -s s3 # just one scene again after a fix
 ```
 

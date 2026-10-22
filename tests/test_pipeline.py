@@ -100,3 +100,33 @@ def test_compose_places_media_layer_and_icon_fallback(project):
     # s3 had no media but a fallback icon (brain) -> inline svg in its section
     s3 = html.split('id="sc-s3"')[1].split("</section>")[0]
     assert "<svg" in s3
+
+
+class Counting(FakeTTS):
+    """A 'paid' engine: counts the requests it gets."""
+
+    def __init__(self, name):
+        self.name, self.calls = name, 0
+
+    def synthesize(self, *a, **kw):
+        self.calls += 1
+        return super().synthesize(*a, **kw)
+
+
+@needs_ffmpeg
+def test_preview_voice_is_a_draft_until_the_final_takes_are_cached(project, monkeypatch):
+    from klip import config
+    spec = load_spec(ROOT / "examples" / "menguap.json")
+    project.mkdir()
+    final, draft = Counting("gemini"), Counting("edge")
+    real_get = config.get
+    monkeypatch.setattr(voice.config, "get", lambda k, d=None: {"voices.engine": "gemini", "voices.preview_engine": "edge"}
+                        .get(k, real_get(k, d)))
+    monkeypatch.setattr(voice.config, "voice_id", lambda v, engine: f"{engine}-{v}")
+    monkeypatch.setattr(voice, "get_engine", lambda name: {"gemini": final, "edge": draft}[name])
+    tl = voice.run_preview(spec, project)
+    assert tl["draft"] and tl["engine"] == "edge" and final.calls == 0 and draft.calls > 0
+    voice.run(spec, project, final)                       # the render records the real takes
+    n = final.calls
+    tl = voice.run_preview(spec, project)                 # now preview replays them, no new requests
+    assert not tl["draft"] and tl["engine"] == "gemini" and final.calls == n

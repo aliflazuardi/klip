@@ -1,7 +1,9 @@
 """Keyframe preview (`klip preview`): stills of scenes at the moments that matter, as contact sheets.
 
 The director-mode loop: write a code scene, preview it, look at the sheet, fix the file, preview
-again. Voice and assets come from cache, so a re-preview costs a compose and one snapshot run.
+again. The voice is a draft (klip.yaml voices.preview_engine) unless the final engine's takes are
+already cached, so previews never spend Gemini/ElevenLabs quota; voice and assets come from cache, so
+a re-preview costs a compose and one snapshot run.
 Per scene: its start, each k.at cue (code scenes) or stage element entry, the middle and the end
 (klip.yaml code.preview).
 """
@@ -67,7 +69,9 @@ def run(spec: Spec, project_dir: Path, scene_ids: list[str] | None = None,
         renderer: HyperFramesRenderer | None = None) -> list[dict]:
     """Voice + assets (cached) + compose, then stills of the chosen scenes (default: the code scenes,
     else all). Returns [{scene, sheet, frames: [{t, label, png}]}]."""
-    for stage in ("voice", "assets", "compose"):
+    from klip.stages import voice
+    voice.run_preview(spec, project_dir)       # a draft voice unless the final takes are cached
+    for stage in ("assets", "compose"):
         run_stage(stage, spec, project_dir)
     timeline = json.loads((project_dir / "timeline.json").read_text())
     words = json.loads((project_dir / "words.json").read_text())

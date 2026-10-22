@@ -129,9 +129,12 @@ uv run klip preview specs/<slug>.json -s s3     # one scene after a fix
 uv run klip render specs/<slug>.json
 ```
 
-`klip preview` makes the voice (cached), composes, and captures each code scene at its start,
+`klip preview` makes the voice, composes, and captures each code scene at its start,
 every `k.at` cue, the middle and the end. The contact sheets land in
-`projects/<slug>/preview/<scene>.jpg`. Read every sheet and check:
+`projects/<slug>/preview/<scene>.jpg`. The voice is a free draft (klip.yaml
+`voices.preview_engine`, edge by default) unless every take of the final engine is already cached, so
+previewing never spends Gemini or ElevenLabs quota; the cues follow whichever voice it used, and
+`klip render` records the real voice. Read every sheet and check:
 
 - Does the frame show what the voice says at that moment, on that word?
 - Is anything empty, cut off, overlapping the captions or outside `k.safe`?
