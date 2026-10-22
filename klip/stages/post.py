@@ -134,13 +134,25 @@ def mix_music(voice_wav: Path, track: Path, total_s: float, out_wav: Path, music
                 "-c:a", "pcm_s16le", str(out_wav)])
 
 
+def _copyable(raw: Path) -> bool:
+    """raw.mp4 is already TikTok-ready video (H.264, yuv420p, the render fps): copy it, don't re-encode."""
+    v = next((s for s in ffmpeg.probe(raw)["streams"] if s.get("codec_type") == "video"), {})
+    return (v.get("codec_name") == "h264" and v.get("pix_fmt") == "yuv420p"
+            and v.get("r_frame_rate") == f"{config.get('render.fps', 30)}/1")
+
+
 def encode(raw: Path, audio_wav: Path, out: Path) -> None:
+    """raw video + the mixed audio (loudness-normalised) → out. The renderer already encoded the video at
+    render.crf, so it's copied; render.reencode (or a raw that isn't H.264 yuv420p) encodes it again."""
+    if not config.get("render.reencode") and _copyable(raw):
+        video = ["-c:v", "copy"]
+    else:
+        video = ["-c:v", "libx264", "-profile:v", "high", "-pix_fmt", "yuv420p", "-crf", str(config.get("render.crf", 19)),
+                 "-preset", str(config.get("render.preset")), "-r", str(config.get("render.fps", 30))]
     ffmpeg.run([
         "-i", str(raw), "-i", str(audio_wav), "-map", "0:v:0", "-map", "1:a:0",
-        "-af", f"{loudnorm_filter(audio_wav)},aresample=48000,apad",
-        "-c:v", "libx264", "-profile:v", "high", "-pix_fmt", "yuv420p", "-crf", str(config.get("render.crf", 19)), "-preset", "medium",
-        "-r", str(config.get("render.fps", 30)), "-c:a", "aac", "-b:a", "192k", "-ar", "48000",
-        "-shortest", "-movflags", "+faststart", str(out),
+        "-af", f"{loudnorm_filter(audio_wav)},aresample=48000,apad", *video,
+        "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-shortest", "-movflags", "+faststart", str(out),
     ])
 
 

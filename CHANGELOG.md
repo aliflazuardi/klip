@@ -69,6 +69,12 @@ All notable changes to Klip are listed here. The format follows
 
 ### Changed
 
+- Faster renders (a 59 s video: about 2 min → 1.5 min). HyperFrames encodes at `render.crf` and post
+  copies that video stream into final.mp4 instead of encoding it a second time (post ~33 s → ~14 s;
+  `render.reencode: true` restores the re-encode, now at `render.preset: veryfast`). `render.workers:
+  cores` runs one Chrome per CPU core but one (7 on an 8-core Mac vs 3 from HyperFrames' `auto`), and
+  `render.fast_capture: false` avoids HyperFrames' fast capture, which falls back to one slow worker
+  on Klip's drop-shadows and blend modes. A changed `render.crf` or `quality` now re-renders.
 - MCP instructions: for a named channel/brand, call `get_brand_guide` before writing; never ask the
   user who the mascots are or which voice they use.
 - Warga Nalar skill: mascot summary at the top (Napa = female, asks; Gulung = male, explains; on by

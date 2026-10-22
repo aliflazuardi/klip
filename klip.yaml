@@ -547,8 +547,18 @@ loudness:
 render:
   fps: 30
   quality: looks                    # draft | looks | delivery
-  workers: auto                     # parallel Chrome workers (~256 MB RAM each)
-  crf: 19                           # final H.264 encode quality (lower = better/larger)
+  # parallel Chrome workers (~256 MB RAM each): cores = one per CPU core but one, up to max_workers
+  # (on an 8-core Mac: 7 workers, ~20% faster than HyperFrames' own `auto`, which picked 3); or a number
+  workers: cores
+  max_workers: 8
+  # H.264 quality (lower = better/larger). HyperFrames encodes at this and post copies that video
+  # stream into final.mp4 (one encode, not two: post went from ~33 s to ~5 s on a 47 s video).
+  crf: 19
+  reencode: false                   # true = post encodes the video again (x264 at crf, preset below)
+  preset: veryfast                  # x264 preset for that re-encode
+  # HyperFrames' drawElementImage capture: off, since mascot outlines (drop-shadow) and textures
+  # (mix-blend-mode) make it fall back to one-worker screenshots, slower than plain multi-worker capture
+  fast_capture: false
 
 # ── QA thresholds ────────────────────────────────────────────────────────────
 qa:
