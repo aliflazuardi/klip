@@ -130,3 +130,54 @@ def test_preview_voice_is_a_draft_until_the_final_takes_are_cached(project, monk
     n = final.calls
     tl = voice.run_preview(spec, project)                 # now preview replays them, no new requests
     assert not tl["draft"] and tl["engine"] == "gemini" and final.calls == n
+
+
+class FakeDialogue(FakeTTS):
+    """A multi-speaker engine: counts requests; one dialogue request voices every line."""
+
+    def __init__(self):
+        self.name, self.calls, self.dialogues, self.cache_tag = "gemini", 0, [], "t"
+
+    def synthesize(self, *a, **kw):
+        self.calls += 1
+        return super().synthesize(*a, **kw)
+
+    def synthesize_dialogue(self, lines, voices, out_path):
+        self.calls += 1
+        self.dialogues.append((lines, voices))
+        return super().synthesize(" ".join(t for _, t in lines), None, None, out_path)
+
+
+def duet_spec():
+    from klip.spec import Spec
+    return Spec.model_validate({"slug": "duet", "voice": "male", "scenes": [
+        {"id": "s1", "template": "hook", "voice": "female", "narration": "Kenapa langit biru?"},
+        {"id": "s2", "template": "explain", "narration": "Karena cahaya biru paling banyak dihamburkan udara."},
+        {"id": "s3", "template": "explain", "narration": "Partikel kecil memantulkan gelombang pendek."},
+        {"id": "s4", "template": "cta", "voice": "female", "narration": "Oh begitu. Follow ya."}]})
+
+
+@needs_ffmpeg
+@pytest.mark.parametrize("dialogue", [True, False])
+def test_a_duet_is_one_multi_speaker_request(project, monkeypatch, dialogue):
+    from klip import config
+    real_get = config.get
+    over = {"voices.take": "whole", "gemini_tts.dialogue": dialogue}
+    monkeypatch.setattr(voice.config, "get", lambda k, d=None: over[k] if k in over else real_get(k, d))
+    monkeypatch.setattr(voice.config, "voice_id", lambda v, engine: {"female": "Aoede", "male": "Puck"}[v])
+    project.mkdir()
+    eng = FakeDialogue()
+    tl = voice.run(duet_spec(), project, engine=eng)
+    words = json.loads((project / "words.json").read_text())
+    assert [s["id"] for s in tl["scenes"]] == ["s1", "s2", "s3", "s4"] and len(words) == duet_spec().word_count
+    assert [s["voice"] for s in tl["scenes"]] == ["female", "male", "male", "female"]
+    if not dialogue:
+        assert eng.calls == 3 and tl["take"] == "whole"             # one request per narrator turn
+        return
+    assert eng.calls == 1 and tl["take"] == "dialogue"
+    lines, voices = eng.dialogues[0]
+    assert [who for who, _ in lines] == ["Female", "Male", "Female"]          # one line per turn
+    assert lines[1][1].startswith("Karena cahaya") and lines[1][1].endswith("gelombang pendek.")
+    assert voices == {"Female": "Aoede", "Male": "Puck"}
+    voice.run(duet_spec(), project, engine=eng)                     # cached: no new request
+    assert eng.calls == 1
