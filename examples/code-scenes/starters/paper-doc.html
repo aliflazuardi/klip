@@ -1,0 +1,45 @@
+<!-- Starter: a document as evidence (a study, a letter, a ruling). The paper drops in, the key line gets
+     a marker sweep, a stamp thumps down. Edit CFG; cite the real source in the spec's facts. -->
+<div class="doc">
+  <div class="mast"><b></b><span></span></div>
+  <div class="ttl"></div>
+  <div class="by"></div>
+  <div class="body"></div>
+</div>
+<div class="stamp"></div>
+<style>
+.doc { position: absolute; left: 130px; top: 470px; width: 820px; padding: 44px 50px 56px; border-radius: 10px;
+       background: var(--k-paper); color: var(--k-paper-ink); box-shadow: 0 34px 70px rgba(0,0,0,.35); transform-origin: 50% 0; }
+.mast { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 4px solid var(--k-paper-ink); padding-bottom: 14px; }
+.mast b { font: 800 60px/1 var(--k-display); letter-spacing: -0.03em; }
+.mast span { font: 600 24px/1 var(--k-mono); opacity: .65; }
+.ttl { margin-top: 26px; font: 800 60px/1.08 var(--k-display); }
+.by { margin-top: 14px; font: 600 26px/1.2 var(--k-body); opacity: .7; }
+.body { margin-top: 26px; display: flex; flex-direction: column; gap: 14px; font: 700 40px/1.3 var(--k-body); }
+.body .ln { display: block; height: 12px; border-radius: 6px; background: var(--k-paper-ink); opacity: .14; }
+.body .key { position: relative; padding: 2px 6px; }
+.body .key i { position: absolute; inset: 0; background: var(--k-accent); opacity: .55; transform-origin: 0 50%; transform: scaleX(0); border-radius: 4px; }
+.body .key em { position: relative; font-style: normal; }
+.stamp { position: absolute; right: 110px; top: 1010px; padding: 10px 26px 14px; border: 10px solid var(--k-accent); border-radius: 18px;
+         color: var(--k-accent); font: 800 72px/1 var(--k-display); letter-spacing: .04em; transform: rotate(-8deg); }
+</style>
+<script>
+const CFG = { masthead: "Jurnal", date: "2024 · vol. 1", title: "Judul penelitian yang dikutip", byline: "Nama Peneliti dkk.",
+              key: "Kalimat temuan yang paling penting.", stamp: "TERBUKTI", keyAt: null, stampAt: null };
+const { cam } = k.stage();
+k.headline();
+k.$(".mast b").textContent = CFG.masthead; k.$(".mast span").textContent = CFG.date;
+k.$(".ttl").textContent = CFG.title; k.$(".by").textContent = CFG.byline; k.$(".stamp").textContent = CFG.stamp;
+const body = k.$(".body");
+for (const w of [100, 92, null, 84, 60]) {
+  if (w === null) { const key = k.el("span", { class: "key" }, body); k.el("i", {}, key); k.el("em", { text: CFG.key }, key); }
+  else k.el("i", { class: "ln", style: `width:${w}%` }, body);
+}
+k.tl.from(".doc", { y: 520, rotation: -7, opacity: 0, duration: 0.55, ease: k.look.ease.out }, k.beat(0.05));
+k.tl.to(".body .key i", { scaleX: 1, duration: 0.6, ease: "power2.inOut" }, (CFG.keyAt && k.find(CFG.keyAt)) ?? k.beat(0.45));
+const ts = (CFG.stampAt && k.find(CFG.stampAt)) ?? k.beat(0.75);
+k.tl.from(".stamp", { scale: 2.2, opacity: 0, duration: 0.22, ease: "power3.in" }, ts);
+k.shake(".doc", ts + 0.22, { px: 6, times: 2 });
+k.camera(".doc", { to: 1.04, origin: "410 300" });
+k.cast();
+</script>

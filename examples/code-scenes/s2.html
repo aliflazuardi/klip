@@ -1,0 +1,19 @@
+<div id="gl"></div>
+<style> #gl { position: absolute; inset: 0; } </style>
+<script>
+const THREE = k.lib.THREE;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(1080, 1920);
+k.$("#gl").appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const cam = new THREE.PerspectiveCamera(40, 1080 / 1920, 0.1, 100);
+cam.position.set(0, 0, 7);
+const globe = new THREE.Mesh(new THREE.IcosahedronGeometry(2, 3), new THREE.MeshBasicMaterial({ color: 0xff6a1a, wireframe: true }));
+scene.add(globe);
+const spin = k.at("berputar");
+k.frame((t) => {
+  globe.rotation.y = t * 0.6 + Math.max(0, t - spin) * 1.4;
+  globe.rotation.x = 0.35;
+  renderer.render(scene, cam);
+});
+</script>

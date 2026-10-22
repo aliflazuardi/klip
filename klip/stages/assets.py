@@ -593,7 +593,7 @@ def fetch(spec: Spec, project_dir: Path, providers: list[MediaProvider] | None =
                         (pools := backdrop_pools(scene, used, props, warnings, extra)):
                     plans[backdrop_key(scene.id)] = pools
             continue
-        if v.type in ("local", "icon", "solid"):
+        if v.type in ("local", "icon", "solid", "code"):
             continue
         from klip.mascot import scene_voice
         narrator = scene_voice(spec, scene)
@@ -622,7 +622,7 @@ def fetch(spec: Spec, project_dir: Path, providers: list[MediaProvider] | None =
             clip = {"kind": c.kind, "src": c.local_path, "credit": c.credit()}
             scenes[scene.id] = {**clip, "clips": [clip]}
             continue
-        if v.type in ("icon", "solid"):
+        if v.type in ("icon", "solid", "code"):
             scenes[scene.id] = {"kind": None}
             continue
         if v.type == "stage":

@@ -203,7 +203,10 @@ def run(spec: Spec, project_dir: Path) -> dict:
 
     cover_kind = make_cover(spec, project_dir, timeline, final)
 
-    lines = [hashtags_lower(spec.post.caption.strip()), "", hashtags_lower(" ".join(spec.post.hashtags).strip()), "",
+    caption = hashtags_lower(spec.post.caption.strip())
+    in_caption = {t.lower() for t in re.findall(r"#\w+", caption)}
+    tags = hashtags_lower(" ".join(t for t in spec.post.hashtags if t.lower() not in in_caption).strip())
+    lines = [caption, ""] + ([tags, ""] if tags else []) + [
              f"Suara: AI ({ENGINE_NAMES.get(timeline.get('engine', 'edge'), timeline.get('engine'))}, "
              f"{', '.join(dict.fromkeys((timeline.get('voices') or {}).values())) or timeline['voice_id']})."]
     if track:

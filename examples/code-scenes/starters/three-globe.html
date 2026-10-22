@@ -1,0 +1,48 @@
+<!-- Starter (Three.js): a wireframe globe that turns; places light up and arcs fly between them, each
+     on its word (else spread over the narration). Edit CFG.places (lat, lon in degrees). -->
+<div id="gl"></div>
+<style>#gl { position: absolute; inset: 0; }</style>
+<script>
+const CFG = { places: [{ name: "Jakarta", lat: -6.2, lon: 106.8, at: null }, { name: "Singapura", lat: 1.35, lon: 103.8, at: null },
+                       { name: "Tokyo", lat: 35.7, lon: 139.7, at: null }, { name: "Sydney", lat: -33.9, lon: 151.2, at: null },
+                       { name: "Mumbai", lat: 19.1, lon: 72.9, at: null }], spin: 0.06 };
+const THREE = k.lib.THREE, P = k.look.palette;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1); renderer.setSize(1080, 1920); renderer.setClearColor(new THREE.Color(P.bg));
+k.$("#gl").appendChild(renderer.domElement);
+const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(40, 1080 / 1920, 0.1, 100);
+cam.position.set(0, 0.4, 13); cam.lookAt(0, 0.4, 0);
+const globe = new THREE.Group(); scene.add(globe);
+globe.add(new THREE.Mesh(new THREE.SphereGeometry(2.6, 36, 24),
+  new THREE.MeshBasicMaterial({ color: new THREE.Color(P.ink), wireframe: true, transparent: true, opacity: 0.32 })));
+const v3 = (lat, lon, rad = 2.62) => {
+  const a = THREE.MathUtils.degToRad(90 - lat), b = THREE.MathUtils.degToRad(lon + 180);
+  return new THREE.Vector3(-rad * Math.sin(a) * Math.cos(b), rad * Math.cos(a), rad * Math.sin(a) * Math.sin(b));
+};
+const accent = new THREE.Color(P.accent);
+const times = CFG.places.map((p, i) => (p.at && k.find(p.at)) ?? k.beat(i / Math.max(1, CFG.places.length)));
+const dots = CFG.places.map((p) => {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(0.12, 14, 10), new THREE.MeshBasicMaterial({ color: accent }));
+  m.position.copy(v3(p.lat, p.lon)); m.scale.setScalar(0.001); globe.add(m); return m;
+});
+const arcs = CFG.places.slice(1).map((p, i) => {          // great-circle-ish arc lifted off the surface
+  const a = v3(CFG.places[0].lat, CFG.places[0].lon), b = v3(p.lat, p.lon), pts = [];   // all from the first place
+  for (let s = 0; s <= 64; s++) { const v = a.clone().lerp(b, s / 64).normalize(); pts.push(v.multiplyScalar(2.62 + Math.sin(Math.PI * s / 64) * 0.7)); }
+  const g = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 64, 0.03, 6);     // a tube: lines can't be thick in WebGL
+  g.setDrawRange(0, 0);
+  globe.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: accent })));
+  return g;
+});
+const pop = gsap.parseEase("back.out(2.5)");
+// turn the globe so the places face the camera (their mean direction), then a slow spin around that
+const mean = CFG.places.reduce((m, p) => m.add(v3(p.lat, p.lon)), new THREE.Vector3()).divideScalar(CFG.places.length);
+const face = Math.atan2(-mean.x, mean.z);
+k.frame((t) => {
+  globe.rotation.y = face - 0.35 + t * CFG.spin;
+  dots.forEach((d, i) => d.scale.setScalar(0.001 + pop(Math.max(0, Math.min(1, (t - times[i]) / 0.35)))));
+  arcs.forEach((g, i) => g.setDrawRange(0, Math.round(g.index.count * Math.max(0, Math.min(1, (t - times[i + 1] + 0.6) / 0.6)) / 3) * 3));
+  renderer.render(scene, cam);
+});
+k.headline();
+k.cast();
+</script>

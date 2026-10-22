@@ -12,6 +12,9 @@ voices:
   # natural, returns word timings) | gemini (GEMINI_API_KEY, natural, style-prompted; word timings
   # come from the aligner: `uv sync --extra align`). Compare them: uv run klip ab-voice <spec>
   engine: edge
+  # klip preview records with this engine instead (a draft voice: free, no quota), unless every take of
+  # `engine` is already cached; the stills follow the draft's word times. null = preview with `engine`.
+  preview_engine: edge
   # scene = one TTS call per scene (per-scene delivery presets, but intonation restarts each
   # scene); whole = the whole script in one call, cut into scenes at the pauses: one continuous,
   # natural read (delivery presets don't apply; ElevenLabs/Gemini carry the energy themselves).
@@ -370,6 +373,62 @@ stage:
     min_share: 0.6                  # validate warns when real pictures are fewer than this share of a
                                     # stage scene's object props (pictures + icons/stacks)
 
+# ── Code scenes (visual.type "code", director mode) ─────────────────────────
+# A scene whose look and motion are a file Claude writes against the scene kit `k`
+# (docs/CODE-SCENES.md). The look bible (spec look_bible ← style look_bible ← code.look below) keeps
+# every code scene in one art direction.
+code:
+  max_kb: 120                       # a scene file over this fails validation (keep scenes lean)
+  # Fonts a look bible can name (fonts.display/body/mono/caption). package = @fontsource package in
+  # renderer/, weights = files bundled into the composition, italic = also the italic files.
+  fonts:
+    jakarta:  {family: "Plus Jakarta Sans", package: plus-jakarta-sans, weights: [400, 600, 700, 800], italic: false}
+    fraunces: {family: "Fraunces", package: fraunces, weights: [400, 700, 900], italic: true}
+    fredoka:  {family: "Fredoka", package: fredoka, weights: [500, 600, 700], italic: false}
+    anton:    {family: "Anton", package: anton, weights: [400], italic: false}
+    mono:     {family: "JetBrains Mono", package: jetbrains-mono, weights: [400, 700], italic: false}
+  # The base look bible (a style's look_bible and the spec's are merged over it). accent / emph
+  # default to the style's accent_color / emphasis_color.
+  look:
+    palette: {bg: "#F3EDE2", paper: "#FFFBF2", ink: "#1D1B19", muted: "#8C8377", line: "#1D1B19"}
+    fonts: {display: jakarta, body: jakarta, mono: mono, caption: null}   # caption null = the style's font
+    texture: paper
+    texture_strength: null
+    line: 6
+    motion: snappy
+  # Default strength (0-1) per texture, and what each eases set holds (GSAP ease names).
+  textures: {none: 0, paper: 0.55, watercolor: 0.6, halftone: 0.35, grain: 0.5, hud: 0.6, riso: 0.5}
+  eases:
+    snappy: {in: "power3.in", out: "power3.out", inOut: "power3.inOut", pop: "back.out(2.2)"}
+    smooth: {in: "sine.in", out: "sine.out", inOut: "sine.inOut", pop: "power2.out"}
+    bouncy: {in: "back.in(1.6)", out: "back.out(1.8)", inOut: "back.inOut(1.4)", pop: "elastic.out(1, 0.5)"}
+  # The standard kit (k.headline, k.scrim, k.cast, k.chip, k.camera, k.type, k.count…): defaults so a
+  # new scene starts legible and on-brand. headline.top is pushed below the series pill when it shows.
+  kit:
+    headline: {size: 92, hook_size: 104, top: 250, pill_gap: 30, line_height: 1.05, stagger_s: 0.06}
+    # scrims: bands of the look's bg behind the headline (top_px tall) and behind the mascots +
+    # captions (from bottom_above px above the captions' top, bottom_px tall)
+    scrim: {top_px: 600, bottom_above: 330, bottom_px: 560}
+    chip: {size: 52}
+    camera_zoom: 1.08                 # k.camera: scale reached at the scene's end
+    count_s: 1.2                      # k.count: default count-up length
+    type_cps: 24                      # k.type: typewriter characters per second
+    # mascot acting (rig.walk/enter/exit/jump/hop/turn/point): walking speed, step length in time,
+    # body bob and foot lift per step, jump height, turn time, how long a point holds its pose
+    act: {walk_px_s: 380, step_s: 0.26, bob_px: 10, foot_px: 14, lean_deg: 4, jump_px: 110, turn_s: 0.16, point_hold_s: 1.4}
+  safe_top: 230                     # k.safe: below the TikTok top bar / branding strip
+  safe_gap: 40                      # px kept clear above the captions
+  # klip preview: stills per code scene (its start, each k.at cue, the middle, the end), at most
+  # max_frames, each min_gap_s apart; sheet_width = px per still on the contact sheet.
+  # klip preview then asks Claude (claude -p, your plan) to review the sheets: unreadable text,
+  # overlaps, outside the safe area, empty frames, off-script stills, off-style, error boxes. Scenes
+  # scoring below min_score (1-5) are flagged; qa.json carries the last review. model null = llm.claude.model.
+  review: {enabled: true, model: null, timeout_s: 300, min_score: 4}
+  preview:
+    max_frames: 8
+    min_gap_s: 0.3
+    sheet_width: 360
+
 # ── Real-world sources for stage elements ────────────────────────────────────
 # person / logo (and cutout / photo with `who`) take a Wikipedia article's image; the licence and
 # author go into credits.json and post.txt.
@@ -512,6 +571,7 @@ styles:
     shade_color: "#000000"          # tint of that darkening and of the myth/fact and compare cards
     myth_color: "#F43F5E"
     fact_color: "#22C55E"
+    look_bible: {}                  # code scenes: this style's look bible (palette, fonts, texture…; see code.look)
     # Branding strip at the top of the safe zone: progress bar (left) + watermark (right).
     # Kept above y 250, where headlines/cards start, and below TikTok's top tabs.
     progress_bar:
@@ -578,7 +638,8 @@ styles:
     # lists its cast; each mascot is a folder of pose SVGs (<pose>.svg, `netral` required), drawn
     # facing the viewer and pointing to the viewer's right. Inside a pose: class "mouth" (closed) and
     # "mouth-open" (hidden) swap on each spoken word of the speaker, "eye" blinks, "wag" sways (a tail),
-    # "nomirror" stays readable when the mascot is mirrored (text). The props area shrinks to make
+    # "nomirror" stays readable when the mascot is mirrored (text), "foot-l" / "foot-r" step when a code
+    # scene's rig walks (unmarked, the two lowest ellipses are taken as feet). The props area shrinks to make
     # room. A scene's "mascot" in the spec picks the speaker and adds poses on words.
     mascot:
       # [{name, dir (relative to the brand pack), side: left|right, voice: female|male}]. A mascot

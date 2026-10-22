@@ -16,3 +16,10 @@ def _no_real_claude(monkeypatch):
         raise RuntimeError("real Claude vision calls are disabled in tests")
 
     monkeypatch.setattr(vision.VisionReviewer, "review", blocked)
+
+    from klip import sheetcheck
+
+    def blocked_review(user, sheets):
+        raise RuntimeError("real Claude preview reviews are disabled in tests")
+
+    monkeypatch.setattr(sheetcheck, "_call", blocked_review)

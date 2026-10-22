@@ -80,6 +80,8 @@ def print_preview(spec, issues) -> None:
         t.add_column(col, overflow="fold")
     for s in spec.scenes:
         vis = s.visual.type + (f":{s.visual.query or s.visual.name or s.visual.path or ''}" if s.visual.type != "solid" else "")
+        if s.visual.type == "code":
+            vis = f"code:{Path(s.visual.code.file).name}" + (f" +{','.join(s.visual.code.libs)}" if s.visual.code.libs else "")
         if s.visual.type == "stage":
             vis = f"stage:{('backdrop:' + s.visual.backdrop.kind) if s.visual.backdrop else s.visual.background or 'default'} " + ", ".join(
                 e.kind if e.kind != "highlight" else "▭" for e in s.visual.elements)
@@ -341,10 +343,61 @@ def photos(spec_path: Path, out: Optional[Path] = OutOpt) -> None:
     _print_brief(b)
 
 
+@app.command()
+def preview(spec_path: Path, scene: Optional[list[str]] = typer.Option(None, "--scene", "-s",
+                                                                       help="Scene id (repeatable); default: the code scenes"),
+            voice: Optional[str] = VoiceOpt, out: Optional[Path] = OutOpt,
+            review: bool = typer.Option(True, "--review/--no-review", help="Claude reviews the sheets (code.review)")) -> None:
+    """Stills of scenes at their key moments (start, each k.at cue, middle, end) as contact sheets in
+    projects/<slug>/preview/, then Claude's review of them, for checking code scenes before the render."""
+    from klip import preview as preview_mod
+    from klip.engines.render.base import RenderError
+    from klip.stages.compose import ComposeError
+    from klip.lint import errors, lint
+    spec, project_dir = _load_or_exit(spec_path, voice, out)
+    if errs := errors(lint(spec)):
+        for i in errs:
+            console.print(f"[red]✗[/] {i}")
+        raise typer.Exit(1)
+    try:
+        with console.status("voice, assets, compose, stills…"):
+            res = preview_mod.run(spec, project_dir, scene, review=review)
+            rows = res["rows"]
+    except (ValueError, ComposeError, RenderError) as e:
+        console.print(f"[red]preview failed:[/] {e}")
+        raise typer.Exit(1) from None
+    for r in rows:
+        console.print(f"[bold]{r['scene']}[/]: {r['sheet']}  ({len(r['frames'])} stills)")
+    tl = json.loads((project_dir / "timeline.json").read_text())
+    final = config.get("voices.engine", "edge")
+    if tl.get("draft"):
+        console.print(f"voice: draft ({tl['engine']}); `klip render` records with {final}")
+    else:
+        console.print(f"voice: {tl['engine']}" + (" (cached takes, no requests)" if tl["engine"] != "edge" else ""))
+    _print_review(res)
+
+
+def _print_review(res: dict) -> None:
+    if res.get("review_error"):
+        console.print(f"[yellow]review skipped:[/] {res['review_error']} (look at the sheets yourself)")
+    rev = res.get("review")
+    if not rev:
+        return
+    console.print(f"[bold]review[/]: {rev['issues']} issue(s); flagged: {', '.join(rev['flagged']) or 'none'}")
+    for s in rev["scenes"]:
+        mark = "[red]✗[/]" if s["flagged"] else "[green]✓[/]"
+        console.print(f"  {mark} {s['scene']}: {s['score'] if s['score'] is not None else '?'}/5")
+        for i in s["issues"]:
+            console.print(f"      still {i['still']} ({i['t']:.2f}s) {i['kind']}: {i['problem']} → {i['fix']}")
+
+
 def _print_qa(report: dict) -> None:
     console.print(f"[bold]QA {'[green]passed' if report['passed'] else '[red]FAILED'}[/][/bold]")
     for c in report["checks"]:
         console.print(f"  {'[green]✓' if c['ok'] else '[red]✗'}[/] {c['name']}: {c['detail']}")
+    if pr := report.get("preview_review"):
+        stale = f"; out of date for {', '.join(pr['stale'])} (re-run klip preview)" if pr["stale"] else ""
+        console.print(f"  [dim]preview review: flagged {', '.join(pr['flagged']) or 'none'}{stale}[/]")
 
 
 @app.command("run")

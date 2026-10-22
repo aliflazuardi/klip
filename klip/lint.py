@@ -186,6 +186,25 @@ def _lint_mascots(spec: Spec, err) -> None:
             err("spec", f"mascots: {name!r} isn't in style {spec.style!r}'s cast ({', '.join(cast) or 'none'})")
 
 
+def _lint_code(spec: Spec, s: Scene, err, warn) -> None:
+    from klip import codescene
+    if s.template == "cta":
+        warn(s.id, "a code scene on the cta template: the outro (badge / end card) is drawn by the style, "
+                   "so the scene's own markup may be covered")
+    for level, msg in codescene.lint_scene(s, spec):
+        (err if level == "error" else warn)(s.id, msg)
+
+
+def _lint_code_look(spec: Spec, err) -> None:
+    if not any(s.visual.type == "code" for s in spec.scenes):
+        return
+    from klip import codescene
+    try:
+        codescene.look(spec, config.style(spec.style))
+    except (codescene.CodeSceneError, KeyError) as e:
+        err("look_bible", str(e).strip('"'))
+
+
 def _lint_look(spec: Spec, err) -> None:
     """look "stage": most scenes that can hold a stage must use one."""
     if spec.look != "stage":
@@ -217,6 +236,7 @@ def lint(spec: Spec) -> list[Issue]:
     err = lambda where, msg: issues.append(Issue("error", where, msg))      # noqa: E731
     warn = lambda where, msg: issues.append(Issue("warning", where, msg))   # noqa: E731
     _lint_look(spec, err)
+    _lint_code_look(spec, err)
     _lint_sets(spec, warn)
     _lint_mascots(spec, err)
     if config.get("post.lowercase_hashtags", True):
@@ -279,6 +299,8 @@ def lint(spec: Spec) -> list[Issue]:
         _check_anchors(s.id, tokens, [b.at for b in s.visual.beats], "beat", err)
         if s.visual.type == "stage":
             _lint_stage(spec, s, tokens, err, warn)
+        if s.visual.type == "code":
+            _lint_code(spec, s, err, warn)
         if s.mascot:
             _lint_mascot(spec, s, tokens, err, warn)
         if s.visual.type in ("stock_video", "stock_photo") and s.visual.max_shots != 1:

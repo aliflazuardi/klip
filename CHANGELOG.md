@@ -6,6 +6,44 @@ All notable changes to Klip are listed here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **Director mode: code scenes.** `visual.type: "code"` renders a scene from an HTML/CSS/JS file
+  written against the scene kit `k` (GSAP timeline, `k.at("word")` cues, `k.frame` for canvas and
+  Three.js, seeded random). Validation lints the files (no clock, random, network or rAF; cue words
+  must be in the narration). See `docs/CODE-SCENES.md`.
+- `look_bible` in the spec (and a style's `look_bible`): palette, fonts, texture (paper,
+  watercolor, halftone, grain, hud, riso), line weight and motion shared by every code scene.
+  Bundled fonts: Fraunces, Fredoka, Anton and JetBrains Mono, next to Plus Jakarta Sans.
+- `klip preview`: stills of each code scene at its start, cue words, middle and end, as contact
+  sheets in `projects/<slug>/preview/`.
+- `libs: ["three"]` on a code scene loads Three.js (renderer dependency `three`).
+- Code scenes: `include` (shared scripts for several scenes) and `k.mascot(name)`, a brand
+  mascot rig with poses, lip sync on the scene's narration and blinks.
+- Code scenes: a standard kit in `k` (`stage`, `camera`, `headline`, `cast`, `scrim`, `chip`, `pop`,
+  `shake`, `type`, `count`, `draw`) that knows the series pill, the mascots' spots and the look, so a
+  new scene starts legible and on-brand (settings in klip.yaml `code.kit`).
+- `klip preview` records with a free draft voice (`voices.preview_engine`, edge) unless the final
+  engine's takes are already cached, so previews never spend Gemini or ElevenLabs quota.
+- Code scenes: `sfx` cues (`{at, sfx, offset_s}`) put sound effects on a scene's own beats.
+- Code scene starters in `examples/code-scenes/starters/` (kinetic type, split comparison, document,
+  timeline, road, big counter, and Three.js terrain, particles and globe), all rendered by
+  `examples/code-gallery.json`; `k.find` / `k.beat` for scenes that time themselves on any narration;
+  `--k-paper-ink` for card text that reads on light and dark looks.
+- Code scenes: the mascot rig acts: `walk` (footsteps, bob, lean), `enter` / `exit`, `jump`, `hop`,
+  `turn`, `point` at a prop, `nod`, `wiggle`. Feet are found in the pose SVGs automatically (or marked
+  `foot-l` / `foot-r`); settings in klip.yaml `code.kit.act`.
+- `klip preview` ends with Claude's review of the contact sheets (score per scene, issues with fixes:
+  unreadable text, overlaps, safe area, empty frames, off-script, off-style, error boxes), saved to
+  `preview/review.json` and carried into `qa.json`. Settings in klip.yaml `code.review`; `--no-review`.
+
+### Fixed
+
+- `post.txt` no longer repeats hashtags that the caption already contains.
+- Code scenes: a mascot pose set at the scene's very start (`pose(name, 0)`) now shows from frame 0.
+- Code scenes: the mascot walk no longer breaks `klip render` (HyperFrames' strict lint rejects template
+  literals in `querySelector`); `klip validate` now flags that pattern in scene files too.
+
 ## [0.4.0] - 2026-10-21
 
 ### Added

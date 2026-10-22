@@ -14,7 +14,8 @@ pipeline renders it. The spec is the contract: re-rendering the same spec gives 
 1. **Parse the request.** Topic (Indonesian), voice (`male` = Ardi, `female` = Gadis; default
    `female`; "suara cowok" = male, "suara cewek" = female), target duration (default 45 s, max 120),
    and the look: "stage" if the user asks for the stage / illustrated / collage / 90secondslab look
-   ("pakai stage", "gaya ilustrasi"), else leave it unset (mixed).
+   ("pakai stage", "gaya ilustrasi"), else leave it unset (mixed). If they want a designed,
+   motion-graphic video, use code scenes (see "Director mode" below).
 2. **Read the contract** if you haven't this session: `schema/spec.schema.json` and the golden
    example `examples/menguap.json`.
 3. **Research the facts** for health / science / finance claims and put each one in `facts[]`
@@ -47,6 +48,37 @@ reruns a single stage (voice | assets | compose | render | post | qa).
 **QA:** `klip render` ends with a QA report and exits 1 if a check fails. Fix the cause (e.g.
 duration out of range → shorten/lengthen narration or adjust `target_duration_s`) and
 re-render; unchanged stages are cached. Tell the user about any check you couldn't fix.
+
+## Director mode: scenes you code (visual.type "code")
+
+When the user wants the video designed shot by shot (an illustrated story, characters acting out
+the lines, kinetic type, 3D, "kayak video motion graphic", "bikin kayak video Opus yang viral",
+"mode sutradara"), write **code scenes**. Read `docs/CODE-SCENES.md` first: it is the contract
+(the scene kit `k`, what is forbidden) and the craft notes. In short:
+
+1. Write the script as usual (narration, facts, `template` per beat), then a **`look_bible`**:
+   4–7 named colours with one accent, fonts (`jakarta`, `fraunces`, `fredoka`, `anton`, `mono`),
+   a texture, `motion`, and `notes` that fix the art direction (style, the recurring character,
+   the motif, the camera). A brand pack's style may already give one.
+2. Each code scene gets `"visual": {"type": "code", "code": {"file": "specs/<slug>/<id>.html"}}`;
+   start by copying the closest starter from `examples/code-scenes/starters/` (see the doc's table)
+   and you write that file: markup + `<style>` + one `<script>` animating on `k.tl`, every beat on
+   `k.at("kata")`. Start from the standard kit (`k.stage`, `k.headline`, `k.cast`, `k.camera`, `k.chip`,
+   `k.count`…; see the doc) so type, scrims and mascots are placed for you. Give the scene's big beats a
+   sound (`code.sfx`: `{at, sfx}`; mascots can act: `rig.walk/enter/exit/jump/point/nod`, within the
+   brand's mascot rules; a stamp → hit, a pop-in → pop, a number landing → ding). A new picture per line; characters and props move on the words; the camera
+   moves; nothing important outside `k.safe`.
+3. `uv run klip validate specs/<slug>.json` (also lints the scene files), then
+   `uv run klip preview specs/<slug>.json` and **read every contact sheet** in
+   `projects/<slug>/preview/`. Fix and re-preview a scene with `-s <id>` until each still shows
+   what the voice says at that moment. Two or three rounds per scene is normal.
+   `klip preview` also prints Claude's review of each sheet (score, issues, fixes; `preview/review.json`):
+   fix the real ones, then re-preview. Previews use a free draft voice (no Gemini quota) unless the final takes are already cached;
+   only `klip render` records the real voice, so preview as often as you like.
+4. At the review gate, show the script **and the preview sheets**. Render after approval.
+
+Code scenes mix with template and stage scenes; the cta can stay a template scene (the style's
+outro). A brand's rules (voice, sign-off, series, hashtags) still apply.
 
 ## What this build can render (Phase 3)
 

@@ -1,0 +1,35 @@
+<!-- Starter: a top-down road (cars drive up the frame). Our car in the accent; each lane has its own
+     density and speed. From the "jalur sebelah" pilot. Edit CFG. -->
+<script>
+const CFG = { lanes: [{ cars: 4, gap: 600, speed: 700 }, { cars: 10, gap: 240, speed: 120, brake: true }],
+              me: { lane: 1, y: 820 }, laneW: 330 };
+const P = k.look.palette;
+const { cam } = k.stage();
+function car(parent, o = {}) {                                   // a car from above, centred, nose up
+  const w = o.w || 124, h = o.h || 210, g = k.el("g", {}, parent);
+  k.el("rect", { x: -w / 2 + 6, y: -h / 2 + 10, width: w, height: h, rx: w * 0.3, fill: "#000", opacity: 0.25 }, g);
+  k.el("rect", { x: -w / 2, y: -h / 2, width: w, height: h, rx: w * 0.3, fill: o.color || P.paper, stroke: P.ink, "stroke-width": 5 }, g);
+  k.el("rect", { x: -w / 2 + 16, y: -h / 2 + 38, width: w - 32, height: h * 0.2, rx: 14, fill: P.ink, opacity: 0.75 }, g);
+  k.el("rect", { x: -w / 2 + 20, y: h / 2 - 44, width: w - 40, height: h * 0.1, rx: 10, fill: P.ink, opacity: 0.6 }, g);
+  for (const sx of [-1, 1]) k.el("rect", { x: sx * (w / 2 - 26) - 12, y: h / 2 - 14, width: 24, height: 10, rx: 4, fill: "#E2574C" }, g);
+  if (o.brake) for (const sx of [-1, 1]) k.el("circle", { cx: sx * (w / 2 - 26), cy: h / 2 + 4, r: 32, fill: "#E2574C", opacity: 0.3 }, g);
+  return g;
+}
+const n = CFG.lanes.length, x0 = 540 - (n * CFG.laneW) / 2, lx = (i) => x0 + CFG.laneW * (i + 0.5);
+k.el("rect", { x: x0 - 30, y: -400, width: n * CFG.laneW + 60, height: 2800, fill: P.muted, opacity: 0.35 }, cam);
+const dashes = [];
+for (let i = 1; i < n; i++) dashes.push(k.el("line", { x1: x0 + i * CFG.laneW, y1: -400, x2: x0 + i * CFG.laneW, y2: 2400, stroke: P.paper,
+  "stroke-width": 8, "stroke-dasharray": "60 70", opacity: 0.8 }, cam));
+CFG.lanes.forEach((L, li) => {
+  const r = k.rand(li + 3), span = L.cars * L.gap;
+  const cars = Array.from({ length: L.cars }, (_, i) => ({ g: car(cam, { brake: L.brake }), base: i * L.gap + r() * 40 }));
+  k.frame((t) => cars.forEach((c) => c.g.setAttribute("transform",
+    `translate(${lx(li)} ${2200 - ((c.base + L.speed * t) % span + span) % span})`)));
+});
+k.frame((t) => dashes.forEach((d) => d.setAttribute("stroke-dashoffset", -t * 120)));
+const me = car(cam, { color: P.accent, w: 136, h: 228, brake: CFG.lanes[CFG.me.lane].brake });
+me.setAttribute("transform", `translate(${lx(CFG.me.lane)} ${CFG.me.y})`);
+k.camera(cam, { to: 1.08, origin: `${lx(CFG.me.lane)} ${CFG.me.y}` });
+k.headline();
+k.cast();
+</script>

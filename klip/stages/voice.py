@@ -54,6 +54,22 @@ def get_engine(name: str) -> TTSEngine:
     raise ValueError(f"unknown TTS engine {name!r} (one of {', '.join(ENGINES)})")
 
 
+class NotCached(RuntimeError):
+    """A cache-only engine was asked for a take it doesn't have."""
+
+
+class CacheOnly:
+    """Wraps an engine so it only replays its cached takes: a miss raises NotCached, no request is made."""
+
+    def __init__(self, engine: TTSEngine):
+        self.engine, self.name = engine, engine.name
+        self.ext = getattr(engine, "ext", ".mp3")
+        self.cache_tag = getattr(engine, "cache_tag", None)
+
+    def synthesize(self, text: str, *args, **kwargs) -> list[Word]:
+        raise NotCached(f"{self.name}: no cached take for {text[:40]!r}")
+
+
 def _cache_key(engine: str, voice_id: str, rate: str, text: str,
                pitch: str = "+0Hz", volume: str = "+0%", tag: str | None = None) -> str:
     parts = [1, engine, voice_id, rate, text]
@@ -203,7 +219,24 @@ def turns(spec: Spec) -> list[tuple[str, list[Scene]]]:
     return out
 
 
-def run(spec: Spec, project_dir: Path, engine: TTSEngine | None = None) -> dict:
+def run_preview(spec: Spec, project_dir: Path) -> dict:
+    """The voice for klip preview: the final engine's takes when all of them are cached (no requests),
+    else the draft engine (voices.preview_engine), so previews never spend a paid or rate-limited
+    engine's quota. The timeline says which (`engine`, `draft`)."""
+    final = config.get("voices.engine", "edge")
+    draft = config.get("voices.preview_engine") or final
+    if draft == final:
+        return run(spec, project_dir)
+    try:
+        return run(spec, project_dir, CacheOnly(get_engine(final)))
+    except NotCached:
+        log.info("voice: preview uses the draft voice (%s); the render records with %s", draft, final)
+    except Exception as e:  # the final engine can't even start (no API key): the draft still works
+        log.info("voice: %s unavailable (%s); preview uses %s", final, e, draft)
+    return run(spec, project_dir, get_engine(draft), draft=True)
+
+
+def run(spec: Spec, project_dir: Path, engine: TTSEngine | None = None, draft: bool = False) -> dict:
     engine_name = config.get("voices.engine", "edge")
     engine = engine or get_engine(engine_name)
     lex = config.lexicon()
@@ -254,7 +287,8 @@ def run(spec: Spec, project_dir: Path, engine: TTSEngine | None = None) -> dict:
     timeline = {
         "total_ms": round(cursor, 1), "voice": spec.voice, "voice_id": voices.get(spec.voice) or next(iter(voices.values())),
         "voices": voices,
-        "engine": engine.name, "take": "whole" if whole else "scene", "speech_rate": rate, "scenes": scenes,
+        "engine": engine.name, "draft": draft, "take": "whole" if whole else "scene", "speech_rate": rate,
+        "scenes": scenes,
         "words_per_second": round(spec.word_count / (sum(s["audio_ms"] for s in scenes) / 1000), 3),
     }
     _mix(project_dir, scenes, cursor)

@@ -1,0 +1,49 @@
+{
+  "slug": "code-scenes",
+  "voice": "female",
+  "target_duration_s": 13,
+  "music": {
+    "mood": null
+  },
+  "look_bible": {
+    "palette": {
+      "bg": "#0E0F13",
+      "ink": "#F2EEE6",
+      "accent": "#FF6A1A"
+    },
+    "texture": "hud",
+    "fonts": {
+      "display": "anton",
+      "mono": "mono"
+    },
+    "notes": "Night-to-day HUD: near-black ground, one orange accent, thin lines, condensed caps for the one big word."
+  },
+  "scenes": [
+    {
+      "id": "s1",
+      "template": "hook",
+      "narration": "Setiap pagi Matahari terbit pelan pelan, dan semua orang di kota mulai bangun.",
+      "on_screen_text": "Pagi",
+      "visual": {
+        "type": "code",
+        "code": {
+          "file": "examples/code-scenes/s1.html"
+        }
+      }
+    },
+    {
+      "id": "s2",
+      "template": "explain",
+      "narration": "Padahal yang bergerak itu Bumi, yang berputar sangat cepat di angkasa setiap hari.",
+      "visual": {
+        "type": "code",
+        "code": {
+          "file": "examples/code-scenes/s2.html",
+          "libs": [
+            "three"
+          ]
+        }
+      }
+    }
+  ]
+}

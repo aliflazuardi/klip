@@ -82,3 +82,18 @@ class HyperFramesRenderer:
                                "--describe", "false", "-o", str(shots.resolve())], png)
         png.replace(out_png)
         return out_png
+
+    def stills(self, composition_dir: Path, out_dir: Path, times: list[float]) -> dict[float, Path]:
+        """Full-size PNGs of the composition at each time (one `hyperframes snapshot` run): {time: png}."""
+        out_dir.mkdir(parents=True, exist_ok=True)
+        for old in out_dir.glob("at-*.png"):
+            old.unlink()
+        times = sorted({round(t, 3) for t in times})
+        self._run("snapshot", [str(composition_dir.resolve()), "--at", ",".join(f"{t:g}" for t in times), "--no-end",
+                               "--keep", "--describe", "false", "--timeout", "20000", "-o", str(out_dir.resolve())],
+                  out_dir)
+        found = {round(float(p.stem[3:-1]), 3): p for p in out_dir.glob("at-*s.png")}
+        missing = [t for t in times if t not in found]
+        if missing:
+            raise RenderError(f"hyperframes snapshot wrote no still for {missing}")
+        return {t: found[t] for t in times}

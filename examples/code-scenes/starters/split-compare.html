@@ -1,0 +1,38 @@
+<!-- Starter: split comparison. Two sides (A vs B), each with a label, a big value that counts up and a
+     bar; the winner lights up on its word. Edit CFG. -->
+<div class="sc">
+  <div class="side a"><b class="lab"></b><span class="val"></span><div class="bar"><i></i></div></div>
+  <div class="vs">VS</div>
+  <div class="side b"><b class="lab"></b><span class="val"></span><div class="bar"><i></i></div></div>
+</div>
+<style>
+.sc { position: absolute; left: 60px; right: 60px; top: 480px; height: 560px; display: flex; align-items: stretch; gap: 30px; }
+.side { flex: 1; border-radius: 28px; padding: 34px 30px; background: var(--k-paper); color: var(--k-paper-ink); display: flex;
+        flex-direction: column; gap: 18px; box-shadow: 0 20px 40px rgba(0,0,0,.18); }
+.lab { font: 800 62px/1.05 var(--k-display); }
+.val { font: 800 150px/1 var(--k-display); letter-spacing: -0.04em; }
+.bar { margin-top: auto; height: 34px; border-radius: 17px; background: rgba(0,0,0,.08); overflow: hidden; }
+.bar i { display: block; height: 100%; border-radius: 17px; background: var(--k-muted); transform-origin: 0 50%; transform: scaleX(0); }
+.side.win { outline: 10px solid var(--k-accent); }
+.side.win .bar i { background: var(--k-accent); }
+.vs { align-self: center; font: 800 56px/1 var(--k-display); color: var(--k-muted); }
+</style>
+<script>
+const CFG = { a: { label: "Opsi A", value: 38, suffix: "%" }, b: { label: "Opsi B", value: 62, suffix: "%" },
+              winner: "b", at: null };                       // at: the word the winner lights up on
+const { cam } = k.stage();
+k.headline();
+const max = Math.max(CFG.a.value, CFG.b.value);
+["a", "b"].forEach((s, i) => {
+  const side = k.$(".side." + s), t0 = k.beat(0.15 + i * 0.25);
+  k.$(".side." + s + " .lab").textContent = CFG[s].label;
+  k.tl.from(side, { y: 160, opacity: 0, duration: 0.45, ease: k.look.ease.out }, t0);
+  k.count(k.$(".side." + s + " .val"), { to: CFG[s].value, at: t0 + 0.2, suffix: CFG[s].suffix || "" });
+  k.tl.to(k.$(".side." + s + " .bar i"), { scaleX: CFG[s].value / max, duration: 0.9, ease: "power2.out" }, t0 + 0.2);
+});
+k.pop(".vs", k.beat(0.3));
+const tw = (CFG.at && k.find(CFG.at)) ?? k.beat(0.7);
+k.tl.set(k.$(".side." + CFG.winner), { className: "side " + CFG.winner + " win" }, tw);
+k.tl.fromTo(k.$(".side." + CFG.winner), { scale: 1 }, { scale: 1.05, duration: 0.18, yoyo: true, repeat: 1, ease: "power2.out", immediateRender: false }, tw);
+k.cast();
+</script>
