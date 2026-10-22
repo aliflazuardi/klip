@@ -611,6 +611,17 @@ llm:
     temperature: 0.7
     timeout_s: 300
 
+# ── klip ideas ───────────────────────────────────────────────────────────────
+# Trending searches → video ideas → a batch file. geo = Google Trends country (its daily trending
+# searches RSS, no key), cached cache_minutes; max_trends read; count = ideas asked for;
+# brand_guide_chars = how much of brands/<style>/skill/SKILL.md the LLM reads.
+ideas:
+  geo: ID
+  cache_minutes: 60
+  max_trends: 25
+  count: 8
+  brand_guide_chars: 12000
+
 # ── Visual styles ────────────────────────────────────────────────────────────
 # A spec picks one with "style": "<name>". Other styles inherit everything from
 # `default` and only list what they change (see `bold` below). Brand packs in

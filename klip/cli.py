@@ -414,6 +414,48 @@ def run_stage(stage: str = typer.Argument(..., help="voice | assets | compose | 
 
 
 @app.command()
+def ideas(style: str = StyleOpt, count: Optional[int] = typer.Option(None, "--count", "-n", help="Ideas wanted (default: ideas.count)"),
+          signals: Optional[Path] = typer.Option(None, "--from", help="Your own signals, one per line (e.g. pasted from TikTok Creative Center)"),
+          trends: bool = typer.Option(True, "--trends/--no-trends", help="Read today's Google Trends (ideas.geo)"),
+          geo: Optional[str] = typer.Option(None, "--geo", help="Country for Google Trends (default: ideas.geo)"),
+          duration: int = DurationOpt, voice: str = typer.Option("female", "--voice", "-v"),
+          provider: Optional[str] = ProviderOpt,
+          out: Optional[Path] = typer.Option(None, "--out", "-o", help="Batch file (default: specs/ideas-<date>-<style>.yaml)")) -> None:
+    """Today's trending searches (and your own signals) → video ideas for a channel → a batch file to pick from."""
+    from klip import ideas as ideas_mod
+    from klip.engines.llm.base import LLMError
+    from klip.http import HTTPError
+    from klip.stages import script
+    found: list = []
+    if trends:
+        try:
+            found += ideas_mod.google_trends(geo or ideas_mod.cfg("geo"))
+        except (HTTPError, ValueError) as e:
+            console.print(f"[yellow]Google Trends unavailable:[/] {e}")
+    if signals:
+        found += ideas_mod.pasted(signals)
+    console.print(f"{len(found)} signal(s): " + ", ".join(t.title for t in found[:12]) + (" …" if len(found) > 12 else ""))
+    try:
+        with console.status("thinking up ideas…"):
+            rows = ideas_mod.generate(script.get_provider(provider), style, found, count or int(ideas_mod.cfg("count")))
+    except LLMError as e:
+        console.print(f"[red]ideas failed:[/] {e}")
+        raise typer.Exit(1)
+    t = Table(title=f"ideas · {style}", show_lines=True)
+    for col in ("score", "topic", "angle", "trend", "check"):
+        t.add_column(col, overflow="fold")
+    for i in rows:
+        warn = " ⚠" if i.get("sensitivity") in ("medium", "high") else ""
+        t.add_row(f"{i.get('score')}/5{warn}", i["topic"], i.get("angle", ""), i.get("trend", ""), i.get("check", ""))
+    console.print(t)
+    path = out or ideas_mod.default_out(style)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(ideas_mod.batch_yaml(rows, style, duration, voice), encoding="utf-8")
+    console.print(f"[green]✓[/green] {path}")
+    console.print(f"Keep the ones you like, then: uv run klip batch {path} --scripts-only")
+
+
+@app.command()
 def batch(path: Path = typer.Argument(..., help="topics.yaml (see examples/batch.yaml)"),
           scripts_only: bool = typer.Option(False, "--scripts-only",
                                             help="Write specs for review, plus <name>.specs.yaml to render them later")) -> None:

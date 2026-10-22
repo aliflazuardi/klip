@@ -52,20 +52,26 @@ def _cache_dir(name: str) -> Path:
 def get_json(url: str, headers: dict | None = None, cache_key: str | None = None,
              ttl_s: int = RESPONSE_TTL_S, retries: int = 2) -> dict:
     """GET JSON. `cache_key` should identify the request without secrets (no API keys)."""
+    return json.loads(get_text(url, headers, cache_key, ttl_s, retries, ext="json"))
+
+
+def get_text(url: str, headers: dict | None = None, cache_key: str | None = None,
+             ttl_s: int = RESPONSE_TTL_S, retries: int = 2, ext: str = "txt") -> str:
+    """GET a text body (RSS, HTML, JSON), cached like get_json."""
     key = hashlib.sha256((cache_key or url).encode()).hexdigest()[:24]
-    cached = _cache_dir("api") / f"{key}.json"
+    cached = _cache_dir("api") / f"{key}.{ext}"
     if cached.exists() and time.time() - cached.stat().st_mtime < ttl_s:
         stats.api_cache_hits += 1
-        return json.loads(cached.read_text())
+        return cached.read_text(encoding="utf-8")
 
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, **(headers or {})})
     for attempt in range(retries + 1):
         stats.api_calls += 1
         try:
             with urllib.request.urlopen(req, timeout=30) as r:
-                data = json.load(r)
-            cached.write_text(json.dumps(data))
-            return data
+                text = r.read().decode("utf-8")
+            cached.write_text(text, encoding="utf-8")
+            return text
         except urllib.error.HTTPError as e:
             if e.code == 429 and attempt < retries:
                 wait = int(e.headers.get("Retry-After") or e.headers.get("X-RateLimit-Reset") or 5)

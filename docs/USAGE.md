@@ -48,6 +48,23 @@ Items run one after another; a failure (script, render or QA) is recorded and th
 on. You get a summary table, a JSON report in `projects/_batch/`, and exit code 1 if any item
 failed.
 
+## Ideas from today's trends
+
+```bash
+uv run klip ideas --style warga-nalar                 # today's Google Trends (Indonesia) → ideas
+uv run klip ideas --from trends.txt --no-trends       # only your own signals, one per line
+uv run klip batch specs/ideas-<date>-<style>.yaml --scripts-only
+```
+
+`klip ideas` reads the day's trending searches (Google Trends RSS for klip.yaml `ideas.geo`, with
+each trend's news headlines) and anything you paste with `--from` (hashtags or sounds from TikTok
+Creative Center, questions from your comments), then asks the LLM for explainer topics that fit
+the channel's brand guide (`brands/<style>/skill/SKILL.md`) and aren't already in `projects/` or
+`specs/`. A trend is the reason to post now; the topic still has to teach something, so match
+scores and gossip are skipped unless there's a real explainer behind them. You get a table and a
+batch file with one item per idea and its angle, hook, trend, facts to check and a ⚠ on sensitive
+topics as comments: delete the ones you don't want, then run it with `--scripts-only`.
+
 ## Standalone: topic → video without Claude Code
 
 ```bash

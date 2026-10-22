@@ -41,6 +41,10 @@ All notable changes to Klip are listed here. The format follows
   one place while the scenes change on top (`k.scenes`, `k.sceneAt(t)`, words of the whole run).
   Starter `examples/code-scenes/worlds/journey.html`, example `examples/code-world.json`.
 - Validate warns when a code look's `bg` is darker than video black (it flattens and gradients band).
+- `klip ideas`: today's trending searches (Google Trends RSS, `ideas.geo`, with news headlines) and your
+  own pasted signals (`--from`) → explainer ideas that fit the channel's brand guide and skip topics
+  already made → a `klip batch` file with each idea's angle, hook, trend, facts to check and
+  sensitivity as comments. Settings in klip.yaml `ideas`.
 - Code scenes follow the music: compose finds the beats of the video's music track (klip/beats.py,
   pure Python, cached; settings in klip.yaml `code.beats`) and passes them as `k.beats`, `k.bpm` and
   `k.period`. `k.pulse(t)` (1 on a beat, decaying) and `k.onBeat(fn)` put motion on them. Spec

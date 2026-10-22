@@ -124,6 +124,7 @@ uv run klip render examples/menguap.json --voice male           # render a ready
 uv run klip new "Cara menyimpan cabai biar awet" --voice female  # LLM writes specs/<slug>.json, you review
 uv run klip render specs/cara-menyimpan-cabai.json
 uv run klip batch examples/batch.yaml                           # many videos in one go
+uv run klip ideas --style default                               # today's trends → ideas → a batch file
 ```
 
 `klip new` uses the Claude CLI by default, or any OpenAI-compatible endpoint (Ollama, LM Studio,
