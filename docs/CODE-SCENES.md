@@ -63,6 +63,10 @@ One HTML fragment: markup, any `<style>` blocks and exactly one inline `<script>
 | `k.safe` | `{x, y, w, h, captionTop}`: the area clear of the TikTok UI and the captions. |
 | `k.text`, `k.emphasis` | The scene's `on_screen_text` and `emphasis`. |
 | `k.W`, `k.H`, `k.id` | 1080, 1920, the scene id. |
+| `rig.walk(x, at)`, `rig.enter("left", at)`, `rig.exit("right", at)` | Walk to x (the mascot's left edge) with footsteps, a body bob and a lean, facing the way it goes; enter/exit walk in from or out to off-screen (`enter("bottom")` pops up). Call a rig's moves in time order. |
+| `rig.jump(at)`, `rig.hop(at, {times})` | A jump with squash and stretch; small excited hops. |
+| `rig.point(target, at, {hold})` | Turn toward a point (x) or element and take the pointing pose. |
+| `rig.turn(at, dir)`, `rig.nod(at)`, `rig.wiggle(at, {times})` | Face left (-1) / right (+1); a yes-nod; a side-to-side wiggle. |
 | `k.mascot("napa", {x, y, h, parent, mirror, bob})` | A brand mascot (the style's mascot cast) as a rig: `.pose("kaget", at, hold)`, `.hide(at)`, `.show(at)`, `.el`, `.w`, `.h`. The scene's speaker mouths its narration, everyone blinks and bobs on their own. Names and poses are checked at validate time. |
 
 CSS variables: `--k-<colour>` for every palette entry (`--k-bg`, `--k-ink`, `--k-accent`, …),
@@ -170,6 +174,8 @@ Drawn from the reference videos (`.dev/DIRECTOR-PLAN.md`):
    shapes, a clear focal point, lots of quiet space around it.
 6. **Type is image.** When a word matters, set it huge in the display font and animate it
    (stagger letters, mask-reveal, counters), and turn off captions for that scene if it repeats them.
+   The mascots can act too: walk on, jump on the surprise, point at the prop, wander off. Check the
+   brand's rules first: some brands keep their mascots on fixed spots.
 7. **Motifs come back.** A prop introduced early (a thermometer, a counter, a jar) returns later,
    changed: that is the story. Reuse its markup across scene files.
 8. **Keep the TikTok frame in mind.** The top ~230 px and the bottom ~470 px belong to the app

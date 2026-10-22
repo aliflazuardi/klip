@@ -189,3 +189,15 @@ def test_code_scene_sfx_cues_land_on_their_words(repo):
                  "visual": code(assets=["specs/farm.png"], sfx=[{"at": "bulan", "sfx": "boom"}])})
     msgs = [i.message for i in lint(bad) if i.where == "s1"]
     assert any("'bulan' is not in the narration" in m for m in msgs) and any("no effect 'boom'" in m for m in msgs)
+
+
+def test_tag_feet_marks_the_two_lowest_ellipses_left_to_right():
+    svg = ('<svg viewBox="0 0 200 220"><ellipse cx="128" cy="208" rx="18" ry="9"/><ellipse cx="72" cy="208" rx="18" ry="9"/>'
+           '<ellipse cx="100" cy="120" rx="60" ry="70"/></svg>')
+    out = codescene.tag_feet(svg)
+    assert '<ellipse class="k-foot k-foot-l" cx="72"' in out and '<ellipse class="k-foot k-foot-r" cx="128"' in out
+    assert '<ellipse cx="100"' in out                                     # the body is left alone
+    ball = '<svg viewBox="0 0 200 220"><ellipse cx="100" cy="120" rx="60" ry="70"/></svg>'
+    assert codescene.tag_feet(ball) == ball                               # no feet (a rolled-up pose): unchanged
+    marked = '<svg viewBox="0 0 10 10"><path class="foot-l" d=""/><path class="foot-r" d=""/></svg>'
+    assert 'class="k-foot k-foot-l"' in codescene.tag_feet(marked)       # an SVG's own marks win

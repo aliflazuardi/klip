@@ -64,7 +64,8 @@ the lines, kinetic type, 3D, "kayak video motion graphic", "bikin kayak video Op
    and you write that file: markup + `<style>` + one `<script>` animating on `k.tl`, every beat on
    `k.at("kata")`. Start from the standard kit (`k.stage`, `k.headline`, `k.cast`, `k.camera`, `k.chip`,
    `k.count`…; see the doc) so type, scrims and mascots are placed for you. Give the scene's big beats a
-   sound (`code.sfx`: `{at, sfx}`; a stamp → hit, a pop-in → pop, a number landing → ding). A new picture per line; characters and props move on the words; the camera
+   sound (`code.sfx`: `{at, sfx}`; mascots can act: `rig.walk/enter/exit/jump/point/nod`, within the
+   brand's mascot rules; a stamp → hit, a pop-in → pop, a number landing → ding). A new picture per line; characters and props move on the words; the camera
    moves; nothing important outside `k.safe`.
 3. `uv run klip validate specs/<slug>.json` (also lints the scene files), then
    `uv run klip preview specs/<slug>.json` and **read every contact sheet** in

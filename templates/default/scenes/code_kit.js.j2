@@ -88,6 +88,98 @@ function klipScene(meta, body) {
       hide(at) { sub.set(el, { autoAlpha: 0 }, at); return rig; },
       show(at) { sub.set(el, { autoAlpha: 1 }, at); return rig; },
     };
+    // ---- acting: whole-body moves on the scene timeline (call them in time order: walks plan from
+    // where the previous one ended). Facing: +1 = toward the viewer's right, as the pose SVGs point.
+    const A = KIT.act, home = o.x ?? 60;
+    let at_x = home, face = (o.mirror ?? c.mirror) ? -1 : 1;
+    const feet = (side) => el.querySelectorAll(`.k-foot-${side}`);
+    gsap.set(el.querySelectorAll(".k-foot"), { transformOrigin: "50% 50%" });
+    const faceTo = (dir, at) => {
+      if (dir && dir !== face) { sub.to(flip, { scaleX: dir, duration: A.turn_s, ease: "power2.inOut" }, at); face = dir; }
+    };
+    Object.assign(rig, {
+      get x() { return at_x; },
+      // walk to x (px, the mascot's left edge) from `at`: steps with alternating feet and a body bob,
+      // facing the way it goes; {dur, speed (px/s), face: false keeps the facing, back: face home after}
+      walk(x, at, opt = {}) {
+        const dx = x - at_x;
+        if (Math.abs(dx) < 1) return rig;
+        const dur = opt.dur || Math.max(0.4, Math.abs(dx) / (opt.speed || A.walk_px_s));
+        const before = face;
+        if (opt.face !== false) faceTo(Math.sign(dx), at);
+        sub.to(el, { x: x - home, duration: dur, ease: "power1.inOut" }, at);
+        sub.fromTo(body, { rotation: 0 }, { rotation: A.lean_deg * Math.sign(dx), duration: 0.18, ease: "power2.out", immediateRender: false }, at);
+        sub.to(body, { rotation: 0, duration: 0.2, ease: "power2.inOut" }, at + dur - 0.1);
+        const n = Math.max(2, Math.round(dur / A.step_s)), st = dur / n;
+        for (let i = 0; i < n; i++) {
+          const t = at + i * st;
+          sub.fromTo(body, { y: 0 }, { y: -A.bob_px, duration: st / 2, yoyo: true, repeat: 1, ease: "sine.out", immediateRender: false }, t);
+          sub.fromTo(feet(i % 2 ? "r" : "l"), { y: 0, rotation: 0 }, { y: -A.foot_px, rotation: -12 * face, duration: st / 2,
+                      yoyo: true, repeat: 1, ease: "sine.out", immediateRender: false }, t);
+        }
+        at_x = x;
+        if (opt.back) faceTo(before, at + dur);
+        return rig;
+      },
+      // walk in from off-screen ("left" | "right") to its spot (or opt.x) at `at`; "bottom" = jumps up into view
+      enter(from = "left", at = 0, opt = {}) {
+        const to = opt.x ?? at_x;
+        if (from === "bottom") {
+          gsap.set(el, { y: 2 * h }); at_x = to;
+          sub.to(el, { y: 0, duration: 0.45, ease: "back.out(1.6)" }, at);
+          return rig;
+        }
+        at_x = from === "left" ? -w - 40 : 1080 + 40;
+        gsap.set(el, { x: at_x - home });
+        return rig.walk(to, at, { ...opt, back: opt.back ?? true });
+      },
+      // walk off-screen ("left" | "right") from `at`
+      exit(to = "right", at = 0, opt = {}) { return rig.walk(to === "left" ? -w - 40 : 1080 + 40, at, opt); },
+      // a jump with squash and stretch: {height}
+      jump(at, opt = {}) {
+        const hgt = opt.height || A.jump_px;
+        sub.to(body, { scaleY: 0.86, scaleX: 1.08, duration: 0.08, ease: "power1.out" }, at);
+        sub.to(body, { scaleY: 1.06, scaleX: 0.95, duration: 0.12, ease: "power1.out" }, at + 0.08);
+        sub.to(el, { y: -hgt, duration: 0.24, ease: "power2.out" }, at + 0.08);
+        sub.to(el, { y: 0, duration: 0.22, ease: "power2.in" }, at + 0.32);
+        sub.to(body, { scaleY: 0.88, scaleX: 1.07, duration: 0.07, ease: "power1.out" }, at + 0.54);
+        sub.to(body, { scaleY: 1, scaleX: 1, duration: 0.18, ease: "back.out(3)" }, at + 0.61);
+        return rig;
+      },
+      // small excited hops: {times}
+      hop(at, opt = {}) {
+        for (let i = 0; i < (opt.times || 2); i++) {
+          sub.fromTo(el, { y: 0 }, { y: -(opt.height || A.jump_px * 0.35), duration: 0.13, yoyo: true, repeat: 1,
+                     ease: "power2.out", immediateRender: false }, at + i * 0.3);
+        }
+        return rig;
+      },
+      // face the viewer's left (-1) or right (+1), or the other way when dir is unset
+      turn(at, dir) { faceTo(dir || -face, at); return rig; },
+      // face a point (x px, or an element) and take the pointing pose: {hold, pose}
+      point(target, at, opt = {}) {
+        const tx = typeof target === "number" ? target : (() => { const r = one(target).getBoundingClientRect(),
+          rr = root.getBoundingClientRect(); return r.left - rr.left + r.width / 2; })();
+        faceTo(tx < at_x + w / 2 ? -1 : 1, at);
+        const p = opt.pose || (poses.tunjuk ? "tunjuk" : "netral");
+        rig.pose(p, at + 0.05, opt.hold ?? A.point_hold_s);
+        sub.fromTo(body, { rotation: 0 }, { rotation: 4 * face, duration: 0.2, yoyo: true, repeat: 1,
+                   repeatDelay: Math.max(0, (opt.hold ?? A.point_hold_s) - 0.4), ease: "power2.out", immediateRender: false }, at);
+        return rig;
+      },
+      // nod (yes) twice
+      nod(at) {
+        sub.fromTo(body, { scaleY: 1 }, { scaleY: 0.93, duration: 0.12, yoyo: true, repeat: 3, ease: "sine.inOut",
+                   immediateRender: false }, at);
+        return rig;
+      },
+      // a side-to-side wiggle (unsure, or a little dance): {times}
+      wiggle(at, opt = {}) {
+        sub.fromTo(body, { rotation: 0 }, { rotation: 7, duration: 0.1, yoyo: true, repeat: (opt.times || 3) * 2 - 1,
+                   ease: "sine.inOut", immediateRender: false }, at);
+        return rig;
+      },
+    });
     const mm = meta.mascots || { mouth: {}, blinks: {} };
     for (const [a, b] of mm.mouth[name] || []) {
       sub.set(el.querySelectorAll(".mouth"), { opacity: 0 }, a); sub.set(el.querySelectorAll(".mouth-open"), { opacity: 1 }, a);

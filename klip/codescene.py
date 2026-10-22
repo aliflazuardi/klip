@@ -320,6 +320,27 @@ def uses_mascots(js: str) -> bool:
     return bool(MASCOT_RE.search(js) or re.search(r"\bk\.cast\(", js))
 
 
+def tag_feet(svg: str) -> str:
+    """Mark a pose's two feet for the walk cycle: class k-foot + k-foot-l / k-foot-r on the two lowest
+    ellipses (centre in the bottom 12% of the viewBox), unless the SVG already marks them (foot-l /
+    foot-r). An SVG with another foot count is left as it is (the rig then walks with its body only)."""
+    if "foot-l" in svg:
+        return svg.replace('class="foot-l', 'class="k-foot k-foot-l').replace('class="foot-r', 'class="k-foot k-foot-r')
+    m = re.search(r'viewBox="\s*[-\d.]+\s+[-\d.]+\s+[\d.]+\s+([\d.]+)', svg)
+    if not m:
+        return svg
+    h = float(m.group(1))
+    feet = [x for x in re.finditer(r'<ellipse\b([^>]*)>', svg)
+            if (cy := re.search(r'\bcy="([\d.]+)"', x.group(1))) and float(cy.group(1)) >= 0.88 * h
+            and "class=" not in x.group(1)]
+    if len(feet) != 2:
+        return svg
+    feet.sort(key=lambda x: float(re.search(r'\bcx="([\d.]+)"', x.group(1)).group(1)))
+    for side, x in sorted(zip("lr", feet), key=lambda p: -p[1].start()):     # back to front: offsets hold
+        svg = svg[:x.start()] + f'<ellipse class="k-foot k-foot-{side}"' + x.group(1) + ">" + svg[x.end():]
+    return svg
+
+
 def cast_ctx(style: dict) -> dict:
     """The style's mascot cast for k.mascot: {name: {poses: {pose: svg}, aspect, mirror, voice}, outline}."""
     from klip import mascot
@@ -327,7 +348,7 @@ def cast_ctx(style: dict) -> dict:
     out = {}
     for m in c.get("cast") or []:
         svgs = mascot._poses(m["dir"])
-        out[m["name"]] = {"poses": {p: mascot._scoped(svg, f"ms-{m['name']}-{p}") for p, svg in svgs.items()},
+        out[m["name"]] = {"poses": {p: tag_feet(mascot._scoped(svg, f"ms-{m['name']}-{p}")) for p, svg in svgs.items()},
                           "aspect": round(mascot._aspect(svgs["netral"]), 4), "mirror": m.get("side") == "right",
                           "voice": m.get("voice")}
     return {"cast": out, "outline": c.get("outline"), "bob_px": c["bob_px"], "bob_s": c["bob_s"]}

@@ -413,6 +413,9 @@ code:
     camera_zoom: 1.08                 # k.camera: scale reached at the scene's end
     count_s: 1.2                      # k.count: default count-up length
     type_cps: 24                      # k.type: typewriter characters per second
+    # mascot acting (rig.walk/enter/exit/jump/hop/turn/point): walking speed, step length in time,
+    # body bob and foot lift per step, jump height, turn time, how long a point holds its pose
+    act: {walk_px_s: 380, step_s: 0.26, bob_px: 10, foot_px: 14, lean_deg: 4, jump_px: 110, turn_s: 0.16, point_hold_s: 1.4}
   safe_top: 230                     # k.safe: below the TikTok top bar / branding strip
   safe_gap: 40                      # px kept clear above the captions
   # klip preview: stills per code scene (its start, each k.at cue, the middle, the end), at most
@@ -635,7 +638,8 @@ styles:
     # lists its cast; each mascot is a folder of pose SVGs (<pose>.svg, `netral` required), drawn
     # facing the viewer and pointing to the viewer's right. Inside a pose: class "mouth" (closed) and
     # "mouth-open" (hidden) swap on each spoken word of the speaker, "eye" blinks, "wag" sways (a tail),
-    # "nomirror" stays readable when the mascot is mirrored (text). The props area shrinks to make
+    # "nomirror" stays readable when the mascot is mirrored (text), "foot-l" / "foot-r" step when a code
+    # scene's rig walks (unmarked, the two lowest ellipses are taken as feet). The props area shrinks to make
     # room. A scene's "mascot" in the spec picks the speaker and adds poses on words.
     mascot:
       # [{name, dir (relative to the brand pack), side: left|right, voice: female|male}]. A mascot
