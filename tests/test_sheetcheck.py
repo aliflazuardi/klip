@@ -49,3 +49,16 @@ def test_run_writes_review_and_qa_marks_changed_scenes_stale(tmp_path, monkeypat
     hashes["s2"] = "changed"
     qa = sheetcheck.for_qa(spec(), tmp_path)
     assert qa["stale"] == ["s2"] and qa["flagged"] == []          # a stale flag isn't reported as current
+
+
+def test_a_partial_review_keeps_the_other_scenes(tmp_path, monkeypatch):
+    (tmp_path / "preview").mkdir()
+    (tmp_path / "words.json").write_text(json.dumps(WORDS))
+    monkeypatch.setattr(sheetcheck, "file_hash", lambda sp, sid: "h")
+    monkeypatch.setattr(sheetcheck, "_call", lambda user, sheets: {"scenes": [
+        {"id": "s1", "score": 5, "issues": []}, {"id": "s2", "score": 2, "issues": []}]})
+    sheetcheck.run(spec(), tmp_path, ROWS)
+    monkeypatch.setattr(sheetcheck, "_call", lambda user, sheets: {"scenes": [{"id": "s1", "score": 3, "issues": []}]})
+    rev = sheetcheck.run(spec(), tmp_path, ROWS[:1])
+    assert [(s["scene"], s["score"]) for s in rev["scenes"]] == [("s1", 3), ("s2", 2)]
+    assert rev["flagged"] == ["s1", "s2"]

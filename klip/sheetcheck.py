@@ -148,9 +148,15 @@ def run(spec: Spec, project_dir: Path, rows: list[dict], look: dict | None = Non
     scenes = parse(data, rows)
     for s in scenes:
         s["file_hash"] = file_hash(spec, s["scene"])
+    path = project_dir / "preview" / "review.json"
+    if path.exists():                     # a preview of some scenes keeps the others' last review
+        done = {s["scene"] for s in scenes}
+        order = [s.id for s in spec.scenes]
+        kept = [s for s in json.loads(path.read_text()).get("scenes", []) if s["scene"] not in done and s["scene"] in order]
+        scenes = sorted(scenes + kept, key=lambda s: order.index(s["scene"]))
     out = {"scenes": scenes, "flagged": [s["scene"] for s in scenes if s["flagged"]],
            "issues": sum(len(s["issues"]) for s in scenes)}
-    (project_dir / "preview" / "review.json").write_text(json.dumps(out, indent=2, ensure_ascii=False))
+    path.write_text(json.dumps(out, indent=2, ensure_ascii=False))
     return out
 
 
