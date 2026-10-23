@@ -137,6 +137,10 @@ All notable changes to Klip are listed here. The format follows
 
 ### Changed
 
+- Scene cuts, transitions and camera moves now play a soft, low **swish** instead of the bright
+  "ssst" whoosh (`assets/sfx/swish.wav`, made by `scripts/make_sfx.py`; nothing above ~1.4 kHz). The
+  whoosh stays available for a scene's own cues.
+
 - Cinematic preset: bg lifted to `#16120F` (the old `#0E0C0B` sat below video black) and `film` grain
   is 2 px, so it survives the encode and dithers dark gradients instead of letting them band.
 - Faster renders (a 59 s video: about 2 min → 1.5 min). HyperFrames encodes at `render.crf` and post

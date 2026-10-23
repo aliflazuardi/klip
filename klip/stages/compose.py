@@ -736,7 +736,7 @@ def sfx_events(scenes: list[dict], pages: list[dict], end_card: bool = False,
             add("hook_start", 0.0)
         if s["idx"] > 0 and not (s.get("stage") and s["stage"]["continues"]):
             if (tr := s.get("tr_in")) and tr.get("sfx"):          # the transition's own sound
-                out.append({"t": round(max(s["start"] - (WHOOSH_PEAK_S if tr["sfx"] == "whoosh" else 0), 0), 3),
+                out.append({"t": round(max(s["start"] - (WHOOSH_PEAK_S if tr["sfx"] in ("whoosh", "swish") else 0), 0), 3),
                             "moment": "transition", "sfx": tr["sfx"]})
             else:
                 add("scene_cut", s["start"] - WHOOSH_PEAK_S)

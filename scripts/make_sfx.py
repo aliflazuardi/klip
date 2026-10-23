@@ -1,7 +1,7 @@
 """Synthesize Klip's default sound effects with FFmpeg (no samples, no copyright).
 
 Usage: uv run python scripts/make_sfx.py [out_dir]    (default: assets/sfx/)
-Writes whoosh/pop/ding/riser/hit .wav, peak-normalized to -1 dBFS. To use your own effects,
+Writes whoosh/swish/pop/ding/riser/hit .wav, peak-normalized to -1 dBFS. To use your own effects,
 drop files with the same names (any of .wav/.mp3/.m4a/.ogg) into assets/sfx/; they win.
 """
 
@@ -19,6 +19,9 @@ SFX = {
     # filtered pink-noise swell: the classic transition swoosh
     "whoosh": ("anoisesrc=d=0.5:c=pink:a=0.8:seed=7",
                "highpass=f=500,lowpass=f=6000,afade=t=in:d=0.22:curve=exp,afade=t=out:st=0.22:d=0.28:curve=log"),
+    # soft air push with a low body: the scene cut / camera move (no hiss: everything over ~1.4 kHz is cut)
+    "swish": ("aevalsrc='0.55*(random(0)*2-1)+0.45*sin(2*PI*(150*t-110*t*t))':s=48000:d=0.45",
+              "highpass=f=70,lowpass=f=1400,lowpass=f=1400,afade=t=in:d=0.17:curve=exp,afade=t=out:st=0.17:d=0.28:curve=log"),
     # short sine blip with a falling pitch: badges, icons
     "pop": ("aevalsrc='sin(2*PI*(520*t-1800*t*t))*exp(-38*t)':s=48000:d=0.14", "afade=t=out:st=0.1:d=0.04"),
     # bell-like partials with exponential decay: a stat lands

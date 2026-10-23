@@ -559,6 +559,7 @@ sfx:
   # Gain applied to each file (files are peak-normalized to -1 dBFS; the voice sits ~-20 LUFS).
   gain_db:
     whoosh: -20
+    swish: -22                # soft, low air push (no hiss): cuts, transitions, camera moves
     pop: -20
     ding: -19
     riser: -24
@@ -566,7 +567,7 @@ sfx:
   # Which effect plays at which moment; null turns a moment off.
   events:
     hook_start: hit           # frame 0 impact (pattern interrupt)
-    scene_cut: whoosh         # every scene change
+    scene_cut: swish          # every scene change (whoosh was a bright hiss on every cut)
     list_badge: pop           # "1/3" badge appears
     myth_riser: riser         # builds tension, ends on the fact reveal
     fact_reveal: hit
@@ -586,7 +587,7 @@ sfx:
   # onset, louder for bigger moves (up to boost_db at full coverage). Only in these visual types (stock
   # footage moves all the time); never within clear_s of a scene cut or of the same effect already cued.
   motion:
-    sfx: whoosh               # null = off
+    sfx: swish                # null = off
     visual_types: [code]
     size: [90, 160]
     fps: 15
@@ -742,7 +743,7 @@ styles:
       zoom_blur: 22
       wipe_color: null              # null = accent_color
       flash_opacity: 0.85
-      sfx: {whip: whoosh, zoom: whoosh, wipe: whoosh, flash: hit}   # replaces the cut's whoosh
+      sfx: {whip: swish, zoom: swish, wipe: swish, flash: hit}   # replaces the cut's own sound
     media_dim: 0.28                 # darkening over b-roll (0–1) for readability
     shade_color: "#000000"          # tint of that darkening and of the myth/fact and compare cards
     myth_color: "#F43F5E"
