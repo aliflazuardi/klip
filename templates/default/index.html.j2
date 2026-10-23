@@ -614,7 +614,9 @@ tl.to("#nudge .nudge-in", { opacity: 0, y: -12, duration: 0.25, ease: "power1.in
 {% endif %}
 {% if brand.outro %}
 {% set o = brand.outro %}
-{% if o.lift %}tl.to("#sc-{{ o.lift }} .st-props", { y: -{{ o.lift_px }}, scale: {{ o.shrink }}, duration: 0.45, ease: "power2.inOut" }, {{ o.start }});{% endif %}
+{% if o.lift %}tl.to("#sc-{{ o.lift }} .st-props", { y: -{{ o.lift_px }}, scale: {{ o.shrink }}, duration: 0.45, ease: "power2.inOut" }, {{ o.start }});
+// the camera keeps drifting in under the closing badge, so the last seconds aren't a still
+{% if stage %}tl.fromTo("#sc-{{ o.lift }} .st-cam", { scale: {{ stage.cfg.zoom }} }, { scale: {{ stage.cfg.zoom + stage.cfg.outro_drift }}, duration: {{ (total - o.start) | round(3) }}, ease: "none", immediateRender: false }, {{ o.start }});{% endif %}{% endif %}
 tl.fromTo("#outro .outro-in", { y: 140, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: "back.out(1.6)" }, {{ o.start }});
 {% if o.logo %}tl.fromTo("#outro .outro-logo", { scale: 0, rotation: -40 }, { scale: 1, rotation: 0, duration: 0.45, ease: "back.out(2.2)" }, {{ (o.start + 0.1) | round(3) }});{% endif %}
 {% if o.chip %}

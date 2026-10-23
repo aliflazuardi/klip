@@ -395,6 +395,9 @@ def _print_qa(report: dict) -> None:
     console.print(f"[bold]QA {'[green]passed' if report['passed'] else '[red]FAILED'}[/][/bold]")
     for c in report["checks"]:
         console.print(f"  {'[green]✓' if c['ok'] else '[red]✗'}[/] {c['name']}: {c['detail']}")
+    for kind, what in (("dead", "barely moves"), ("busy", "keeps changing everywhere")):
+        for r in (report.get("motion") or {}).get(kind, []):
+            console.print(f"  [yellow]![/] motion: {r['scene']} {what} for {r['dur']:.1f}s from {r['t']:.1f}s")
     if pr := report.get("preview_review"):
         stale = f"; out of date for {', '.join(pr['stale'])} (re-run klip preview)" if pr["stale"] else ""
         console.print(f"  [dim]preview review: flagged {', '.join(pr['flagged']) or 'none'}{stale}[/]")

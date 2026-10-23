@@ -219,6 +219,7 @@ stage:
   variety_scenes: 5
   variety_min_sets: 2
   zoom: 1.04                        # the stage camera slowly pushes in to this scale per scene
+  outro_drift: 0.06                 # ...and on by this much more under the closing outro badge
   # Motion of the props once they're on stage. float: an idle sway (px up/down by prop group:
   # media = photos/cut-outs/people/logos, icon = icons/stacks, tag = labels/numbers, data =
   # charts/bars/units/news/screenshots; 0 = still) over a period picked per prop from
@@ -604,6 +605,10 @@ qa:
   max_true_peak_db: -1.0
   min_scene_voice_db: -45           # mean volume per scene's voice segment
   max_still_s: 1.0                  # black or frozen video longer than this fails
+  # Motion report (informational, never fails): the picture's change per frame (sfx.motion's reader,
+  # smoothed over smooth_s). dead = under dead_level for dead_s or more (the eye has nothing to follow);
+  # busy = over busy_level for busy_s or more (tiring). Shown after the QA checks and in qa.json.
+  motion: {smooth_s: 0.5, dead_level: 0.006, dead_s: 1.8, busy_level: 0.4, busy_s: 3.0}
 
 # ── Performance report (klip report) ─────────────────────────────────────────
 # You copy numbers from TikTok/Instagram/YouTube analytics into stats_file (one row per posted

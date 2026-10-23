@@ -112,3 +112,18 @@ def test_motion_cues_stay_in_code_scenes_and_clear_of_cuts(monkeypatch):
     cues = post.motion_cues(spec, timeline, None, [])
     assert len(cues) == 1 and 0.7 <= cues[0]["t"] <= 1.0 and cues[0]["sfx"] == config.get("sfx.motion.sfx")   # just before it
     assert post.motion_cues(spec, timeline, None, [{"t": 1.2, "sfx": config.get("sfx.motion.sfx")}]) == []
+
+
+def test_motion_report_finds_dead_and_busy_stretches(monkeypatch):
+    import numpy as np
+
+    from klip.stages import qa
+    fps = float(config.get("sfx.motion.fps"))
+    cov = np.full(int(12 * fps), 0.05)
+    cov[int(2 * fps):int(5 * fps)] = 0.0          # 3 s of nothing, in s1
+    cov[int(7 * fps):int(11 * fps)] = 0.7         # 4 s of everything, in s2
+    monkeypatch.setattr(post, "motion_curve", lambda video, m: cov)
+    tl = {"scenes": [{"id": "s1", "start_ms": 0, "duration_ms": 6000}, {"id": "s2", "start_ms": 6000, "duration_ms": 6000}]}
+    rep = qa.motion_report(None, tl)
+    assert [r["scene"] for r in rep["dead"]] == ["s1"] and 2.5 <= rep["dead"][0]["dur"] <= 3.5
+    assert [r["scene"] for r in rep["busy"]] == ["s2"]

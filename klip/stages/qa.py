@@ -162,6 +162,41 @@ def check_footage(assets: dict | None) -> dict:
     return check("fresh_footage", not reused, detail)
 
 
+def _spans(mask, fps: float, min_s: float) -> list[tuple[float, float]]:
+    out, i = [], 0
+    while i < len(mask):
+        if mask[i]:
+            j = i
+            while j < len(mask) and mask[j]:
+                j += 1
+            if (j - i) / fps >= min_s:
+                out.append((round(i / fps, 2), round((j - i) / fps, 2)))
+            i = j
+        else:
+            i += 1
+    return out
+
+
+def motion_report(final: Path, timeline: dict) -> dict:
+    """Stretches with too little or too much motion: {dead: [{t, dur, scene}], busy: [...]} (qa.motion)."""
+    import numpy as np
+
+    from klip.stages.post import motion_curve
+    q, m = config.get("qa.motion"), config.get("sfx.motion")
+    fps = float(m["fps"])
+    cov = motion_curve(final, m)
+    k = max(1, round(q["smooth_s"] * fps))
+    s = np.convolve(cov, np.ones(k) / k, mode="same") if len(cov) else cov
+    starts = [(sc["start_ms"] / 1000, sc["id"]) for sc in timeline["scenes"]]
+
+    def scene_at(t: float) -> str:
+        return next((sid for st, sid in reversed(starts) if st <= t + 1e-6), starts[0][1] if starts else "?")
+
+    def rows(mask, min_s):
+        return [{"t": t, "dur": d, "scene": scene_at(t + d / 2)} for t, d in _spans(mask, fps, min_s)]
+    return {"dead": rows(s < q["dead_level"], q["dead_s"]), "busy": rows(s > q["busy_level"], q["busy_s"])}
+
+
 def run(spec: Spec, project_dir: Path) -> dict:
     final = project_dir / "final.mp4"
     if not final.exists():
@@ -185,7 +220,8 @@ def run(spec: Spec, project_dir: Path) -> dict:
         check_credits(load("assets.json"), load("credits.json", [])),
         check_footage(load("assets.json")),
     ]
-    report = {"passed": all(c["ok"] for c in checks), "checks": checks}
+    report = {"passed": all(c["ok"] for c in checks), "checks": checks,
+              "motion": motion_report(final, timeline)}             # informational: never fails
     from klip import sheetcheck
     if review := sheetcheck.for_qa(spec, project_dir):    # informational: taste doesn't fail a render
         report["preview_review"] = review

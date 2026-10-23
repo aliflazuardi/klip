@@ -8,6 +8,10 @@ All notable changes to Klip are listed here. The format follows
 
 ### Added
 
+- **Motion report in QA.** `qa.json` and the render summary now flag stretches where the picture barely
+  moves (dead air) or changes everywhere for too long, per scene (`qa.motion`; informational, never
+  fails a render). The stage camera keeps drifting in under the closing outro badge, which the report
+  caught as 5+ s of stillness at the end.
 - **Props move with weight.** Stage props blur as they fly in and sharpen as they land, wobble once
   after landing (a decaying jelly skew), puff dust when dropped or stamped, and lean back before they
   sweep off (`stage.motion.feel`). Code scenes get the same as `k.land(el, at)`, plus `k.spring()`, a
