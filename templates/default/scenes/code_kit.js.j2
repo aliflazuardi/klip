@@ -422,11 +422,13 @@ function klipScene(meta, body) {
     if (o.roll) {
       const final = fmt(o.to), digits = [...final].filter((c) => /\d/.test(c)).length;
       el.textContent = "";
+      el.style.fontVariantNumeric = "tabular-nums";
       let d = 0;
       for (const ch of final) {
         if (!/\d/.test(ch)) { k.el("span", { text: ch }, el); continue; }
         const win = k.el("span", {}, el), col = k.el("span", {}, win), place = digits - 1 - d++;
-        Object.assign(win.style, { display: "inline-block", height: "1em", lineHeight: "1em", overflow: "hidden", verticalAlign: "top" });
+        Object.assign(win.style, { display: "inline-block", height: "1em", lineHeight: "1em", overflow: "hidden", verticalAlign: "top",
+                                   fontVariantNumeric: "tabular-nums" });
         col.style.display = "inline-block";
         const spins = 1 + Math.max(0, 2 - place);            // the last digits spin more, like a real counter
         for (let i = 0; i <= spins * 10 + Number(ch); i++) k.el("span", { text: String(i % 10) }, col).style.display = "block";
