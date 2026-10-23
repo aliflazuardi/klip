@@ -547,6 +547,24 @@ sfx:
     stage_number: ding        # a stage number lands
     stage_highlight: null     # a yellow highlight box draws in
     stage_stamp: hit          # a stamp thumps down
+  # Camera moves (post stage): the rendered video is read small (size, fps); where most of the picture
+  # changes at once (share of pixels in the crop band, y as shares of the height, that change by more
+  # than pixel_diff /255) for at least min_s, a camera is moving: the effect plays lead_s before that
+  # onset, louder for bigger moves (up to boost_db at full coverage). Only in these visual types (stock
+  # footage moves all the time); never within clear_s of a scene cut or of the same effect already cued.
+  motion:
+    sfx: whoosh               # null = off
+    visual_types: [code]
+    size: [90, 160]
+    fps: 15
+    crop: [0.08, 0.66]        # above the captions and mascots, below the top bar
+    pixel_diff: 6
+    threshold: 0.11
+    min_s: 0.35
+    smooth_s: 0.2
+    lead_s: 0.1
+    clear_s: 0.7
+    boost_db: 4
 
 # ── Final mix loudness ───────────────────────────────────────────────────────
 loudness:

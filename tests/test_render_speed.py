@@ -84,3 +84,31 @@ def test_loop_seam_ends_on_the_first_frame(tmp_path):
     # no room after the last word: no seam
     (tmp_path / "words.json").write_text(json.dumps([{"text": "a", "startMs": 0, "endMs": 1950, "sceneId": "s1"}]))
     assert post.loop_seam(spec.model_copy(update={"loop": True}), tmp_path, raw, 2.0) == raw
+
+
+def test_motion_onsets_need_a_sustained_wide_change():
+    import numpy as np
+    fps = 10
+    cov = np.zeros(60)
+    cov[10:18] = 0.4          # a 0.8 s camera move
+    cov[30:32] = 0.9          # a 0.2 s flash (a pop, not a move)
+    cov[40:60] = 0.08         # something small turning all the time
+    onsets = post.motion_onsets(cov, fps, 0.12, 0.35, 0.0)
+    assert [round(t, 1) for t, _ in onsets] == [1.0] and onsets[0][1] == 0.4
+
+
+def test_motion_cues_stay_in_code_scenes_and_clear_of_cuts(monkeypatch):
+    import numpy as np
+    from klip.spec import Spec
+    fps = float(config.get("sfx.motion.fps"))
+    spec = Spec.model_validate({"slug": "m", "scenes": [
+        {"id": "a", "template": "hook", "narration": "satu", "visual": {"type": "code", "code": {"file": "x.html"}}},
+        {"id": "b", "template": "explain", "narration": "dua", "visual": {"type": "stock_video", "query": "q"}}]})
+    timeline = {"scenes": [{"id": "a", "start_ms": 0, "duration_ms": 4000}, {"id": "b", "start_ms": 4000, "duration_ms": 4000}]}
+    cov = np.zeros(int(8 * fps))
+    for a, b in ((1.0, 1.8), (3.8, 4.6), (5.5, 6.5)):     # a move in a, one at the cut, one in stock b
+        cov[int(a * fps):int(b * fps)] = 0.5
+    monkeypatch.setattr(post, "motion_curve", lambda video, m: cov)
+    cues = post.motion_cues(spec, timeline, None, [])
+    assert len(cues) == 1 and 0.7 <= cues[0]["t"] <= 1.0 and cues[0]["sfx"] == config.get("sfx.motion.sfx")   # just before it
+    assert post.motion_cues(spec, timeline, None, [{"t": 1.2, "sfx": config.get("sfx.motion.sfx")}]) == []

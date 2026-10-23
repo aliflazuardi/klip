@@ -8,6 +8,9 @@ All notable changes to Klip are listed here. The format follows
 
 ### Added
 
+- **Sound on camera moves.** The post stage reads the rendered video and plays a whoosh where a code
+  scene's camera starts a big move (most of the picture changing at once), louder for bigger moves,
+  clear of scene cuts and of whooshes already cued (`sfx.motion`).
 - **Seamless loop.** With `loop` on (style `loop.enabled`, or `"loop": true` in a spec), the last
   half second, after the last word, turns into the video's first frame (an ffmpeg xfade, `zoomin` by
   default), so the platform's auto-replay has no jump. Costs one video re-encode in the post stage.
@@ -92,6 +95,8 @@ All notable changes to Klip are listed here. The format follows
 
 ### Fixed
 
+- Mascots' eyes no longer slide down their faces when they blink (a CSS transform-box on the eyes
+  fought GSAP's own SVG origin; it now scales each eye about its centre).
 - `post.txt` no longer repeats hashtags that the caption already contains.
 - Code scenes: a mascot pose set at the scene's very start (`pose(name, 0)`) now shows from frame 0.
 - Code scenes: the mascot walk no longer breaks `klip render` (HyperFrames' strict lint rejects template

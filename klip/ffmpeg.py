@@ -11,11 +11,13 @@ class FFmpegError(RuntimeError):
     pass
 
 
-def run(args: list[str]) -> subprocess.CompletedProcess:
+def run(args: list[str], binary: bool = False) -> subprocess.CompletedProcess:
+    """Run ffmpeg; binary=True keeps stdout as bytes (raw frames piped out)."""
     cmd = ["ffmpeg", "-hide_banner", "-nostdin", "-y", *args]
-    proc = subprocess.run(cmd, capture_output=True, text=True)
+    proc = subprocess.run(cmd, capture_output=True, text=not binary)
     if proc.returncode != 0:
-        raise FFmpegError(f"ffmpeg failed ({proc.returncode}): {' '.join(cmd)}\n{proc.stderr[-2000:]}")
+        err = proc.stderr if not binary else proc.stderr.decode(errors="replace")
+        raise FFmpegError(f"ffmpeg failed ({proc.returncode}): {' '.join(cmd)}\n{err[-2000:]}")
     return proc
 
 
