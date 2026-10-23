@@ -90,6 +90,8 @@ Start every scene from these, so it is legible and on-brand before you add what 
 | `k.cast({scrim, only})` | The style's mascots at the same spots as on stage scenes, over a bottom scrim: `const { napa, gulung } = k.cast()`. |
 | `k.scrim("top" \| "bottom", {height, color})` | A band of the look's `bg` so type stays readable over a busy picture. |
 | `k.chip(text, x, y, {bg, color, size, rot, at})` | A label chip; pops in at `at`. |
+| `k.land(el, at, {from, dur, dust, color})` | Drop an element in: it falls with motion blur, lands with a squash, a jelly wobble and a dust puff (klip.yaml `code.kit.land`). |
+| `k.spring(stiffness, damping)` | A deterministic spring ease for any tween: `ease: k.spring(180, 12)` (less damping = more bounce). |
 | `k.pop(el, at)`, `k.shake(el, at)` | Pop in with the look's pop ease; a short shake. |
 | `k.type(el, at, {cps})` | Typewriter text. |
 | `k.count(el, {to, from, at, dur, decimals, prefix, suffix})` | A number counting up, Indonesian format (`1.234,5`). |

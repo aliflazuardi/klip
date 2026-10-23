@@ -8,6 +8,10 @@ All notable changes to Klip are listed here. The format follows
 
 ### Added
 
+- **Props move with weight.** Stage props blur as they fly in and sharpen as they land, wobble once
+  after landing (a decaying jelly skew), puff dust when dropped or stamped, and lean back before they
+  sweep off (`stage.motion.feel`). Code scenes get the same as `k.land(el, at)`, plus `k.spring()`, a
+  deterministic spring ease for any tween.
 - **Transition library.** Cuts between scenes now vary: whip (a fast slide with sideways motion
   blur), zoom (a dive through the frame), wipe (a brand-colour circle sweeps across) and flash, each
   with its own sound, never the same twice in a row; the cut out of the hook gets the strongest

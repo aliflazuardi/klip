@@ -236,6 +236,11 @@ stage:
     count_up: true
     count_s: 0.7
     exit: sweep
+    # Feel: entry_blur_px = motion blur on the fast entries (slide, drop, toss, notify, stamp), clearing
+    # as they land; jelly_deg = a decaying skew after a landing (secondary motion; 0 = off); dust = specks
+    # puffed out under a dropped prop or a stamp (0 = off); anticipate_px = props lean back this far
+    # before they sweep off.
+    feel: {entry_blur_px: 16, jelly_deg: 5, dust: 8, anticipate_px: 26}
   # Layout: the stage area sits between the title and the stage captions (caption.stage.top).
   # A composition is a list of [x, y, size]: x as a share of the safe width (x 60–960), y as a
   # share of the free area under the title, so a two-line title pushes the props down.
@@ -454,6 +459,8 @@ code:
     # k.spotlight: a mascot as the star of a code scene (a cold open over a world): this tall, feet
     # gap px above the captions, a glow and a slowly turning sunburst behind it (opacities, turn over the scene)
     spotlight: {height: 720, gap: 10, glow_opacity: 0.4, rays_opacity: 0.14, rays_turn_deg: 20}
+    # k.land: falls from_px with this motion blur, lands with a squash, a jelly skew and dust specks
+    land: {from_px: 160, blur_px: 16, jelly_deg: 5, dust: 8}
   # Beat tracking of the music track for k.beats / k.pulse (klip/beats.py). The track is decoded to
   # mono at sample_rate, split at split_hz into low (kick, bass) and high bands, hop = samples per
   # onset frame. Tempo is searched in bpm_min..bpm_max with a soft preference for bpm_prior; each beat

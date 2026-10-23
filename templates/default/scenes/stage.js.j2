@@ -81,11 +81,36 @@ tl.fromTo("{{ sel }} .st-hl", { clipPath: "inset(0% 100% 0% 0%)" }, { clipPath: 
 {% if e.label_font %}
 tl.fromTo("{{ sel }} .st-subrow .st-tag", { scale: 1.6, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.2, ease: "power4.out" }, {{ (e.start + 0.18) | round(3) }});
 {% endif %}
+{% set fl = c.motion.feel %}
+{% set entry = {"slide": [0.46, 0.3], "drop": [0.36, 0.36], "toss": [0.5, 0.26], "notify": [0.42, 0.24]}.get(e.enter) %}
+{% if e.kind == "stamp" %}{% set entry = [0.18, 0.18] %}{% endif %}
+{% if entry %}
+{% if fl.entry_blur_px %}
+tl.fromTo("{{ sel }}", { filter: "blur({{ fl.entry_blur_px }}px)" }, { filter: "blur(0px)", duration: {{ (entry[0] * 0.75) | round(3) }}, ease: "power2.in", immediateRender: false }, {{ e.start }});
+{% endif %}
+{% if fl.jelly_deg and e.kind != "stamp" %}
+tl.fromTo("{{ sel }} > .st-in", { skewX: {{ fl.jelly_deg if e.i % 2 else -fl.jelly_deg }} }, { skewX: 0, duration: 0.7, ease: "elastic.out(1, 0.3)", immediateRender: false }, {{ (e.start + entry[1]) | round(3) }});
+{% endif %}
+{% if fl.dust and (e.enter == "drop" or e.kind == "stamp") %}
+(function () {
+  const host = document.querySelector("{{ sel }}");
+  for (let i = 0; i < {{ fl.dust }}; i++) {
+    const d = document.createElement("i"); d.className = "st-dust"; host.appendChild(d);
+    const a = Math.PI * (0.08 + 0.84 * i / {{ fl.dust - 1 }}), r = 110 + 70 * Math.abs(Math.sin(i * 2.3 + {{ e.i }}));
+    tl.fromTo(d, { x: 0, y: 0, scale: 0.35, opacity: 0.85 }, { x: -Math.cos(a) * r * 1.6, y: -Math.sin(a) * r * 0.45,
+               scale: 1.25, opacity: 0, duration: 0.55, ease: "power2.out", immediateRender: false }, {{ (e.start + entry[1]) | round(3) }});
+  }
+})();
+{% endif %}
+{% endif %}
 {% if e.float %}
 tl.fromTo("{{ sel }} > .st-in", { y: 0, rotation: 0 }, { y: {{ e.float.y }}, rotation: {{ e.float.rot }}, duration: {{ e.float.half }}, yoyo: true, repeat: {{ e.float.repeat }}, ease: "sine.inOut", immediateRender: false }, {{ e.float.t }});
 {% endif %}
 {% if e.exit is not none %}
 {% if e.exit_to %}
+{% if c.motion.feel.anticipate_px and e.exit - 0.1 > e.start + 0.5 %}
+tl.to("{{ sel }}", { x: {{ -c.motion.feel.anticipate_px if e.exit_to.x > 0 else c.motion.feel.anticipate_px }}, duration: 0.1, ease: "power2.out" }, {{ (e.exit - 0.1) | round(3) }});
+{% endif %}
 tl.to("{{ sel }}", { x: {{ e.exit_to.x }}, rotation: {{ e.rot + e.exit_to.rot }}, opacity: 0, duration: {{ c.exit_s }}, ease: "power3.in" }, {{ e.exit }});
 {% else %}
 tl.to("{{ sel }}", { opacity: 0, scale: 0.85, y: 40, duration: {{ c.exit_s }}, ease: "power2.in" }, {{ e.exit }});

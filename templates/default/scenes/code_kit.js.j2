@@ -312,6 +312,37 @@ function klipScene(meta, body) {
     rig.spot = spot;
     return rig;
   };
+  // a spring ease (deterministic): k.tl.to(el, {y: 0, ease: k.spring(180, 12)}). Stiffer = faster,
+  // less damping = more bounce. Settles at 1 by the tween's end.
+  k.spring = function (stiffness = 180, damping = 12) {
+    const w0 = Math.sqrt(stiffness), z = damping / (2 * w0), T = 6 / Math.max(0.5, z * w0);
+    const wd = w0 * Math.sqrt(Math.max(1e-6, 1 - z * z));
+    return (p) => p >= 1 ? 1 : 1 - Math.exp(-z * w0 * p * T) * (Math.cos(wd * p * T) + (z * w0 / wd) * Math.sin(wd * p * T));
+  };
+  // drop an element in: it falls with motion blur, lands with a squash, a jelly wobble and a dust puff.
+  // k.land(el, at, {from (px above), dur, dust (specks; 0 = none), color})
+  k.land = function (target, at, o = {}) {
+    const el = one(target), dur = o.dur || 0.36, F = KIT.land;
+    const r0 = el.getBoundingClientRect(), rr = root.getBoundingClientRect();     // where it lands (before the drop offset)
+    sub.fromTo(el, { y: -(o.from ?? F.from_px), opacity: 0, filter: `blur(${F.blur_px}px)` },
+               { y: 0, opacity: 1, filter: "blur(0px)", duration: dur, ease: "power3.in" }, at);       // hidden until it falls
+    sub.fromTo(el, { scaleX: 1, scaleY: 1 }, { scaleX: 1.07, scaleY: 0.9, duration: 0.07, yoyo: true, repeat: 1,
+               ease: "sine.out", transformOrigin: "50% 100%", immediateRender: false }, at + dur);
+    sub.fromTo(el, { skewX: F.jelly_deg }, { skewX: 0, duration: 0.7, ease: "elastic.out(1, 0.3)", immediateRender: false }, at + dur + 0.07);
+    const n = o.dust ?? F.dust;
+    if (n > 0) {
+      const cx = r0.left - rr.left + r0.width / 2, cy = r0.bottom - rr.top;
+      for (let i = 0; i < n; i++) {
+        const d = k.el("div", {}, el.parentNode);
+        Object.assign(d.style, { position: "absolute", left: cx - 17 + "px", top: cy - 17 + "px", width: "34px", height: "34px",
+          borderRadius: "50%", background: o.color || "rgba(255,255,255,.4)", filter: "blur(2px)", opacity: 0, pointerEvents: "none" });
+        const a = Math.PI * (0.08 + 0.84 * i / Math.max(1, n - 1)), r = 110 + 70 * Math.abs(Math.sin(i * 2.3));
+        sub.fromTo(d, { x: 0, y: 0, scale: 0.35, opacity: 0.85 }, { x: -Math.cos(a) * r * 1.6, y: -Math.sin(a) * r * 0.45,
+                   scale: 1.25, opacity: 0, duration: 0.55, ease: "power2.out", immediateRender: false }, at + dur);
+      }
+    }
+    return el;
+  };
   // a label chip: k.chip("KASIR", x, y, {bg, color, size, rot, at}) pops in at `at`
   k.chip = function (text, x, y, o = {}) {
     const el = k.el("div", { class: "k-chip", text }, o.parent || worldEl);
