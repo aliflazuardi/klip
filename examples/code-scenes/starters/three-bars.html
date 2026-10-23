@@ -1,0 +1,56 @@
+<!-- Starter (Three.js): a 3D bar chart on a floor. Bars grow on their words (else spread over the
+     narration) with their values counting up above them; the biggest is in the accent; the camera
+     circles slowly. Needs "libs": ["three"]. Edit CFG.bars (value, label, show = the text above it). -->
+<div id="gl"></div>
+<div id="lbl"></div>
+<style>
+  #gl, #lbl { position: absolute; inset: 0; }
+  #lbl { pointer-events: none; }
+  .bv, .bl { position: absolute; transform: translate(-50%, -100%); white-space: nowrap; text-align: center; }
+  .bv { font: 800 54px var(--k-display); color: var(--k-ink); text-shadow: 0 3px 0 var(--k-bg); }
+  .bv.top { color: var(--k-accent); }
+  .bl { transform: translate(-50%, 0); font: 600 30px var(--k-body); color: var(--k-muted); }
+</style>
+<script>
+const CFG = { bars: [{ label: "2021", value: 12, show: "12 jt", at: null }, { label: "2022", value: 19, show: "19 jt", at: null },
+                     { label: "2023", value: 27, show: "27 jt", at: null }, { label: "2024", value: 41, show: "41 jt", at: null }],
+              height: 7, gap: 1.9, orbit: 0.35 };
+const THREE = k.lib.THREE, P = k.look.palette;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1); renderer.setSize(1080, 1920); renderer.setClearColor(new THREE.Color(P.bg));
+k.$("#gl").appendChild(renderer.domElement);
+const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(40, 1080 / 1920, 0.1, 100);
+cam.setViewOffset(1080, 1920, 0, 140, 1080, 1920);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x222233, 1.0));
+const sun = new THREE.DirectionalLight(0xffffff, 1.2); sun.position.set(-5, 10, 8); scene.add(sun);
+const grid = new THREE.GridHelper(30, 30, new THREE.Color(P.muted), new THREE.Color(P.muted));
+grid.material.transparent = true; grid.material.opacity = 0.2; scene.add(grid);
+const max = Math.max(...CFG.bars.map((b) => b.value)), n = CFG.bars.length;
+const times = CFG.bars.map((b, i) => (b.at && k.find(b.at)) ?? k.beat(0.1 + 0.75 * i / Math.max(1, n)));
+const grow = gsap.parseEase("back.out(1.4)"), clamp = (v) => Math.max(0, Math.min(1, v));
+const bars = CFG.bars.map((b, i) => {
+  const top = b.value === max;
+  const m = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1, 1.2),
+    new THREE.MeshStandardMaterial({ color: new THREE.Color(top ? P.accent : P.ink).lerp(new THREE.Color(P.bg), top ? 0 : 0.45),
+                                     roughness: 0.45, emissive: new THREE.Color(top ? P.accent : 0x000000), emissiveIntensity: top ? 0.25 : 0 }));
+  m.position.x = (i - (n - 1) / 2) * CFG.gap; scene.add(m);
+  return { m, h: CFG.height * b.value / max, top,
+           v: k.el("div", { class: "bv" + (top ? " top" : ""), text: b.show ?? String(b.value) }, k.$("#lbl")),
+           l: k.el("div", { class: "bl", text: b.label }, k.$("#lbl")) };
+});
+const sx = (v) => { const q = v.clone().project(cam); return { x: (q.x + 1) / 2 * 1080, y: (1 - q.y) / 2 * 1920 }; };
+k.frame((t) => {
+  const a = -0.5 + CFG.orbit * Math.sin(t * 0.35);
+  cam.position.set(Math.sin(a) * 15, 6.5, Math.cos(a) * 15); cam.lookAt(0, CFG.height * 0.42, 0);
+  bars.forEach((b, i) => {
+    const p = grow(clamp((t - times[i]) / 0.7)), h = Math.max(0.001, b.h * p);
+    b.m.scale.y = h; b.m.position.y = h / 2;
+    const top = sx(new THREE.Vector3(b.m.position.x, h + 0.35, 0)), foot = sx(new THREE.Vector3(b.m.position.x, 0, 0.9));
+    b.v.style.left = top.x + "px"; b.v.style.top = top.y + "px"; b.v.style.opacity = t >= times[i] + 0.15 ? 1 : 0;
+    b.l.style.left = foot.x + "px"; b.l.style.top = foot.y + 10 + "px";
+  });
+  renderer.render(scene, cam);
+});
+k.headline();
+k.cast();
+</script>

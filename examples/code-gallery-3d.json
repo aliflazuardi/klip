@@ -1,0 +1,15 @@
+{
+  "slug": "code-gallery-3d",
+  "voice": "female",
+  "target_duration_s": 40,
+  "music": {"mood": null},
+  "look_bible": {"palette": {"bg": "#101418", "paper": "#F4EFE6", "ink": "#F4EFE6", "muted": "#8B95A1", "accent": "#FF7A2F"}, "fonts": {"display": "jakarta", "body": "jakarta", "mono": "mono"}, "texture": "grain", "texture_strength": 0.3, "motion": "snappy", "notes": "Starter gallery, 3D (Three.js): dark ground, one orange accent. Each scene is a starter from examples/code-scenes/starters/ to copy and edit."},
+  "scenes": [
+    {"id": "terrain", "template": "hook", "narration": "Bentang alam tiga dimensi, terbang rendah di atas bukit.", "on_screen_text": "Terbang di atas bukit", "visual": {"type": "code", "code": {"file": "examples/code-scenes/starters/three-terrain.html", "libs": ["three"]}}},
+    {"id": "particles", "template": "explain", "narration": "Partikel berputar seperti galaksi, lalu berkumpul jadi cincin.", "on_screen_text": "Galaksi jadi cincin", "visual": {"type": "code", "code": {"file": "examples/code-scenes/starters/three-particles.html", "libs": ["three"]}}},
+    {"id": "map", "template": "explain", "narration": "Peta Indonesia tiga dimensi: kamera terbang dari Jakarta ke Surabaya, Makassar, lalu Jayapura.", "on_screen_text": "Terbang keliling Indonesia", "visual": {"type": "code", "code": {"file": "examples/code-scenes/starters/three-map-id.html", "libs": ["three"]}}},
+    {"id": "card", "template": "explain", "narration": "Sebuah kartu yang punya ketebalan, berputar masuk, lalu cahayanya berkilau di permukaannya.", "on_screen_text": "Kartu tiga dimensi", "visual": {"type": "code", "code": {"file": "examples/code-scenes/starters/three-card.html", "libs": ["three"]}}},
+    {"id": "bars", "template": "explain", "narration": "Grafik batang tiga dimensi: setiap batang tumbuh, dan yang tertinggi menyala.", "on_screen_text": "Grafik yang tumbuh", "visual": {"type": "code", "code": {"file": "examples/code-scenes/starters/three-bars.html", "libs": ["three"]}}},
+    {"id": "globe", "template": "explain", "narration": "Bola dunia yang berputar, dengan tempat yang menyala dan garis penghubung.", "on_screen_text": "Dunia yang terhubung", "visual": {"type": "code", "code": {"file": "examples/code-scenes/starters/three-globe.html", "libs": ["three"]}}}
+  ]
+}

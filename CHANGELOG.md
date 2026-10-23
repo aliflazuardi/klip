@@ -8,6 +8,10 @@ All notable changes to Klip are listed here. The format follows
 
 ### Added
 
+- **Three new 3D starters**: `three-map-id.html` (a 3D map of Indonesia the camera flies across, places
+  rising as pillars, arcs between them), `three-card.html` (a card with real thickness that spins in and
+  glints) and `three-bars.html` (a 3D bar chart growing on the words). The 3D starters now have their own
+  gallery, `examples/code-gallery-3d.json`.
 - **Depth on stage scenes.** The set now follows the stage camera at a fraction of its moves (parallax),
   dark sets get a layer of soft bokeh in front of the props that moves faster, photo backdrops go soft
   once the props are on (depth of field), cut-outs get a soft contact shadow and, on dark sets, an

@@ -1,0 +1,57 @@
+<!-- Starter (Three.js): a card with real thickness (a document, an ID, a receipt, a product box) that
+     spins in edge-first, lands facing the viewer on its word, then turns slowly while a light glints
+     across its face. The face is drawn on a canvas (drawFace): edit CFG or the drawing. Needs
+     "libs": ["three"]. -->
+<div id="gl"></div>
+<style>#gl { position: absolute; inset: 0; }</style>
+<script>
+const CFG = { title: "STRUK BELANJA", lines: ["Kopi susu        18.000", "Roti bakar       22.000", "Ongkir                0"],
+              total: "TOTAL  40.000", at: null, w: 4.8, h: 7, depth: 0.25, spin: 2.6, y: -0.6 };
+const THREE = k.lib.THREE, P = k.look.palette;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1); renderer.setSize(1080, 1920); renderer.setClearColor(new THREE.Color(P.bg));
+k.$("#gl").appendChild(renderer.domElement);
+const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(35, 1080 / 1920, 0.1, 100);
+cam.setViewOffset(1080, 1920, 0, 110, 1080, 1920);
+cam.position.set(0, 0, 26); cam.lookAt(0, 0, 0);
+scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+const key = new THREE.DirectionalLight(0xffffff, 0.9); key.position.set(-6, 8, 12); scene.add(key);
+const glint = new THREE.PointLight(0xffffff, 0, 30); scene.add(glint);
+// the face: drawn once on a canvas
+const drawFace = (ctx, W, H) => {
+  ctx.fillStyle = P.paper; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = P.accent; ctx.fillRect(0, 0, W, 90);
+  ctx.fillStyle = P.bg; ctx.font = "800 54px sans-serif"; ctx.textAlign = "center"; ctx.fillText(CFG.title, W / 2, 62);
+  ctx.fillStyle = "#2B2B2B"; ctx.font = "500 40px monospace"; ctx.textAlign = "left";
+  CFG.lines.forEach((l, i) => ctx.fillText(l, 50, 220 + i * 90));
+  ctx.setLineDash([12, 10]); ctx.strokeStyle = "#2B2B2B"; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(50, 220 + CFG.lines.length * 90); ctx.lineTo(W - 50, 220 + CFG.lines.length * 90); ctx.stroke();
+  ctx.font = "800 52px monospace"; ctx.fillText(CFG.total, 50, 320 + CFG.lines.length * 90);
+};
+const cv = document.createElement("canvas"); cv.width = 800; cv.height = 1200;
+drawFace(cv.getContext("2d"), cv.width, cv.height);
+const face = new THREE.CanvasTexture(cv); face.colorSpace = THREE.SRGBColorSpace;
+const side = new THREE.MeshStandardMaterial({ color: new THREE.Color(P.paper).multiplyScalar(0.85), roughness: 0.6 });
+const front = new THREE.MeshStandardMaterial({ map: face, roughness: 0.35, metalness: 0.05 });
+const back = new THREE.MeshStandardMaterial({ color: new THREE.Color(P.paper).multiplyScalar(0.7), roughness: 0.6 });
+const card = new THREE.Mesh(new THREE.BoxGeometry(CFG.w, CFG.h, CFG.depth), [side, side, side, side, front, back]);
+scene.add(card);
+const shadow = new THREE.Mesh(new THREE.CircleGeometry(4, 40), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35 }));
+shadow.rotation.x = -Math.PI / 2; shadow.position.y = CFG.y - CFG.h / 2 - 1.2; shadow.scale.set(1, 0.35, 1); scene.add(shadow);
+const land = (CFG.at && k.find(CFG.at)) ?? k.beat(0.15);
+const out = gsap.parseEase("expo.out"), clamp = (v) => Math.max(0, Math.min(1, v));
+k.frame((t) => {
+  const p = out(clamp((t - Math.max(0, land - 1.1)) / 1.1));             // spins in, lands on `land`
+  card.rotation.y = (1 - p) * CFG.spin * Math.PI + Math.sin(t * 0.6) * 0.18 * p;
+  card.rotation.x = (1 - p) * -0.6 + Math.sin(t * 0.45) * 0.06 * p;
+  card.position.y = CFG.y + (1 - p) * 6 + Math.sin(t * 0.9) * 0.15;
+  card.scale.setScalar(0.6 + 0.4 * p);
+  shadow.material.opacity = 0.35 * p;
+  const g = clamp((t - land - 0.2) / 1.6);                               // a glint sweeps across the face
+  glint.intensity = g > 0 && g < 1 ? 60 * Math.sin(Math.PI * g) : 0;
+  glint.position.set(-8 + 16 * g, 4 - 8 * g, 6);
+  renderer.render(scene, cam);
+});
+k.headline();
+k.cast();
+</script>

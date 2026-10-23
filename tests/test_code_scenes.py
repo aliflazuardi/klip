@@ -232,10 +232,11 @@ def test_kit_and_scenes_avoid_template_literal_selectors(repo):
 def test_the_starter_gallery_uses_every_starter_and_lints_clean():
     from klip.paths import ROOT
     from klip.spec import load_spec
-    spec = load_spec(ROOT / "examples" / "code-gallery.json")
-    used = {Path(s.visual.code.file).name for s in spec.scenes}
+    specs = [load_spec(ROOT / "examples" / f) for f in ("code-gallery.json", "code-gallery-3d.json")]   # 2D and 3D
+    used = {Path(s.visual.code.file).name for spec in specs for s in spec.scenes}
     assert used == {p.name for p in (ROOT / "examples" / "code-scenes" / "starters").glob("*.html")}
-    assert not [str(i) for i in lint(spec) if i.level == "error"]
+    for spec in specs:
+        assert not [str(i) for i in lint(spec) if i.level == "error"]
 
 
 def test_cinematic_preset_sits_between_the_style_and_the_spec(repo):

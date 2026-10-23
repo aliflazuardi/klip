@@ -197,8 +197,8 @@ the preview.
 
 Don't start from a blank file. `examples/code-scenes/starters/` holds scenes to copy into
 `specs/<slug>/` and edit: each has a `CFG` block at the top of its script (labels, values, the word
-a beat lands on) and takes its colours and fonts from the look bible. `examples/code-gallery.json`
-renders all of them (`uv run klip preview examples/code-gallery.json`).
+a beat lands on) and takes its colours and fonts from the look bible. `examples/code-gallery.json` (2D)
+and `examples/code-gallery-3d.json` (Three.js) render all of them (`uv run klip preview examples/code-gallery-3d.json`).
 
 | starter | for |
 |---|---|
@@ -211,6 +211,9 @@ renders all of them (`uv run klip preview examples/code-gallery.json`).
 | `three-terrain.html` | Three.js: a wireframe terrain flyover (HUD look) |
 | `three-particles.html` | Three.js: a particle galaxy that gathers into a ring on the key moment |
 | `three-globe.html` | Three.js: a globe turned toward its places, which light up as arcs fly between them |
+| `three-map-id.html` | Three.js: a 3D map of Indonesia (Natural Earth outline, built in); the camera flies to each place on its word, a pillar rises, arcs fly from the first place |
+| `three-card.html` | Three.js: a card with thickness (receipt, ID, document, product) spins in, lands facing the viewer on its word, a light glints across it |
+| `three-bars.html` | Three.js: a 3D bar chart; bars grow on their words with their values, the biggest in the accent, the camera circles |
 | `light-beam.html` | Canvas, cinematic look: a beam strikes the centre of hairline rings on the key word (`at`) and shoots through, a pulse races out on `out`; breathes on the music's beat (`beat`); flare, shockwave, dust, HUD brackets and readouts |
 
 Card text uses `--k-paper-ink` (the look's ink when it reads on `paper`, else its bg), so the starters
