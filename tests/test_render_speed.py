@@ -127,3 +127,28 @@ def test_motion_report_finds_dead_and_busy_stretches(monkeypatch):
     rep = qa.motion_report(None, tl)
     assert [r["scene"] for r in rep["dead"]] == ["s1"] and 2.5 <= rep["dead"][0]["dur"] <= 3.5
     assert [r["scene"] for r in rep["busy"]] == ["s2"]
+
+
+def test_pace_targets_from_references_and_compare(tmp_path, monkeypatch):
+    from klip import measure
+    rows = [{"cuts_per_min": c, "beats_per_min": b, "avg_shot_s": 60 / max(c, 1), "motion_mean": m,
+             "dead_share": d, "busy_share": 0.01} for c, b, m, d in ((10, 30, 0.08, 0.05), (20, 40, 0.1, 0.02), (30, 50, 0.12, 0.08))]
+    t = measure.from_references(rows, 0.25)
+    assert t["beats_per_min"] == [30.0, 50.0] and t["dead_share"][0] == 0
+    monkeypatch.setattr(measure, "ROOT", tmp_path)
+    measure.save_targets(rows, ["a.mp4", "b.mp4", "c.mp4"])
+    assert measure.targets()["beats_per_min"] == [30.0, 50.0]          # saved targets override klip.yaml
+    out = {c["metric"]: c["ok"] for c in measure.compare({**rows[0], "beats_per_min": 20}, measure.targets())}
+    assert out["beats_per_min"] is False and out["dead_share"] is True
+
+
+def test_cut_times_merge_a_blended_transition(monkeypatch):
+    from klip import measure
+
+    class P:
+        stderr = " ".join(f"pts_time:{t}" for t in (1.0, 1.1, 1.2, 3.0, 3.05, 6.0))
+    monkeypatch.setattr(measure.ffmpeg, "run", lambda args: P())
+    from pathlib import Path
+    assert measure.cut_times(Path("x.mp4"), 0.12, 0.5) == [1.0, 3.0, 6.0]
+    import numpy as np
+    assert measure.beat_times(np.array([0, 0.1, 0.1, 0, 0.1, 0, 0, 0, 0, 0, 0.2]), 10, 0.05, 0.5) == [0.1, 1.0]

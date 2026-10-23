@@ -395,6 +395,9 @@ def _print_qa(report: dict) -> None:
     console.print(f"[bold]QA {'[green]passed' if report['passed'] else '[red]FAILED'}[/][/bold]")
     for c in report["checks"]:
         console.print(f"  {'[green]✓' if c['ok'] else '[red]✗'}[/] {c['name']}: {c['detail']}")
+    for c in (report.get("pace") or {}).get("vs_targets", []):
+        mark = "[green]✓[/]" if c["ok"] else "[yellow]![/]"
+        console.print(f"  {mark} pace: {c['metric']} {c['value']} (target {c['low']}–{c['high']})")
     for kind, what in (("dead", "barely moves"), ("busy", "keeps changing everywhere")):
         for r in (report.get("motion") or {}).get(kind, []):
             console.print(f"  [yellow]![/] motion: {r['scene']} {what} for {r['dur']:.1f}s from {r['t']:.1f}s")
@@ -414,6 +417,26 @@ def run_stage(stage: str = typer.Argument(..., help="voice | assets | compose | 
         _print_qa(result)
         raise typer.Exit(0 if result["passed"] else 1)
     console.print_json(json.dumps(result, default=str, ensure_ascii=False))
+
+
+@app.command()
+def measure(videos: list[Path] = typer.Argument(..., help="Reference videos (mp4) you'd like to match"),
+            save: bool = typer.Option(False, "--save", help="Save their median ± spread as QA pace targets")) -> None:
+    """Pace of videos: cuts and visual beats per minute, how much the picture moves, dead air."""
+    from rich.table import Table
+
+    from klip import measure as measure_mod
+    rows = []
+    table = Table("video", *measure_mod.METRICS)
+    for v in videos:
+        r = measure_mod.measure(v)
+        rows.append(r)
+        table.add_row(v.parent.name if v.stem.startswith("final") else v.name, *(str(r[k]) for k in measure_mod.METRICS))
+    console.print(table)
+    if save:
+        f = measure_mod.save_targets(rows, [str(v) for v in videos])
+        console.print(f"[green]targets saved:[/] {f} (QA compares every render with them)")
+    console.print("targets now: " + ", ".join(f"{k} {lo}–{hi}" for k, (lo, hi) in measure_mod.targets().items()))
 
 
 @app.command()

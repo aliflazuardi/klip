@@ -8,6 +8,10 @@ All notable changes to Klip are listed here. The format follows
 
 ### Added
 
+- **Pace targets (`klip measure`).** `klip measure <videos…>` reports cuts and visual beats per minute,
+  average shot length, how much the picture moves and the share of dead air / busy stretches;
+  `--save` turns the median of reference videos you like into targets. QA compares every render with
+  them (`qa.pace`; informational, never fails).
 - **Three new 3D starters**: `three-map-id.html` (a 3D map of Indonesia the camera flies across, places
   rising as pillars, arcs between them), `three-card.html` (a card with real thickness that spins in and
   glints) and `three-bars.html` (a 3D bar chart growing on the words). The 3D starters now have their own

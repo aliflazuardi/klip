@@ -640,6 +640,26 @@ qa:
   # smoothed over smooth_s). dead = under dead_level for dead_s or more (the eye has nothing to follow);
   # busy = over busy_level for busy_s or more (tiring). Shown after the QA checks and in qa.json.
   motion: {smooth_s: 0.5, dead_level: 0.006, dead_s: 1.8, busy_level: 0.4, busy_s: 3.0}
+  # Pace targets (klip measure; informational in QA): ranges [low, high] per metric. cuts_per_min /
+  # avg_shot_s count hard cuts (scene-change score over cut_threshold); motion_mean is the average
+  # share of the picture changing per frame; dead_share / busy_share the share of the video under
+  # qa.motion's dead / over its busy level. `klip measure <refs…> --save` writes the median of your
+  # reference videos ± spread to targets_file, which overrides these.
+  pace:
+    cut_threshold: 0.12
+    merge_s: 0.5                    # changes closer than this count once (a blended transition)
+    beat_level: 0.05                # beats_per_min: the motion curve rising over this = a visual beat
+    spread: 0.25
+    targets_file: projects/pace-targets.yaml
+    # Defaults until you save your own (measured 2026-10-23: lively stage videos ran 28-37 beats/min,
+    # the quiet early cinematic ones 6-15; stage videos cut rarely, they change within a scene).
+    targets:
+      beats_per_min: [20, 45]
+      cuts_per_min: [4, 30]
+      avg_shot_s: null
+      motion_mean: [0.04, 0.2]
+      dead_share: [0, 0.12]
+      busy_share: [0, 0.08]
 
 # ── Performance report (klip report) ─────────────────────────────────────────
 # You copy numbers from TikTok/Instagram/YouTube analytics into stats_file (one row per posted

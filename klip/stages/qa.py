@@ -220,8 +220,11 @@ def run(spec: Spec, project_dir: Path) -> dict:
         check_credits(load("assets.json"), load("credits.json", [])),
         check_footage(load("assets.json")),
     ]
+    from klip import measure
+    pace = measure.measure(final)
     report = {"passed": all(c["ok"] for c in checks), "checks": checks,
-              "motion": motion_report(final, timeline)}             # informational: never fails
+              "motion": motion_report(final, timeline),             # informational: never fails
+              "pace": {"measured": pace, "vs_targets": measure.compare(pace, measure.targets())}}
     from klip import sheetcheck
     if review := sheetcheck.for_qa(spec, project_dir):    # informational: taste doesn't fail a render
         report["preview_review"] = review

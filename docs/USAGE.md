@@ -132,6 +132,14 @@ dot going round), `timeline`, `funnel` and `reel` (a slot reel landing on the an
 `show` count up. See `examples/motion-components.json` (one of each) and `stage.components` in
 `klip.yaml` for sizes, colours and timing.
 
+### Pace: measure videos you like
+
+`uv run klip measure ref1.mp4 ref2.mp4 …` reports, per video, cuts and visual beats per minute (a beat =
+the picture visibly changing: a cut, a prop popping in, a camera move), the average shot, how much the
+picture moves, and the share of dead air and of too-busy stretches. Add `--save` to turn the median of
+your references into targets (`projects/pace-targets.yaml`); every render's QA then shows how it compares
+(`qa.pace` in klip.yaml; informational, never fails a render).
+
 ### Mascots
 
 A brand pack can bring characters who "explain" the video: `mascot.cast` in its `brand.yaml` lists
