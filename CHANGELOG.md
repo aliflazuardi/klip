@@ -8,6 +8,10 @@ All notable changes to Klip are listed here. The format follows
 
 ### Added
 
+- **Depth on stage scenes.** The set now follows the stage camera at a fraction of its moves (parallax),
+  dark sets get a layer of soft bokeh in front of the props that moves faster, photo backdrops go soft
+  once the props are on (depth of field), cut-outs get a soft contact shadow and, on dark sets, an
+  accent rim glow (`stage.depth`).
 - **Kinetic titles and an FX kit.** A stage scene's title now comes in word by word; its keywords
   (emphasis, or ALL-CAPS in a mixed-case title) slam in when the narration says them, with a light
   sweep and a shake (on the hook they pulse, since the hook is up at frame 0). Stamps land with a

@@ -13,6 +13,29 @@ gsap.set("#sc-{{ s.id }} .st-cam", { x: 0, y: 0 });
 tl.to("#sc-{{ s.id }} .st-cam", { x: {{ k.x }}, y: {{ k.y }}, duration: {{ k.dur }}, ease: "power2.inOut" }, {{ k.t }});
 {% endfor %}
 {% endif %}
+// depth: the set follows the camera at a fraction of its moves (parallax), the bokeh in front faster
+{% set dp = st.depth %}
+{% if dp.bg %}
+tl.fromTo("#sc-{{ s.id }} .stage-pan", { scale: 1 }, { scale: {{ (1 + (c.zoom - 1) * dp.bg) | round(4) }}, duration: {{ s.dur }}, ease: "none", immediateRender: false }, {{ s.start }});
+{% endif %}
+{% if dp.fg %}
+tl.fromTo("#sc-{{ s.id }} .st-fg", { scale: 1 }, { scale: {{ (1 + (c.zoom - 1) * dp.fgf) | round(4) }}, duration: {{ s.dur }}, ease: "none", immediateRender: false }, {{ s.start }});
+{% for b in dp.fg %}
+tl.fromTo("#sc-{{ s.id }} .st-fg i:nth-child({{ loop.index }})", { x: 0 }, { x: {{ b.dx }}, duration: {{ s.dur }}, ease: "none", immediateRender: false }, {{ s.start }});
+{% endfor %}
+{% endif %}
+{% if st.camera %}
+gsap.set("#sc-{{ s.id }} .stage-bg", { x: 0, y: 0 });
+{% for k in st.camera %}
+{% if dp.bg %}tl.to("#sc-{{ s.id }} .stage-bg", { x: {{ (k.x * dp.bg) | round(1) }}, y: {{ (k.y * dp.bg) | round(1) }}, duration: {{ k.dur }}, ease: "power2.inOut" }, {{ k.t }});{% endif %}
+{% if dp.fg %}tl.to("#sc-{{ s.id }} .st-fg", { x: {{ (k.x * dp.fgf) | round(1) }}, y: {{ (k.y * dp.fgf) | round(1) }}, duration: {{ k.dur }}, ease: "power2.inOut" }, {{ k.t }});{% endif %}
+{% endfor %}
+{% endif %}
+{% if dp.dof %}
+// depth of field: the photo set goes soft once the props are on
+{% if st.continues %}tl.set("#sc-{{ s.id }} .stage-pan", { filter: "blur({{ dp.dof.px }}px)" }, {{ s.start }});
+{% else %}tl.fromTo("#sc-{{ s.id }} .stage-pan", { filter: "blur(0px)" }, { filter: "blur({{ dp.dof.px }}px)", duration: 0.5, ease: "power2.inOut", immediateRender: false }, {{ dp.dof.t }});{% endif %}
+{% endif %}
 {% if st.title or st.list_no %}
 gsap.set("#sc-{{ s.id }} .st-title", { rotation: {{ 0 if st.title_style == "plain" else c.title.tilt_deg }} });
 {% if s.idx == 0 %}

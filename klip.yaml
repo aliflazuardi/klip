@@ -247,6 +247,20 @@ stage:
     # light sweep (shine) and a shake of shake_px. On the hook every word is up at frame 0, so its
     # keywords pulse from pulse_scale instead.
     title: {stagger_s: 0.06, slam_scale: 2.2, pulse_scale: 1.35, shine: true, shake_px: 6}
+  # Depth: the set behind the props follows the stage camera's moves and push-in at bg_follow of their
+  # size (0 = a flat backdrop, 1 = glued to the props), a foreground layer of soft bokeh at fg_follow
+  # (faster: it's nearer), fg = how many bokeh by the set's tone (0 = none), drifting fg_drift_px over
+  # a scene. dof_px: a photo backdrop blurs this much once the first prop is on (depth of field).
+  # rim: an accent glow around cut-outs on dark sets (opacity; 0 = off). ground: a soft contact shadow
+  # under cut-outs and coin stacks (opacity by tone; it stays put while the prop floats).
+  depth:
+    bg_follow: 0.35
+    fg_follow: 1.6
+    fg: {dark: 12, light: 0}
+    fg_drift_px: 60
+    dof_px: 6
+    rim: 0.35
+    ground: {light: 0.22, dark: 0.4}
   # Layout: the stage area sits between the title and the stage captions (caption.stage.top).
   # A composition is a list of [x, y, size]: x as a share of the safe width (x 60–960), y as a
   # share of the free area under the title, so a two-line title pushes the props down.

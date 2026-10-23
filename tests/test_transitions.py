@@ -62,3 +62,15 @@ def test_title_keywords_slam_when_said():
     caps = _headline("GRATIS ONGKIR", [])
     title_slams(caps, words, "s8")
     assert not any(h["key"] for h in caps)                                 # an all-caps title has no keywords
+
+
+def test_stage_depth_bokeh_by_tone_and_dof_on_photo_sets():
+    from klip import stage
+    els = [{"kind": "cutout", "start": 1.2}, {"kind": "highlight", "start": 0.5}]
+    dark = stage._depth({"tone": "dark", "elements": els, "backdrop": {"kind": "photo"}}, {"id": "s1"})
+    light = stage._depth({"tone": "light", "elements": els, "backdrop": None}, {"id": "s1"})
+    d = config.get("stage.depth")
+    assert len(dark["fg"]) == d["fg"]["dark"] and len(light["fg"]) == d["fg"]["light"]
+    assert dark["dof"] == {"t": 1.2, "px": float(d["dof_px"])} and light["dof"] is None    # the first real prop
+    again = stage._depth({"tone": "dark", "elements": els, "backdrop": {"kind": "photo"}}, {"id": "s1"})
+    assert again["fg"] == dark["fg"]                                                        # deterministic

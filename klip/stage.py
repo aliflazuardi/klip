@@ -547,3 +547,23 @@ def add_motion(scene: dict) -> None:
         side = {"l": -1, "r": 1}.get(e["col"], -1 if r < 0.5 else 1)
         e["exit_to"] = {"x": side * 1100, "rot": side * 18} if m["exit"] == "sweep" else None
     st["camera"] = _camera(st, scene["end"], m) if m["camera_follow"] else []
+    st["depth"] = _depth(st, scene)
+
+
+def _depth(st: dict, scene: dict) -> dict:
+    """Depth for a stage scene (klip.yaml stage.depth): foreground bokeh, the backdrop's depth of field."""
+    d = cfg("depth")
+    n = int((d["fg"] or {}).get(st["tone"], 0))
+    fg = []
+    for i in range(n):
+        h = [_h(scene["id"], "fg", i, k) for k in range(5)]
+        r = 20 + 70 * h[2]
+        fg.append({"x": round(-80 + 1240 * h[0], 1), "y": round(220 + 1250 * h[1], 1), "r": round(r, 1),
+                   "o": round(0.05 + 0.12 * h[3], 3), "blur": round(r * 0.3, 1), "warm": h[4] < 0.5,
+                   "dx": round((h[4] - 0.5) * 2 * float(d["fg_drift_px"]), 1)})
+    els = [e for e in st["elements"] if e["kind"] not in ("highlight",)]
+    first = min((e["start"] for e in els), default=None)
+    bd = st.get("backdrop") or {}
+    dof = {"t": round(first, 3), "px": float(d["dof_px"])} if (first is not None and d["dof_px"]
+                                                                  and bd.get("kind") == "photo") else None
+    return {"bg": float(d["bg_follow"]), "fgf": float(d["fg_follow"]), "fg": fg, "dof": dof}

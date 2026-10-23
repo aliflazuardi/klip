@@ -43,9 +43,10 @@
       {% elif e.kind == "screenshot" %}<div class="st-shot"><div class="sh-bar"><i></i><i></i><i></i><span>{{ e.host }}</span></div><img src="{{ e.src }}" alt="" /></div>
       {% endif %}
       {% if e.label_font %}<div class="st-subrow" style="font-size: {{ e.label_font }}px;"><div class="st-tag">{{ e.label }}</div></div>{% endif %}
-      </div></div>
+      </div>{% if e.kind in ("cutout", "stack") and stage.cfg.depth.ground %}<div class="st-ground"></div>{% endif %}</div>
     {% endfor %}
     </div></div>
+    {% if st.depth.fg %}<div class="st-fg">{% for b in st.depth.fg %}<i class="{{ 'warm' if b.warm }}" style="left: {{ b.x - b.r }}px; top: {{ b.y - b.r }}px; width: {{ 2 * b.r }}px; height: {{ 2 * b.r }}px; opacity: {{ b.o }}; filter: blur({{ b.blur }}px);"></i>{% endfor %}</div>{% endif %}
     {% if st.title or st.list_no %}
     {% set ts = st.title_style %}
     <div class="st-title-row {{ ts }}"><div class="st-title {{ ts }}" style="font-size: {{ stage.cfg.title.hook_font_size if st.hook else stage.cfg.title.font_size }}px;">{% if st.list_no %}<span class="st-no">{{ st.list_no[0] }}/{{ st.list_no[1] }}</span>{% endif %}{% if ts == "box" %}<span class="bx">{% endif %}{% for h in st.title %}<span class="hw{{ ' emph' if h.emph }}">{{ h.text }}</span>{{ ' ' if not loop.last }}{% endfor %}{% if ts == "box" %}</span>{% endif %}</div></div>
