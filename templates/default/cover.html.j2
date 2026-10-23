@@ -13,28 +13,67 @@
 html, body { width: 1080px; height: 1920px; overflow: hidden; background: {{ c1 }}; }
 #root { position: relative; width: 1080px; height: 1920px; overflow: hidden;
         font-family: "{{ style.font_family }}", system-ui, sans-serif; color: {{ style.text_color }}; }
-.bg { position: absolute; inset: 0; background: linear-gradient(180deg, {{ c1 }} 0%, {{ c2 }} 100%); }
-.bg img { position: absolute; inset: 0; width: 1080px; height: 1920px; object-fit: cover; }
+.bg { position: absolute; inset: 0; background: linear-gradient(180deg, {{ c1 }} 0%, {{ c2 }} 100%); overflow: hidden; }
+.bg img { position: absolute; inset: 0; width: 1080px; height: 1920px; object-fit: cover;
+          {% if hero and photo and hv.bg_blur_px %}filter: blur({{ hv.bg_blur_px }}px) saturate(1.1); transform: scale(1.06);{% endif %} }
 /* over b-roll: an even shade, heavier at the top and bottom edges */
 .shade { position: absolute; inset: 0; background:
     linear-gradient(180deg, {{ style.shade_color | rgba(0.55) }} 0%, {{ style.shade_color | rgba(0) }} 25%, {{ style.shade_color | rgba(0) }} 70%, {{ style.shade_color | rgba(0.6) }} 100%),
     {{ style.shade_color | rgba(cv.media_dim) }}; }
+/* sunburst from behind the subject (hero) or the title (text) */
+.rays { position: absolute; left: -900px; width: 2880px; height: 2880px; top: {{ ((hero.zone[0] + hero.zone[1]) // 2 if hero else 900) - 1440 }}px;
+        background: repeating-conic-gradient(from 0deg, {{ style.accent_color | rgba(cv.rays_opacity) }} 0deg 7deg, {{ style.accent_color | rgba(0) }} 7deg 18deg);
+        -webkit-mask-image: radial-gradient(closest-side, #000 20%, transparent 78%); mask-image: radial-gradient(closest-side, #000 20%, transparent 78%); }
+.spot { position: absolute; left: 90px; width: 900px; height: 900px; border-radius: 50%;
+        top: {{ ((hero.zone[0] + hero.zone[1]) // 2 if hero else 900) - 450 }}px;
+        background: radial-gradient(closest-side, {{ style.accent_color | rgba(0.28) }}, {{ style.accent_color | rgba(0) }}); }
 .glow { position: absolute; left: -360px; top: 1020px; width: 1800px; height: 1800px; border-radius: 50%;
         background: radial-gradient(closest-side, {{ style.accent_color | rgba(cv.glow_opacity) }}, {{ style.accent_color | rgba(0) }}); }
-.pill-row { position: absolute; left: 0; width: 1080px; top: {{ cv.pill_top }}px; display: flex; justify-content: center; }
+.pill-row { position: absolute; left: 0; width: 1080px; top: {{ hv.pill_top if hero else cv.pill_top }}px; display: flex; justify-content: center; }
 .pill { padding: 10px 30px 12px; border-radius: 999px; background: {{ pill.bg if pill else 'none' }};
         color: {{ pill.color if pill else 'inherit' }}; font-size: {{ cv.pill_font_size }}px; font-weight: 800;
         letter-spacing: .04em; line-height: 1.15; box-shadow: 0 10px 30px {{ style.shade_color | rgba(0.35) }}; }
-.text { position: absolute; left: {{ (1080 - cv.width) // 2 }}px; width: {{ cv.width }}px; top: {{ cv.text_top }}px;
-        height: {{ cv.text_bottom - cv.text_top }}px; display: flex; flex-direction: column; justify-content: center;
-        align-items: center; text-align: center; text-shadow: 0 8px 32px rgba(0,0,0,.4); }
+.text { position: absolute; left: {{ (1080 - cv.width) // 2 }}px; width: {{ cv.width }}px;
+        {% if hero %}top: {{ hv.text_top }}px;
+        {% else %}top: {{ cv.text_top }}px; height: {{ cv.text_bottom - cv.text_top }}px; justify-content: center;{% endif %}
+        display: flex; flex-direction: column; align-items: center; text-align: center;
+        text-shadow: 0 6px 0 {{ style.shade_color | rgba(0.35) }}, 0 8px 32px rgba(0,0,0,.45); }
 .title { font-size: {{ title_size }}px; font-weight: 800; line-height: 1.06; letter-spacing: -0.02em; text-wrap: balance; }
 .title .ln { display: block; white-space: nowrap; }
 .keyword { font-size: {{ keyword_size }}px; font-weight: 800; line-height: 1.04; letter-spacing: -0.01em;
            color: {{ style.accent_color }}; }
+.keyword.boxed { margin-top: {{ (keyword_size * 0.18) | round | int }}px; color: {{ style.stroke_color }}; background: {{ style.accent_color }};
+                 padding: {{ cv.keyword_pad_em[0] }}em {{ cv.keyword_pad_em[1] }}em {{ cv.keyword_pad_em[0] + 0.04 }}em;
+                 border-radius: 0.12em; transform: rotate({{ cv.keyword_tilt_deg * flip }}deg); text-shadow: none;
+                 box-shadow: 0 14px 0 {{ style.shade_color | rgba(0.3) }}, 0 18px 40px rgba(0,0,0,.35); }
 .subtitle { margin-top: 56px; font-size: {{ cv.subtitle_size }}px; font-weight: 700; line-height: 1.2;
             opacity: {{ cv.subtitle_opacity }}; }
-.footer { position: absolute; left: 0; width: 1080px; top: {{ cv.footer_y - 60 }}px; height: 120px;
+{% if hero %}
+.hero-photo { position: absolute; transform-origin: 50% 60%;
+              filter: drop-shadow(0 22px 26px rgba(0,0,0,.5)); }
+.hero-photo img { width: 100%; height: 100%; display: block; }
+.hero-photo.card img { border: 16px solid #FFFFFF; border-bottom-width: 26px; border-radius: 6px; object-fit: cover; }
+.hero-mascot { position: absolute; }
+.hero-mascot .fig { width: 100%; height: 100%;
+  {% set o = cast.outline if cast else none %}
+  {% if o and o.px %}filter: {% for dx, dy in [(1,0),(-1,0),(0,1),(0,-1),(0.7,0.7),(-0.7,0.7),(0.7,-0.7),(-0.7,-0.7)] %}drop-shadow({{ (dx * o.px) | round(1) }}px {{ (dy * o.px) | round(1) }}px 0 {{ o.color }}) {% endfor %}drop-shadow(0 18px 22px rgba(0,0,0,.45));{% endif %} }
+.hero-mascot.mirror .fig { transform: scaleX(-1); }
+.hero-mascot .mouth-open { opacity: {{ 1 if hv.mascot_mouth_open else 0 }}; }
+{% if hv.mascot_mouth_open %}.hero-mascot .mouth { opacity: 0; }{% endif %}
+.arrow { position: absolute; inset: 0; width: 1080px; height: 1920px; overflow: visible; }
+.arrow path { fill: none; stroke: {{ style.text_color }}; stroke-width: 13; stroke-linecap: round; stroke-linejoin: round;
+              filter: drop-shadow(0 5px 0 {{ style.shade_color | rgba(0.4) }}); }
+.badge { position: absolute; top: 0; display: flex; align-items: center; justify-content: center;
+         font-size: {{ hv.badge_size }}px; font-weight: 800; letter-spacing: .02em; line-height: 1.05; text-align: center;
+         padding: 0.42em 0.62em 0.48em; background: {{ style.text_color }}; color: {{ style.stroke_color }};
+         border: 7px solid {{ style.accent_color }}; border-radius: 0.36em; white-space: nowrap;
+         box-shadow: 0 12px 0 {{ style.shade_color | rgba(0.35) }}, 0 16px 34px rgba(0,0,0,.4); }
+.tag { position: absolute; left: 0; width: 1080px; display: flex; justify-content: center; }
+.tag span { font-size: {{ hv.subtitle_size }}px; font-weight: 800; line-height: 1.2; padding: 14px 30px 16px;
+            background: {{ style.shade_color | rgba(0.82) }}; color: {{ style.text_color }}; border-radius: 16px;
+            max-width: 920px; text-align: center; box-shadow: 0 12px 30px rgba(0,0,0,.35); }
+{% endif %}
+.footer { position: absolute; left: 0; width: 1080px; top: {{ (hv.footer_y if hero else cv.footer_y) - 60 }}px; height: 120px;
           display: flex; align-items: center; justify-content: center; gap: 28px; }
 .disc { width: {{ cv.logo_size }}px; height: {{ cv.logo_size }}px; border-radius: 50%; display: flex;
         align-items: center; justify-content: center; }
@@ -46,7 +85,8 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: {{ c1 
 <body>
 <div id="root" data-composition-id="main" data-start="0" data-duration="1" data-width="1080" data-height="1920">
   <div class="bg">{% if media %}<img src="bg.jpg" alt="" /><div class="shade"></div>{% endif %}</div>
-  {% if cv.glow_opacity > 0 %}<div class="glow"></div>{% endif %}
+  {% if cv.rays_opacity > 0 %}<div class="rays"></div>{% endif %}
+  {% if hero %}<div class="spot"></div>{% elif cv.glow_opacity > 0 %}<div class="glow"></div>{% endif %}
   {% if pill %}<div class="pill-row"><div class="pill">{{ pill.label }}</div></div>{% endif %}
   <div class="text">
     {% if lead %}
@@ -54,9 +94,34 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: {{ c1 
     {% elif title %}
     <div class="title">{{ title }}</div>
     {% endif %}
-    <div class="keyword">{{ keyword }}</div>
-    {% if subtitle %}<div class="subtitle">{{ subtitle }}</div>{% endif %}
+    <div class="keyword{% if boxed %} boxed{% endif %}">{{ keyword }}</div>
+    {% if subtitle and not hero %}<div class="subtitle">{{ subtitle }}</div>{% endif %}
   </div>
+  {% if hero %}
+  {% if hv.arrow and hero.arrow.ok %}
+  <svg class="arrow" viewBox="0 0 1080 1920">
+    <path d="{{ hero.arrow.d }}" />
+    {% set t = hero.arrow.tip %}{% set d = hero.arrow.dir %}
+    <path d="M {{ t[0] - d * 40 }} {{ t[1] - 30 }} L {{ t[0] }} {{ t[1] }} L {{ t[0] - d * 46 }} {{ t[1] + 22 }}" />
+  </svg>
+  {% endif %}
+  {% if hero.photo %}{% set b = hero.photo %}
+  <div class="hero-photo {{ photo.kind }}" style="left: {{ b.x }}px; top: {{ b.y }}px; width: {{ b.w }}px; height: {{ b.h }}px; transform: rotate({{ hv.tilt_deg * flip }}deg);">
+    <img src="{{ photo.src }}" alt="" />
+  </div>
+  {% endif %}
+  {% if hero.mascot %}{% set b = hero.mascot %}
+  <div class="hero-mascot{% if b.mirror %} mirror{% endif %}" style="left: {{ b.x }}px; top: {{ b.y }}px; width: {{ b.w }}px; height: {{ b.h }}px;">
+    <div class="fig">{{ cast.svg | safe }}</div>
+  </div>
+  {% endif %}
+  {% if badge %}{% set b = hero.badge %}
+  <div class="badge" style="{{ 'left' if b.side == 'right' else 'right' }}: {{ (b.x - 150) if b.side == 'right' else (1080 - b.x - 150) }}px; top: {{ b.y }}px; transform: rotate({{ 9 * flip }}deg);">{{ badge }}</div>
+  {% endif %}
+  {% if subtitle %}
+  <div class="tag" style="top: {{ hero.zone[1] - 40 }}px;"><span>{{ subtitle }}</span></div>
+  {% endif %}
+  {% endif %}
   {% if logo or wordmark or handle %}
   <div class="footer">
     {% if logo %}<div class="disc"{% if disc %} style="background: {{ disc }};"{% endif %}><img src="{{ logo.src }}" alt="" /></div>{% endif %}

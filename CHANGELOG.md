@@ -8,6 +8,14 @@ All notable changes to Klip are listed here. The format follows
 
 ### Added
 
+- **Hook covers.** `cover.png` now uses a hero layout whenever the video has a subject: a short
+  title up top with the keyword on a tilted accent block, one big subject below (the hook's stage
+  cut-out, a subject lifted from the hook's b-roll, or the brand mascot pulling a face), an arrow
+  pointing at it, the subtitle as a tag and a sunburst behind. New spec fields `cover.layout`,
+  `cover.image`, `cover.mascot`, `cover.who` and `cover.badge`; settings under `cover.hero` in
+  `klip.yaml`. `"layout": "text"` keeps the old title-only cover. `klip cover <spec>` redoes just
+  the cover.
+
 - Gemini duets in one request: a video that alternates two narrators is recorded as a single
   multi-speaker take (`gemini_tts.dialogue`, on by default with `voices.take: whole`), then cut into
   scenes. One request per video instead of one per narrator turn, and more natural hand-offs.

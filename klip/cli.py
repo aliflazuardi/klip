@@ -414,6 +414,16 @@ def run_stage(stage: str = typer.Argument(..., help="voice | assets | compose | 
 
 
 @app.command()
+def cover(spec_path: Path, out: Optional[Path] = OutOpt) -> None:
+    """Redo cover.png only (after editing the spec's `cover`); uses the project's fetched assets."""
+    from klip.stages import cover as cover_stage
+    spec, project_dir = _load_or_exit(spec_path, None, out)
+    assets_path = project_dir / "assets.json"
+    png = cover_stage.run(spec, project_dir, json.loads(assets_path.read_text()) if assets_path.exists() else None)
+    console.print(f"[green]cover:[/] {png}")
+
+
+@app.command()
 def ideas(style: str = StyleOpt, count: Optional[int] = typer.Option(None, "--count", "-n", help="Ideas wanted (default: ideas.count)"),
           signals: Optional[Path] = typer.Option(None, "--from", help="Your own signals, one per line (e.g. pasted from TikTok Creative Center)"),
           trends: bool = typer.Option(True, "--trends/--no-trends", help="Read today's Google Trends (ideas.geo)"),

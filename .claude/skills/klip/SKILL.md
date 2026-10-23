@@ -314,3 +314,13 @@ outro). A brand's rules (voice, sign-off, series, hashtags) still apply.
   "Menguap?", "subtitle": "Ternyata bukan karena bosan"}`. Unset → the hook's `on_screen_text`
   (its emphasised ending becomes the keyword) with no subtitle; write one whenever the hook
   text isn't a good title on its own.
+  The cover uses the **hero layout** whenever there's a subject: the short title up top, the
+  keyword on a tilted accent block, then one big subject (a cut-out photo and/or the brand's
+  mascot pulling a face) with an arrow pointing at it and the subtitle as a tag. The subject is
+  found on its own (the hook's stage cut-out, another scene's, else the subject lifted from the
+  hook's b-roll, else that still as a photo card). Optional extras: `badge` (1-2 words stuck on
+  the subject, a tease like `"MITOS?"`, `"1 DETIK"`, `"350 TAHUN"`, never the answer), `mascot`
+  (pose: `kaget`, `bingung`, `kepo`… or `"none"`), `who` (which cast member), `image` (your own
+  photo, repo-relative; or drop `cover.png`/`cover-*.jpg` in the spec's photo folder) and
+  `"layout": "text"` for the old title-only cover. Keep title + keyword to ~3-6 words: the
+  cover is read at grid size. Redo just the cover after an edit with `uv run klip cover <spec>`.

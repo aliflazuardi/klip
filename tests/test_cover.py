@@ -98,4 +98,72 @@ def test_build_writes_cover_composition(tmp_path):
     html = (out / "index.html").read_text()
     assert "MENGUAP?" in html and "WHY?" in html and "Bukan karena bosan" in html
     assert 'src="bg.jpg"' not in html          # no media -> palette gradient
+    assert 'class="hero-mascot' in html        # the example pack's mascot is the subject
     assert (out / "brand" / "wordmark.svg").exists() and (out / "gsap.min.js").exists()
+
+
+def test_hero_layout_stays_in_profile_grid_crop():
+    for name in ("default", "example"):
+        cv = config.style(name)["cover"]
+        hv = cv["hero"]
+        assert 240 <= hv["pill_top"] < hv["text_top"] < hv["zone"][0] < hv["zone"][1]
+        assert hv["zone"][1] < hv["footer_y"] - cv["logo_size"] / 2
+        assert hv["footer_y"] + max(cv["logo_size"], cv["wordmark_height"]) / 2 <= 1680
+
+
+def test_hero_with_photo_and_mascot():
+    style = config.style("example")
+    cast = cover.hero_mascot(_spec(style="example"), style, style["cover"]["hero"])
+    assert cast and cast["pose"] in mascot_poses(style, cast["who"]) and "<svg" in cast["svg"]
+    photo = {"w": 600, "h": 800, "kind": "cutout", "src": "hero.png"}
+    ctx = cover.cover_context(_spec(style="example", cover=Cover(title="Kenapa Kita", keyword="Menguap?",
+                                                                 badge="MITOS?")),
+                              style, has_media=False, photo=photo, cast=cast)
+    h, hv = ctx["hero"], style["cover"]["hero"]
+    z0, z1 = h["zone"]
+    for box in (h["photo"], h["mascot"]):
+        assert 0 <= box["x"] and box["x"] + box["w"] <= 1080
+        assert z0 - 1 <= box["y"] and box["y"] + box["h"] <= z1 + 1
+    assert ctx["badge"] == "MITOS?" and h["arrow"]["ok"]
+    # the subject never starts above the title block
+    assert z0 >= hv["text_top"] + 2 * ctx["title_size"] * 0.9
+
+
+def test_layout_text_or_no_subject_keeps_the_title_layout():
+    style = config.style("default")
+    assert cover.cover_context(_spec(), style, has_media=False)["hero"] is None
+    photo = {"w": 600, "h": 800, "kind": "cutout", "src": "hero.png"}
+    ctx = cover.cover_context(_spec(cover=Cover(title="A b", keyword="C", layout="text")), style,
+                              has_media=True, photo=photo)
+    assert ctx["hero"] is None and ctx["badge"] is None
+
+
+def test_mascot_none_and_unknown_pose():
+    style = config.style("example")
+    hv = style["cover"]["hero"]
+    assert cover.hero_mascot(_spec(style="example", cover=Cover(title="A", mascot="none")), style, hv) is None
+    m = cover.hero_mascot(_spec(style="example", cover=Cover(title="A", mascot="no-such-pose")), style, hv)
+    assert m["pose"] == "netral"
+    assert cover.hero_mascot(_spec(), config.style("default"), hv) is None      # no cast
+
+
+def test_boxy_lift_is_rejected(tmp_path):
+    from PIL import Image, ImageDraw
+    slab = Image.new("RGBA", (400, 500), (0, 0, 0, 0))
+    ImageDraw.Draw(slab).rectangle((0, 0, 399, 499), fill=(200, 100, 50, 255))
+    ImageDraw.Draw(slab).polygon([(0, 0), (120, 0), (0, 160)], fill=(0, 0, 0, 0))   # a nibbled corner
+    blob = Image.new("RGBA", (400, 500), (0, 0, 0, 0))
+    ImageDraw.Draw(blob).ellipse((0, 0, 399, 499), fill=(200, 100, 50, 255))
+    slab.save(tmp_path / "slab.png")
+    blob.save(tmp_path / "blob.png")
+    assert cover.boxy(tmp_path / "slab.png", 0.85, 0.55)
+    assert not cover.boxy(tmp_path / "blob.png", 0.85, 0.55)
+    still = tmp_path / "still.jpg"
+    Image.new("RGB", (1080, 1920), (10, 20, 30)).save(still)
+    with Image.open(cover.card_crop(still, 0.8)) as im:
+        assert abs(im.width / im.height - 0.8) < 0.01
+
+
+def mascot_poses(style, who):
+    from klip import mascot
+    return mascot.poses(style, who)

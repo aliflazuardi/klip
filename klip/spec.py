@@ -531,6 +531,19 @@ class Cover(_Strict):
     keyword: str | None = Field(None, description="The payoff word(s) shown big as the last line, e.g. 'Menguap?'.")
     subtitle: str | None = Field(None, description="One short sentence under the title, e.g. "
                                                    "'Ternyata bukan karena bosan'.")
+    layout: Literal["hero", "text"] | None = Field(
+        None, description="hero = short title on top, a big subject (cut-out photo and/or mascot) below; "
+                          "text = title only. Unset: hero whenever there is a subject.")
+    image: str | None = Field(None, description="Hero photo path (relative to the repo), cut out as a "
+                                                "sticker. Unset: <photos dir>/<slug>/cover.*, the hook's stage "
+                                                "cut-out, another scene's, else the subject lifted from the "
+                                                "hook's b-roll.")
+    mascot: str | None = Field(None, description="Mascot pose on the cover (e.g. 'kaget', 'bingung'), or "
+                                                 "'none'. Unset: klip.yaml cover.hero.mascot_pose.")
+    who: str | None = Field(None, description="Which cast member is on the cover. Unset: the hook's speaker.")
+    badge: str | None = Field(None, max_length=18,
+                              description="1-2 word sticker on the hero, e.g. 'MITOS?', '1 DETIK', "
+                                          "'350 TAHUN'. Teases, never answers.")
 
     @model_validator(mode="after")
     def _one_title_form(self) -> Cover:

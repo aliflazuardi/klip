@@ -444,6 +444,76 @@
           "default": null,
           "description": "One short sentence under the title, e.g. 'Ternyata bukan karena bosan'.",
           "title": "Subtitle"
+        },
+        "layout": {
+          "anyOf": [
+            {
+              "enum": [
+                "hero",
+                "text"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "hero = short title on top, a big subject (cut-out photo and/or mascot) below; text = title only. Unset: hero whenever there is a subject.",
+          "title": "Layout"
+        },
+        "image": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Hero photo path (relative to the repo), cut out as a sticker. Unset: <photos dir>/<slug>/cover.*, the hook's stage cut-out, another scene's, else the subject lifted from the hook's b-roll.",
+          "title": "Image"
+        },
+        "mascot": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Mascot pose on the cover (e.g. 'kaget', 'bingung'), or 'none'. Unset: klip.yaml cover.hero.mascot_pose.",
+          "title": "Mascot"
+        },
+        "who": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Which cast member is on the cover. Unset: the hook's speaker.",
+          "title": "Who"
+        },
+        "badge": {
+          "anyOf": [
+            {
+              "maxLength": 18,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "1-2 word sticker on the hero, e.g. 'MITOS?', '1 DETIK', '350 TAHUN'. Teases, never answers.",
+          "title": "Badge"
         }
       },
       "title": "Cover",
