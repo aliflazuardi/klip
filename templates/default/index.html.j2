@@ -312,7 +312,6 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; 
 .k-ms-flip.mirror { transform: scaleX(-1); }
 .k-ms-flip.mirror .nomirror { transform: scaleX(-1); transform-box: fill-box; transform-origin: 50% 50%; }
 .k-ms-pose svg { display: block; width: 100%; height: 100%; }
-.k-ms .eye { transform-box: fill-box; transform-origin: 50% 50%; }
 .k-ms .mouth-open { opacity: 0; }
 .k-error { position: absolute; left: 40px; right: 40px; top: 300px; padding: 24px; z-index: 99; background: #D7263D; color: #fff;
            font: 700 34px/1.3 monospace; white-space: pre-wrap; }
@@ -342,7 +341,6 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; 
 .ms-flip.mirror .nomirror { transform: scaleX(-1); transform-box: fill-box; transform-origin: 50% 50%; }
 .ms-pose { opacity: 0; }
 .ms-pose svg { display: block; }
-.ms .eye { transform-box: fill-box; transform-origin: 50% 50%; }
 
 /* Captions */
 .cap { position: absolute; left: 60px; width: 900px; top: {{ style.caption.top }}px; height: {{ style.caption.height }}px;
@@ -628,7 +626,8 @@ tl.set("{{ ms }} .mouth", { opacity: 0 }, {{ a }}); tl.set("{{ ms }} .mouth-open
 tl.set("{{ ms }} .mouth", { opacity: 1 }, {{ b }}); tl.set("{{ ms }} .mouth-open", { opacity: 0 }, {{ b }});
 {% endfor %}
 {% for t in m.blinks %}
-tl.fromTo("{{ ms }} .eye", { scaleY: 1 }, { scaleY: 0.1, duration: 0.07, yoyo: true, repeat: 1, ease: "none", immediateRender: false }, {{ t }});
+// GSAP sets an SVG element's origin itself (from its bbox); a CSS transform-box on it shifts the eyes
+tl.fromTo("{{ ms }} .eye", { scaleY: 1 }, { scaleY: 0.1, transformOrigin: "50% 50%", duration: 0.07, yoyo: true, repeat: 1, ease: "none", immediateRender: false }, {{ t }});
 {% endfor %}
 {% if brand.outro and brand.outro.lift is not none %}
 tl.to("{{ ms }}", { y: -{{ mc.outro_lift_px }}, duration: 0.45, ease: "power2.inOut" }, {{ brand.outro.start }});
