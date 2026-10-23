@@ -232,6 +232,8 @@ outro). A brand's rules (voice, sign-off, series, hashtags) still apply.
     for the beats that matter (a myth landing → `bingung`, the reveal → `paham`); leave the rest
     automatic. They don't show on non-stage scenes. They gesture on their own while speaking
     (leans, nods on emphasised words, listeners nod along, a squash when they land).
+    **Loop:** `"loop": true` (or the style's `loop.enabled`) makes the end turn into the first frame, so
+    TikTok's replay runs on seamlessly; nothing to write for it.
     **Cold open (cinematic videos with a `world`):** don't spend the hook on a quiet shot. Put the
     hook in the world's scenes and replay the world's climax under it (docs/CODE-SCENES.md "Cold
     open"), with `k.headline()` and `k.spotlight("<mascot>", {pose: "kaget"})` on top, then hard-cut

@@ -590,6 +590,8 @@ class Spec(_Strict):
                                                                "(e.g. ['napa']).")
     progress_bar: bool | None = Field(None, description="Thin progress bar at the top; unset = the style's setting. "
                                                         "Set false/true to A/B test it.")
+    loop: bool | None = Field(None, description="End on the first frame so the auto-replay is seamless; unset = "
+                                                "the style's loop.enabled.")
     save_nudge: bool | None = Field(None, description="'Simpan dulu' pill when the 2nd list_item starts; "
                                                       "unset = the style's save_nudge.enabled.")
     music: Music = Field(default_factory=Music)

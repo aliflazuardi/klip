@@ -8,6 +8,9 @@ All notable changes to Klip are listed here. The format follows
 
 ### Added
 
+- **Seamless loop.** With `loop` on (style `loop.enabled`, or `"loop": true` in a spec), the last
+  half second, after the last word, turns into the video's first frame (an ffmpeg xfade, `zoomin` by
+  default), so the platform's auto-replay has no jump. Costs one video re-encode in the post stage.
 - **Cold opens for code scenes.** `k.spotlight("napa", {pose})` puts a mascot centre stage in a code
   scene, big, under a glow and a turning sunburst (settings `code.kit.spotlight`). docs/CODE-SCENES.md
   shows how a world replays its climax under the hook so a cinematic video opens on its best shot.

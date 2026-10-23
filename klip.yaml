@@ -788,6 +788,15 @@ styles:
       top: 476                      # y; sits between the list number badge and the headline
       font_size: 38
       bg_opacity: 0.78              # shade_color behind the text
+    # Seamless loop (post stage): over the last seam_s of the video, after the last word, the picture
+    # turns into the video's first frame, so TikTok's auto-replay has no jump. The music already fades
+    # out at the end and in at the start. Costs one video re-encode (render.crf / render.preset).
+    # transition: an ffmpeg xfade name (fade, zoomin, smoothup, hblur, …). A spec's "loop" overrides enabled.
+    loop:
+      enabled: false
+      seam_s: 0.45
+      transition: zoomin
+      after_voice_s: 0.1            # the seam never starts sooner than this after the last word
     # Designed cover.png (post stage): series pill, title (last line = keyword), subtitle,
     # logo + wordmark, over a darkened still of the hook's b-roll (else the first palette gradient).
     # Profile grids crop 9:16 covers

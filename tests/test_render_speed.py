@@ -59,3 +59,28 @@ def test_post_copies_a_ready_h264_stream_and_reencodes_anything_else(tmp_path, m
     assert cmds[-1][cmds[-1].index("-c:v") + 1] == "copy"
     post.encode(_video(tmp_path / "odd.mp4", "yuv444p"), wav, tmp_path / "out2.mp4")
     assert cmds[-1][cmds[-1].index("-c:v") + 1] == "libx264" and config.get("render.preset") in cmds[-1]
+
+
+def test_loop_seam_ends_on_the_first_frame(tmp_path):
+    from PIL import Image, ImageChops, ImageStat
+
+    from klip.spec import load_spec
+    from klip.paths import ROOT
+    raw = tmp_path / "raw.mp4"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "testsrc2=s=108x192:r=30:d=2",
+                    "-c:v", "libx264", "-pix_fmt", "yuv420p", str(raw)], check=True)
+    (tmp_path / "words.json").write_text(json.dumps([{"text": "a", "startMs": 0, "endMs": 1000, "sceneId": "s1"}]))
+    spec = load_spec(ROOT / "examples" / "menguap.json")
+    assert post.loop_seam(spec.model_copy(update={"loop": False}), tmp_path, raw, 2.0) == raw
+    out = post.loop_seam(spec.model_copy(update={"loop": True}), tmp_path, raw, 2.0)
+    assert out.name == "raw_loop.mp4"
+    assert abs(float(post.ffmpeg.probe(out)["format"]["duration"]) - 2.0) < 0.1
+    frames = []
+    for i, args in enumerate((["-i", str(out)], ["-sseof", "-0.04", "-i", str(out)])):
+        png = tmp_path / f"f{i}.png"
+        subprocess.run(["ffmpeg", "-v", "error", "-y", *args, "-frames:v", "1", "-update", "1", str(png)], check=True)
+        frames.append(Image.open(png).convert("RGB"))
+    assert max(ImageStat.Stat(ImageChops.difference(*frames)).mean) < 6      # last frame ≈ first frame
+    # no room after the last word: no seam
+    (tmp_path / "words.json").write_text(json.dumps([{"text": "a", "startMs": 0, "endMs": 1950, "sceneId": "s1"}]))
+    assert post.loop_seam(spec.model_copy(update={"loop": True}), tmp_path, raw, 2.0) == raw

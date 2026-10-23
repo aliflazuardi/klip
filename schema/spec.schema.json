@@ -2207,6 +2207,19 @@
       "description": "Thin progress bar at the top; unset = the style's setting. Set false/true to A/B test it.",
       "title": "Progress Bar"
     },
+    "loop": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "End on the first frame so the auto-replay is seamless; unset = the style's loop.enabled.",
+      "title": "Loop"
+    },
     "save_nudge": {
       "anyOf": [
         {

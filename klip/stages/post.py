@@ -186,12 +186,43 @@ def make_cover(spec: Spec, project_dir: Path, timeline: dict, final: Path) -> st
     return "frame"
 
 
+def loop_seam(spec: Spec, project_dir: Path, raw: Path, total_s: float) -> Path:
+    """raw.mp4 whose last frames turn into its first frame (the style's loop settings), or raw itself when
+    the loop is off or there's no room after the last word. Writes raw_loop.mp4."""
+    lp = config.style(spec.style)["loop"]
+    if not (spec.loop if spec.loop is not None else lp["enabled"]):
+        return raw
+    words_path = project_dir / "words.json"
+    words = json.loads(words_path.read_text()) if words_path.exists() else []
+    last = max((w["endMs"] for w in words), default=0) / 1000
+    seam = min(float(lp["seam_s"]), total_s - last - float(lp["after_voice_s"]))
+    if seam < 0.15:
+        log.warning("loop: only %.2f s after the last word; no seam (raise timeline.tail_ms)", total_s - last)
+        return raw
+    fps = int(config.get("render.fps", 30))
+    first, out = project_dir / "loop_first.png", project_dir / "raw_loop.mp4"
+    ffmpeg.run(["-i", str(raw), "-frames:v", "1", str(first)])
+    norm = f"fps={fps},format=yuv420p,settb=AVTB"
+    ffmpeg.run([
+        "-i", str(raw), "-loop", "1", "-t", f"{seam + 0.1:.3f}", "-i", str(first),
+        "-filter_complex", f"[0:v]{norm}[a];[1:v]{norm}[b];"
+                           # the blend completes 2 frames early, so the last frames are the first frame exactly
+                           f"[a][b]xfade=transition={lp['transition']}:duration={seam - 2 / fps:.3f}:offset={total_s - seam:.3f},"
+                           f"trim=duration={total_s:.3f}[v]",
+        "-map", "[v]", "-an", "-c:v", "libx264", "-profile:v", "high", "-pix_fmt", "yuv420p",
+        "-crf", str(config.get("render.crf", 19)), "-preset", str(config.get("render.preset")), "-r", str(fps),
+        "-movflags", "+faststart", str(out),
+    ])
+    return out
+
+
 def run(spec: Spec, project_dir: Path) -> dict:
     raw, voice_wav = project_dir / "raw.mp4", project_dir / "voice.wav"
     final, nomusic = project_dir / "final.mp4", project_dir / "final_nomusic.mp4"
     timeline = json.loads((project_dir / "timeline.json").read_text())
     total_s = timeline["total_ms"] / 1000
     music_cfg = config.get("music", {})
+    raw = loop_seam(spec, project_dir, raw, total_s)
 
     # Sound effects (cues written by compose); "voice bed" = voice + SFX, no music.
     sfx_path = project_dir / "sfx.json"
