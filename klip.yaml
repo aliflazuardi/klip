@@ -219,7 +219,7 @@ stage:
   variety_scenes: 5
   variety_min_sets: 2
   zoom: 1.04                        # the stage camera slowly pushes in to this scale per scene
-  outro_drift: 0.06                 # ...and on by this much more under the closing outro badge
+  outro_drift: 0.1                  # ...and on by this much more under the closing outro badge
   # Motion of the props once they're on stage. float: an idle sway (px up/down by prop group:
   # media = photos/cut-outs/people/logos, icon = icons/stacks, tag = labels/numbers, data =
   # charts/bars/units/news/screenshots; 0 = still) over a period picked per prop from

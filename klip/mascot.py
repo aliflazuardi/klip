@@ -254,6 +254,8 @@ def plan(spec: Spec, scenes: list[dict], words: list[dict], style: dict, caption
         sw = [w for w in words if w["sceneId"] == scene.id]
         if (who := speaker(spec, scene, style)) in mouth:
             mouth[who] += _flaps(sw, c["mouth"])
+            if c.get("lively"):                       # the closing line gets body language too
+                gestures[who] += _gestures(sw, scene, c["lively"])
         for name, pose in (auto.get("cta") or {}).items():
             if name in events:
                 events[name].append((sc["start"], pose, SOFT))
