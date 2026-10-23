@@ -171,10 +171,23 @@ def _stage_ctx(scene: Scene, t: dict, words: list[dict], media: dict, style: dic
     times = stage_mod.entry_times(els, words, t["start_ms"], t["duration_ms"], warnings, scene.id)
     cap_top = caption_style(style, True)["top"]
     bottom = cap_top - float(config.get("stage.caption_gap_px"))
+    k, cx, xr = None, None, stage_mod.SAFE_X
     if mascot.shown(scene, style):            # the props end above the mascots
-        bottom = min(bottom, mascot.top(style, cap_top, mascot.scale(scene)) - float(mascot.settings(style)["clear_px"]))
+        clear = float(mascot.settings(style)["clear_px"])
+        k = mascot.scale(scene, style)
+        if scene.mascot and scene.mascot.focus:
+            fc = mascot.settings(style)["focus"]
+            if any(e.kind in mascot.BIG for e in els):
+                # a spotlit star with pictures to show stands left of centre; they get the right column
+                k = float(fc["side"]["height"]) / float(mascot.settings(style)["height"])
+                cx, xr = float(fc["side"]["cx"]), tuple(fc["side"]["props_x"])
+            else:                             # labels only: centred, shrunk to leave them a strip
+                k = mascot.focus_scale(style, cap_top, stage_title_bottom(scene) + 24)
+                bottom = min(bottom, mascot.top(style, cap_top, k) - clear)
+        else:
+            bottom = min(bottom, mascot.top(style, cap_top, k) - clear)
     area = (stage_title_bottom(scene) + 24, bottom)
-    boxes = stage_mod.layout(scene.id, els, rows, area)
+    boxes = stage_mod.layout(scene.id, els, rows, area, xr)
     exits: dict[int, float] = {}
     pgs = stage_mod.pages(els)
     exit_s = config.get("stage.exit_s")
@@ -256,7 +269,7 @@ def _stage_ctx(scene: Scene, t: dict, words: list[dict], media: dict, style: dic
                 el["color"] = c["stamp"]["neutral_dark"]
     title_style = (backdrop or {}).get("title") or config.get("stage.title.style")
     return {"bg": bg, "builtin": stage_mod.is_builtin(bg), "image": image, "backdrop": backdrop, "elements": out,
-            "tone": tone, "area": area, "title_style": title_style,
+            "tone": tone, "area": area, "title_style": title_style, "mascot_scale": k, "mascot_cx": cx,
             "title": _headline(scene.on_screen_text, scene.emphasis), "list_no": list_no,
             "hook": scene.template == "hook", "continues": False, "next_same": False, "bg_from": 0.0, "bg_to": 0.0}
 

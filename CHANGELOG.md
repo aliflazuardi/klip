@@ -8,6 +8,11 @@ All notable changes to Klip are listed here. The format follows
 
 ### Added
 
+- **Livelier mascots.** Mascots gesture while they speak (a lean on a new sentence or a long word,
+  a nod on emphasised words, listeners nod along) and land with a squash. New spotlight:
+  `"mascot": {"focus": true}` (or a name) slides that mascot to the centre of the frame, big, under
+  a glow and a turning sunburst, while the others step out; picture props move to the right
+  column. Settings under `mascot.focus` and `mascot.lively`.
 - **Hook covers.** `cover.png` now uses a hero layout whenever the video has a subject: a short
   title up top with the keyword on a tilted accent block, one big subject below (the hook's stage
   cut-out, a subject lifted from the hook's b-roll, or the brand mascot pulling a face), an arrow

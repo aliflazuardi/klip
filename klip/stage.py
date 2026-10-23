@@ -294,16 +294,18 @@ def box_size(e: StageElement, size: str, media: dict | None) -> tuple[float, flo
     return bw, bh                                   # bar
 
 
-def fit(x: float, y: float, w: float, h: float, top: float, bottom: float) -> tuple[float, float, float, float]:
+def fit(x: float, y: float, w: float, h: float, top: float, bottom: float,
+        xr: tuple[float, float] = SAFE_X) -> tuple[float, float, float, float]:
     """Shrink a box to fit the stage area, then shift it inside."""
-    s = min(1.0, (SAFE_X[1] - SAFE_X[0]) / w, (bottom - top) / h)
+    s = min(1.0, (xr[1] - xr[0]) / w, (bottom - top) / h)
     w, h = w * s, h * s
-    x = min(max(x, SAFE_X[0] + w / 2), SAFE_X[1] - w / 2)
+    x = min(max(x, xr[0] + w / 2), xr[1] - w / 2)
     y = min(max(y, top + h / 2), bottom - h / 2)
     return x, y, w, h
 
 
-def separate(boxes: dict[int, dict], below: dict[int, float], top: float, bottom: float) -> None:
+def separate(boxes: dict[int, dict], below: dict[int, float], top: float, bottom: float,
+             xr: tuple[float, float] = SAFE_X) -> None:
     """Push overlapping boxes apart (in place) along the axis that overlaps least, keeping them in the
     stage area; if some still overlap after that, shrink the bigger box of each such pair and try again.
     `below`: extra px a box needs under it (its hanging label tag)."""
@@ -312,7 +314,7 @@ def separate(boxes: dict[int, dict], below: dict[int, float], top: float, bottom
 
     def clamp(b: dict) -> None:
         w, h = b["w"], b["h"] + below.get(b["_i"], 0)
-        b["x"] = min(max(b["x"], SAFE_X[0] + w / 2), SAFE_X[1] - w / 2)
+        b["x"] = min(max(b["x"], xr[0] + w / 2), xr[1] - w / 2)
         b["y"] = min(max(b["y"], top + b["h"] / 2), bottom - h + b["h"] / 2)
 
     def overlap(a: dict, b: dict) -> tuple[float, float]:
@@ -352,8 +354,9 @@ def separate(boxes: dict[int, dict], below: dict[int, float], top: float, bottom
 
 
 def layout(scene_id: str, elements: list[StageElement], media: dict[int, dict],
-           area: tuple[float, float]) -> dict[int, dict]:
-    """Box (x, y = centre; w, h; rot; size; slot) per element, highlights boxing their target."""
+           area: tuple[float, float], xr: tuple[float, float] = SAFE_X) -> dict[int, dict]:
+    """Box (x, y = centre; w, h; rot; size; slot) per element, highlights boxing their target.
+    `xr`: the area's x range (a spotlit mascot can take the left of the frame)."""
     top, bottom = area
     out: dict[int, dict] = {}
     for page in pages(elements):
@@ -361,14 +364,14 @@ def layout(scene_id: str, elements: list[StageElement], media: dict[int, dict],
             e = elements[i]
             size = e.size or size
             w, h = box_size(e, size, media.get(i))
-            cx, cy = SAFE_X[0] + px * (SAFE_X[1] - SAFE_X[0]), top + py * (bottom - top)
-            x, y, w, h = fit(cx, cy, w, h, top, bottom)
+            cx, cy = xr[0] + px * (xr[1] - xr[0]), top + py * (bottom - top)
+            x, y, w, h = fit(cx, cy, w, h, top, bottom, xr)
             out[i] = {"x": x, "y": y, "w": w, "h": h, "rot": tilt(scene_id, i, e.kind), "size": size, "slot": slot}
         # stamps slap over what they judge; everything else gets its own space
         solid = [i for i in page if i in out and elements[i].kind != "stamp"]
         below = {i: float(cfg("label_px")["s" if out[i]["size"] == "s" else "m"]) * 0.9
                  for i in solid if elements[i].label}
-        separate({i: out[i] for i in solid}, below, top, bottom)
+        separate({i: out[i] for i in solid}, below, top, bottom, xr)
         for i in page:
             e = elements[i]
             if e.kind == "highlight" and (tb := out.get(e.target - 1)):

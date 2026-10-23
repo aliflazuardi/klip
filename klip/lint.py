@@ -168,6 +168,10 @@ def _lint_mascot(spec: Spec, s: Scene, tokens: list[str], err, warn) -> None:
         elif p.pose not in (have := mascot.poses(style, p.who)):
             err(s.id, f"{p.who} has no pose {p.pose!r} ({', '.join(have)})")
     _check_anchors(s.id, tokens, [p.at for p in m.poses if p.at], "mascot pose", err)
+    if isinstance(m.focus, str) and m.focus not in cast:
+        err(s.id, f"mascot focus: {m.focus!r} isn't in this video's cast ({', '.join(cast)})")
+    if m.focus and len([e for e in s.visual.elements if e.kind != "highlight"]) > 2:
+        warn(s.id, "mascot focus leaves only a strip above the star for props: keep it to 0-2 small ones")
     if s.visual.type != "stage" and s.template != "cta":
         warn(s.id, "mascots only show on stage scenes (and say a folded cta's closing line)")
 

@@ -747,6 +747,31 @@ styles:
       bob_s: 1.4                    # half a bob
       enter_s: 0.35
       outro_lift_px: 80             # rise this far when an outro overlay badge slides up under them
+      # Spotlight (scene mascot.focus): the star slides to the centre at this height (feet stay on
+      # the captions), the others step out, and a glow + slowly turning sunburst sits behind it.
+      focus:
+        height: 760                 # px; the props get the strip between the title and its head...
+        min_strip_px: 230           # ...at least this tall: the star shrinks to make room...
+        min_height: 560             # ...but not below this
+        # With pictures to show (cutout/photo/chart/…) the star stands left of centre at this height
+        # and the props get the right column (x range); labels alone keep the centred layout.
+        side: {height: 680, cx: 330, props_x: [600, 960]}
+        move_s: 0.55
+        glow_opacity: 0.4           # accent_color glow behind the star
+        rays_opacity: 0.14          # accent sunburst; 0 = off
+        rays_turn_deg: 20           # sunburst rotation over the scene
+      # Body language while speaking (null = off): a lean on a sentence's first word or a long word,
+      # a nod on an emphasised word (a hop when spotlit), never closer than gap_s; listeners nod
+      # along on every other beat. Entrances land with a squash.
+      lively:
+        gap_s: 0.9
+        long_s: 0.5                 # a word held this long gets a gesture
+        lean_deg: 4
+        nod: 0.06                   # squash (scaleY 1 - nod) of a nod
+        hop_px: 34
+        listener_nod: true
+        focus_boost: 1.6            # a spotlit star gestures this much more often and bigger
+        enter_squash: 0.8           # scaleY at landing; 1 = none
     # "Simpan dulu biar nggak lupa" pill on list videos, shown when list item `at_item` starts
     # (first run of list_item scenes only). A spec can override with "save_nudge": true/false.
     save_nudge:

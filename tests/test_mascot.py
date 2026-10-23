@@ -130,7 +130,7 @@ def test_scene_shows_some_mascots_bigger():
     ws = words(("aku", 100), ("bulat", 500)) + words(("dan", 3100), scene="s2") + words(("lagi", 5100), scene="s3")
     ctx, _ = comp.build_context(sp, _timeline(("s1", 3000), ("s2", 2000), ("s3", 2000)), ws, {"scenes": {}})
     [m] = ctx["mascots"]
-    assert m["scale0"] == 2 and m["scales"] == [{"t": 5.0, "s": 1.0}] and m["origin"] == "0% 100%"
+    assert m["scale0"] == 2 and m["scales"] == [{"t": 5.0, "s": 1.0, "dx": 0}] and m["origin"] == "0% 100%"
     assert [(x["start"], x["end"]) for x in m["spans"]] == [(0.0, 3.0), (5.0, 7.0)]     # an empty show hides it
     cap = comp.caption_style(STYLE, True)["top"]
     assert ctx["scenes"][0]["stage"]["area"][1] <= mascot.top(STYLE, cap, 2) - STYLE["mascot"]["clear_px"]
@@ -170,3 +170,55 @@ def test_mascots_get_a_sticker_outline_and_ground_shadow():
     env.filters["rgba"] = compose.rgba
     html = env.get_template("index.html.j2").render(**ctx)
     assert '<filter id="ms-outline"' in html and "url(#ms-outline)" in html and 'class="ms-ground"' in html
+
+
+DUO = {**STYLE, "mascot": {**STYLE["mascot"], "cast": [
+    {**STYLE["mascot"]["cast"][0], "name": "bulat", "side": "left"},
+    {**STYLE["mascot"]["cast"][0], "name": "kotak", "side": "right"}]}}
+
+
+def test_focus_spotlights_the_speaker_in_the_centre():
+    sp = Spec.model_validate({"slug": "t", "style": "example", "scenes": [
+        {"id": "s1", "template": "hook", "narration": "aku bulat", "emphasis": ["bulat"],
+         "mascot": {"focus": True, "speaker": "kotak"}, "visual": stage({"at": "aku", "kind": "label", "text": "x"})},
+        {"id": "s2", "template": "explain", "narration": "dan ini", "visual": stage({"at": "dan", "kind": "label", "text": "y"})}]})
+    ws = words(("aku", 100), ("bulat", 1300)) + words(("dan", 3100), ("ini", 3500), scene="s2")
+    plan = mascot.plan(sp, [{"id": "s1", "start": 0.0, "end": 3.0}, {"id": "s2", "start": 3.0, "end": 5.0}],
+                       ws, DUO, 1290)
+    b, k = plan
+    fh = DUO["mascot"]["focus"]["height"]
+    s = fh / DUO["mascot"]["height"]
+    # the star (kotak, the speaker) is big and centred in s1, back in its corner in s2
+    assert k["scale0"] == round(s, 3)
+    assert abs(k["x"] + k["w"] + k["dx0"] - k["w"] * s / 2 - 540) < 1
+    assert k["scales"] == [{"t": 3.0, "s": 1.0, "dx": 0}]
+    assert [(f["start"], f["end"]) for f in k["focus"]] == [(0.0, 3.0)] and not b["focus"]
+    # the other one sits the focus scene out
+    assert [(x["start"], x["end"]) for x in b["spans"]] == [(3.0, 5.0)]
+    # spotlit + emphasised word = a hop; the first word gets a lean
+    assert [g["k"] for g in k["gestures"] if g["t"] < 3] == [k["gestures"][0]["k"], "hop"]
+    assert k["gestures"][0]["k"] in ("lean_l", "lean_r")
+    # the props end above the star's head
+    assert mascot.scale(sp.scenes[0], DUO) == s and mascot.scale(sp.scenes[1], DUO) == 1.0
+
+
+def test_gestures_keep_a_gap_and_listeners_nod_along():
+    sp = Spec.model_validate({"slug": "t", "style": "example", "scenes": [
+        {"id": "s1", "template": "explain", "narration": "satu dua. tiga empat. lima",
+         "emphasis": ["empat"], "mascot": {"speaker": "bulat"}, "visual": stage({"at": "satu", "kind": "label", "text": "x"})}]})
+    ws = words(("satu", 0), ("dua.", 300), ("tiga", 600), ("empat.", 1800), ("lima", 3000))
+    b, k = mascot.plan(sp, [{"id": "s1", "start": 0.0, "end": 4.0}], ws, DUO, 1290)
+    ts = [g["t"] for g in b["gestures"]]
+    assert ts == sorted(ts) and all(y - x >= DUO["mascot"]["lively"]["gap_s"] for x, y in zip(ts, ts[1:]))
+    assert any(g["k"] == "nod" for g in b["gestures"])          # emphasised, not spotlit
+    assert k["gestures"] and all(g["k"] == "nod" for g in k["gestures"])
+
+
+def test_lint_focus_name_and_crowded_strip():
+    base = {"id": "s1", "template": "hook", "narration": "aku bulat sekali",
+            "visual": stage({"at": "aku", "kind": "label", "text": "a"}, {"at": "bulat", "kind": "label", "text": "b"},
+                            {"at": "sekali", "kind": "label", "text": "c"})}
+    issues = lint(spec({**base, "mascot": {"focus": "napa"}}))
+    errs = [str(i) for i in issues if i.level == "error"]
+    warns = [str(i) for i in issues if i.level != "error"]
+    assert any("focus: 'napa'" in e for e in errs) and any("strip above the star" in w for w in warns)

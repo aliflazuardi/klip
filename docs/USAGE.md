@@ -139,7 +139,10 @@ them, each a folder of pose SVGs (`netral.svg` required; `brands/example/mascot/
 format). On stage scenes they stand above the captions: the scene's speaker mouths each word
 (flip-book lip sync between the pose's `mouth` and `mouth-open`), they blink and sway, point at
 new big props, and react to stamps. A scene's `"mascot"` picks the speaker and adds poses on
-words. Settings: `styles.default.mascot` in `klip.yaml`.
+words. They gesture while speaking (leans, nods on emphasised words, a squash when they land;
+`mascot.lively`). `"mascot": {"focus": true}` (or a name) spotlights one: it slides to the centre,
+big, under a glow and sunburst, and the others step out for that scene; picture props then take the
+right column (`mascot.focus`). Settings: `styles.default.mascot` in `klip.yaml`.
 
 A video picks its mascots with `"mascots"` in the spec (`false`, `["napa"]`, unset = all) or
 `klip render … --mascots none|all|napa,gulung`. A cast member can have a `voice`: scenes narrated in

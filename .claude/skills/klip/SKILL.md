@@ -230,7 +230,14 @@ outro). A brand's rules (voice, sign-off, series, hashtags) still apply.
     `"mascot"` also takes `poses` [{who, pose, at, hold_s}] (pose =
     a file in the mascot's folder: netral, kepo, kaget, paham, bingung, tunjuk), `hide`. Use poses
     for the beats that matter (a myth landing → `bingung`, the reveal → `paham`); leave the rest
-    automatic. They don't show on non-stage scenes.
+    automatic. They don't show on non-stage scenes. They gesture on their own while speaking
+    (leans, nods on emphasised words, listeners nod along, a squash when they land).
+    **Spotlight:** `"mascot": {"focus": true}` (or a name) makes that mascot the star of the
+    scene: it slides to the centre, big, under a glow and turning sunburst, gestures more (hops
+    on emphasised words) and the others step out. With a picture prop (cutout/photo/chart…) the
+    star stands left of centre and the props take the right column; with labels only it stays
+    centred and they get a strip above its head. Use it for 1-2 scenes per video: the hook, a
+    punchline or a big reaction (pair with a pose like `kaget`); give it 0-2 props.
     Rules: one element per narration subject, every ~1–2 s; `at` words in narration order.
     **Fewer, bigger props read better:** the layout is automatic and composes by count: one
     prop is a big centred hero; a photo/chart + a tag or number becomes hero + tag; three with

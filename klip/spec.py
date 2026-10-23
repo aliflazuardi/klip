@@ -459,6 +459,11 @@ class SceneMascot(_Strict):
     scale: float = Field(1.0, ge=0.5, le=2.2, description="Mascot size in this scene (2 = twice as tall, for "
                                                           "a scene about the mascots themselves); the props "
                                                           "area shrinks to make room.")
+    focus: bool | str | None = Field(None, description="Spotlight: this mascot (true = the scene's speaker) "
+                                                       "steps to the centre, big, under a spotlight, and the "
+                                                       "others leave for the scene. For a hook, a punchline or "
+                                                       "a reaction; the props area is only a strip above it "
+                                                       "(0-1 small props, or a label).")
 
 
 class Scene(_Strict):

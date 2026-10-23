@@ -325,7 +325,15 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; 
 
 /* Mascots (style.mascot): stacked pose SVGs; one shows at a time */
 .ms { position: absolute; z-index: 9; opacity: 0; }
-.ms-body, .ms-flip, .ms-pose { position: absolute; inset: 0; }
+.ms-body, .ms-act, .ms-flip, .ms-pose { position: absolute; inset: 0; }
+.ms-act { transform-origin: 50% 100%; }
+/* spotlight behind a focus scene's star */
+.ms-spot { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; z-index: 8; opacity: 0; overflow: hidden; pointer-events: none; }
+.ms-spot .glow { position: absolute; width: 1000px; height: 1000px; border-radius: 50%;
+                 background: radial-gradient(closest-side, {{ style.accent_color | rgba(((style.mascot or {}).get("focus") or {}).get("glow_opacity", 0)) }}, {{ style.accent_color | rgba(0) }}); }
+.ms-spot .rays { position: absolute; width: 2880px; height: 2880px;
+                 background: repeating-conic-gradient(from 0deg, {{ style.accent_color | rgba(((style.mascot or {}).get("focus") or {}).get("rays_opacity", 0)) }} 0deg 7deg, {{ style.accent_color | rgba(0) }} 7deg 18deg);
+                 -webkit-mask-image: radial-gradient(closest-side, #000 15%, transparent 70%); mask-image: radial-gradient(closest-side, #000 15%, transparent 70%); }
 {% set mo = (style.mascot or {}).get("outline") %}
 .ms-body { transform-origin: 50% 100%; filter: {% if mo %}url(#ms-outline) {% endif %}drop-shadow(0 10px 10px rgba(0,0,0,.18)); }
 .ms-ground { position: absolute; left: 14%; right: 14%; bottom: -10px; height: 26px; border-radius: 50%;
@@ -465,13 +473,17 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; 
   <feComposite in2="d" operator="in" result="o" /><feMerge><feMergeNode in="o" /><feMergeNode in="SourceGraphic" /></feMerge>
 </filter></svg>
 {% endif %}
+{% for m in mascots or [] if m.focus %}
+  {% set f0 = m.focus[0] %}
+  <div id="{{ m.id }}-spot" class="ms-spot"><div class="rays" style="left: {{ f0.cx - 1440 }}px; top: {{ f0.cy - 1440 }}px;"></div><div class="glow" style="left: {{ f0.cx - 500 }}px; top: {{ f0.cy - 500 }}px;"></div></div>
+{% endfor %}
 {% for m in mascots or [] %}
   <div id="{{ m.id }}" class="ms clip" data-start="0" data-duration="{{ total }}" data-track-index="8"
        style="left: {{ m.x }}px; top: {{ m.y }}px; width: {{ m.w }}px; height: {{ m.h }}px; transform-origin: {{ m.origin }};">
     {% if (style.mascot or {}).get("ground") %}<div class="ms-ground"></div>{% endif %}
-    <div class="ms-body"><div class="ms-flip{{ ' mirror' if m.mirror }}">
+    <div class="ms-body"><div class="ms-act"><div class="ms-flip{{ ' mirror' if m.mirror }}">
       {% for p in m.poses %}<div class="ms-pose" data-p="{{ p.name }}">{{ p.svg | safe }}</div>{% endfor %}
-    </div></div>
+    </div></div></div>
   </div>
 {% endfor %}
 {% for p in pages %}
@@ -576,14 +588,35 @@ tl.set("#{{ w.id }}", { className: "{{ w.cls }}" }, {{ w.off }});
 {% for m in mascots %}
 {% set ms = "#" ~ m.id %}
 gsap.set("{{ ms }} .ms-pose[data-p='netral']", { opacity: 1 });
-gsap.set("{{ ms }}", { scale: {{ m.scale0 }}, transformOrigin: "{{ m.origin }}" });
+gsap.set("{{ ms }}", { scale: {{ m.scale0 }}, x: {{ m.dx0 }}, transformOrigin: "{{ m.origin }}" });
 {% for z in m.scales %}
-tl.to("{{ ms }}", { scale: {{ z.s }}, duration: 0.45, ease: "power3.inOut" }, {{ z.t }});
+tl.to("{{ ms }}", { scale: {{ z.s }}, x: {{ z.dx }}, duration: {{ (mc.focus or {}).get("move_s", 0.45) }}, ease: "back.inOut(1.2)" }, {{ z.t }});
 {% endfor %}
 {% for sp in m.spans %}
 tl.fromTo("{{ ms }}", { opacity: 0, y: 70 }, { opacity: 1, y: 0, duration: {{ mc.enter_s }}, ease: "back.out(1.6)", immediateRender: false }, {{ sp.start }});
+{% if mc.lively and mc.lively.enter_squash < 1 %}
+tl.fromTo("{{ ms }} .ms-act", { scaleY: {{ mc.lively.enter_squash }}, scaleX: {{ 2 - mc.lively.enter_squash }} }, { scaleY: 1, scaleX: 1, duration: 0.5, ease: "elastic.out(1, 0.45)", immediateRender: false }, {{ (sp.start + mc.enter_s * 0.6) | round(3) }});
+{% endif %}
 {% if sp.end < total - 0.05 %}tl.to("{{ ms }}", { opacity: 0, y: 70, duration: 0.25, ease: "power2.in" }, {{ (sp.end - 0.25) | round(3) }});{% endif %}
 {% endfor %}
+{% for f in m.focus %}
+tl.fromTo("{{ ms }}-spot", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power2.out", immediateRender: false }, {{ f.start }});
+tl.fromTo("{{ ms }}-spot .rays", { rotation: 0 }, { rotation: {{ mc.focus.rays_turn_deg }}, duration: {{ (f.end - f.start) | round(3) }}, ease: "none", immediateRender: false }, {{ f.start }});
+tl.set("{{ ms }}-spot .rays", { left: {{ f.cx - 1440 }}, top: {{ f.cy - 1440 }} }, {{ f.start }}); tl.set("{{ ms }}-spot .glow", { left: {{ f.cx - 500 }}, top: {{ f.cy - 500 }} }, {{ f.start }});
+tl.to("{{ ms }}-spot", { opacity: 0, duration: 0.3, ease: "power2.in" }, {{ (f.end - 0.3) | round(3) }});
+{% endfor %}
+{% if mc.lively %}{% set lv = mc.lively %}
+{% for g in m.gestures %}
+{% if g.k == "nod" %}
+tl.fromTo("{{ ms }} .ms-act", { scaleY: 1, scaleX: 1 }, { scaleY: {{ 1 - lv.nod * g.a }}, scaleX: {{ 1 + lv.nod * 0.6 * g.a }}, duration: 0.12, yoyo: true, repeat: 1, ease: "power1.inOut", immediateRender: false }, {{ g.t }});
+{% elif g.k == "hop" %}
+tl.fromTo("{{ ms }} .ms-act", { y: 0 }, { y: -{{ lv.hop_px * g.a }}, duration: 0.16, yoyo: true, repeat: 1, ease: "power2.out", immediateRender: false }, {{ g.t }});
+tl.fromTo("{{ ms }} .ms-act", { scaleY: 1, scaleX: 1 }, { scaleY: {{ 1 - lv.nod * 1.5 }}, scaleX: {{ 1 + lv.nod }}, duration: 0.09, yoyo: true, repeat: 1, ease: "power1.inOut", immediateRender: false }, {{ (g.t + 0.32) | round(3) }});
+{% else %}
+tl.fromTo("{{ ms }} .ms-act", { rotation: 0 }, { rotation: {{ (-lv.lean_deg if g.k == "lean_l" else lv.lean_deg) * g.a }}, duration: 0.3, yoyo: true, repeat: 1, ease: "sine.inOut", immediateRender: false }, {{ g.t }});
+{% endif %}
+{% endfor %}
+{% endif %}
 {% for sg in m.segments[1:] %}
 tl.set("{{ ms }} .ms-pose", { opacity: 0 }, {{ sg.t }});
 tl.set("{{ ms }} .ms-pose[data-p='{{ sg.pose }}']", { opacity: 1 }, {{ sg.t }});
