@@ -279,7 +279,10 @@ def plan(spec: Spec, scenes: list[dict], words: list[dict], style: dict, caption
         out.append({"name": name, "id": f"ms-{name}", "x": round(x, 1), "y": round(y, 1), "w": w, "h": h,
                     "mirror": side == "right", "origin": "0% 100%" if side == "left" else "100% 100%",
                     "scale0": first["s"], "dx0": first["dx"],
-                    "scales": [{"t": round(t, 3), **move(k, f)} for t, k, f in steps[1:]],
+                    # a change while the mascot was off screen (e.g. after code scenes) snaps instead of tweening
+                    "scales": [{"t": round(t, 3), **move(k, f),
+                                "snap": not any(a < t - 0.01 and b >= t - 0.01 for a, b in spans[name])}
+                               for t, k, f in steps[1:]],
                     "gestures": sorted(gestures[name], key=lambda g: g["t"]),
                     "focus": [{"start": a, "end": b, "cx": cx, "cy": round(y + h - h * k / 2, 1)}
                               for a, b, k, cx in focus_spans[name]],

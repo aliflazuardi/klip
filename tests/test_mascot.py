@@ -130,7 +130,7 @@ def test_scene_shows_some_mascots_bigger():
     ws = words(("aku", 100), ("bulat", 500)) + words(("dan", 3100), scene="s2") + words(("lagi", 5100), scene="s3")
     ctx, _ = comp.build_context(sp, _timeline(("s1", 3000), ("s2", 2000), ("s3", 2000)), ws, {"scenes": {}})
     [m] = ctx["mascots"]
-    assert m["scale0"] == 2 and m["scales"] == [{"t": 5.0, "s": 1.0, "dx": 0}] and m["origin"] == "0% 100%"
+    assert m["scale0"] == 2 and m["scales"] == [{"t": 5.0, "s": 1.0, "dx": 0, "snap": True}]       # off screen in s2: no tween and m["origin"] == "0% 100%"
     assert [(x["start"], x["end"]) for x in m["spans"]] == [(0.0, 3.0), (5.0, 7.0)]     # an empty show hides it
     cap = comp.caption_style(STYLE, True)["top"]
     assert ctx["scenes"][0]["stage"]["area"][1] <= mascot.top(STYLE, cap, 2) - STYLE["mascot"]["clear_px"]
@@ -191,7 +191,7 @@ def test_focus_spotlights_the_speaker_in_the_centre():
     # the star (kotak, the speaker) is big and centred in s1, back in its corner in s2
     assert k["scale0"] == round(s, 3)
     assert abs(k["x"] + k["w"] + k["dx0"] - k["w"] * s / 2 - 540) < 1
-    assert k["scales"] == [{"t": 3.0, "s": 1.0, "dx": 0}]
+    assert k["scales"] == [{"t": 3.0, "s": 1.0, "dx": 0, "snap": False}]     # on screen across the cut: tweens
     assert [(f["start"], f["end"]) for f in k["focus"]] == [(0.0, 3.0)] and not b["focus"]
     # the other one sits the focus scene out
     assert [(x["start"], x["end"]) for x in b["spans"]] == [(3.0, 5.0)]

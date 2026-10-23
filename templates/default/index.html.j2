@@ -590,7 +590,8 @@ tl.set("#{{ w.id }}", { className: "{{ w.cls }}" }, {{ w.off }});
 gsap.set("{{ ms }} .ms-pose[data-p='netral']", { opacity: 1 });
 gsap.set("{{ ms }}", { scale: {{ m.scale0 }}, x: {{ m.dx0 }}, transformOrigin: "{{ m.origin }}" });
 {% for z in m.scales %}
-tl.to("{{ ms }}", { scale: {{ z.s }}, x: {{ z.dx }}, duration: {{ (mc.focus or {}).get("move_s", 0.45) }}, ease: "back.inOut(1.2)" }, {{ z.t }});
+{% if z.snap %}tl.set("{{ ms }}", { scale: {{ z.s }}, x: {{ z.dx }} }, {{ z.t }});
+{% else %}tl.to("{{ ms }}", { scale: {{ z.s }}, x: {{ z.dx }}, duration: {{ (mc.focus or {}).get("move_s", 0.45) }}, ease: "back.inOut(1.2)" }, {{ z.t }});{% endif %}
 {% endfor %}
 {% for sp in m.spans %}
 tl.fromTo("{{ ms }}", { opacity: 0, y: 70 }, { opacity: 1, y: 0, duration: {{ mc.enter_s }}, ease: "back.out(1.6)", immediateRender: false }, {{ sp.start }});
