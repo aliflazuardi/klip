@@ -80,7 +80,8 @@ def from_references(rows: list[dict], spread: float) -> dict:
     for k in METRICS:
         med = statistics.median(r[k] for r in rows)
         lo, hi = med * (1 - spread), med * (1 + spread)
-        out[k] = [round(lo, 4), round(hi, 4)] if k not in ("dead_share", "busy_share") else [0, round(max(hi, 0.02), 3)]
+        nd = 3 if k in ("motion_mean", "dead_share", "busy_share") else 1
+        out[k] = [round(lo, nd), round(hi, nd)] if k not in ("dead_share", "busy_share") else [0, round(max(hi, 0.02), 3)]
     return out
 
 
