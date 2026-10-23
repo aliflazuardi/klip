@@ -86,6 +86,7 @@ Start every scene from these, so it is legible and on-brand before you add what 
 | `const { svg, cam } = k.stage()` | A full-frame SVG behind the scene's HTML (filled with the look's `bg`), with a camera group `cam` to draw into. |
 | `k.camera(cam, {to, origin, at, dur})` | A slow push-in (to `code.kit.camera_zoom` by the scene's end). Works on SVG groups and HTML. |
 | `k.headline({text, size, top, at, align, scrim})` | The scene's `on_screen_text`, placed below the series pill when it shows, emphasis and ALL-CAPS words in the accent, popping in word by word. Adds a top scrim. |
+| `k.spotlight("napa", {pose, poseAt, hold, at, h, x})` | A mascot as the scene's star: big (klip.yaml `code.kit.spotlight`), feet on the captions, centred on `x`, popping up with a squash at `at` under a glow and a turning sunburst; takes `pose` on `poseAt`. Returns the rig. For a cold open over a world. |
 | `k.cast({scrim, only})` | The style's mascots at the same spots as on stage scenes, over a bottom scrim: `const { napa, gulung } = k.cast()`. |
 | `k.scrim("top" \| "bottom", {height, color})` | A band of the look's `bg` so type stays readable over a busy picture. |
 | `k.chip(text, x, y, {bg, color, size, rot, at})` | A label chip; pops in at `at`. |
@@ -141,6 +142,22 @@ consecutive code scenes, whose own backgrounds turn transparent so the world sho
   `examples/code-scenes/worlds/title-only.html`. Textures stay on the scenes.
 - Starter: `examples/code-scenes/worlds/journey.html` (a camera flight along a glowing path, one
   stop per scene), rendered by `examples/code-world.json`.
+
+### Cold open: start on the climax
+
+The first two seconds decide the swipe, so don't open on a quiet establishing shot and save the best
+shot for the middle. Put the hook in the world's run too (`"scenes": ["s1", "s2", …]`) and let the
+world *replay* its climax under the hook: the world draws from `t` alone, so remapping time does it.
+
+```js
+const remap = (t) => (t < S.s1.end ? T_PEAK_START + (t / (S.s1.end - S.s1.start)) * PEAK_LEN : t);
+k.frame((t0) => { const t = remap(t0); /* draw the world at t, pick the camera by t0 */ });
+```
+
+Hard-cut from the hook into the story's first shot (no camera blend across that cut). The hook's own
+file puts the line and a face on top: `k.headline()` and `k.spotlight("napa", {x: 300, h: 560, pose:
+"kaget"})`, with the world shifted right (`camera.setViewOffset(1080, 1920, -190, …)`) so the subject
+isn't behind the mascot.
 
 ### Light: glow, bloom, flares
 

@@ -8,6 +8,9 @@ All notable changes to Klip are listed here. The format follows
 
 ### Added
 
+- **Cold opens for code scenes.** `k.spotlight("napa", {pose})` puts a mascot centre stage in a code
+  scene, big, under a glow and a turning sunburst (settings `code.kit.spotlight`). docs/CODE-SCENES.md
+  shows how a world replays its climax under the hook so a cinematic video opens on its best shot.
 - **Livelier mascots.** Mascots gesture while they speak (a lean on a new sentence or a long word,
   a nod on emphasised words, listeners nod along) and land with a squash. New spotlight:
   `"mascot": {"focus": true}` (or a name) slides that mascot to the centre of the frame, big, under

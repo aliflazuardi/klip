@@ -281,6 +281,37 @@ function klipScene(meta, body) {
     }
     return out;
   };
+  // a mascot as the scene's star (a cold open over a world): big, feet just above the captions, a glow and a
+  // turning sunburst behind it; it pops up from below at `at` and takes `pose` on `poseAt`.
+  // k.spotlight("napa", {pose, poseAt, hold, at, h, x (centre, px), glow: false}) -> the rig (+ .spot)
+  k.spotlight = function (name, o = {}) {
+    const S = KIT.spotlight, c = KLIP_CAST && KLIP_CAST.cast[name];
+    if (!c) throw new Error(`no mascot ${name} in this style`);
+    const h = o.h || S.height, w = h * c.aspect, cx = o.x ?? 540, y = k.safe.captionTop - S.gap - h, at = o.at ?? 0;
+    const hex = (col, a) => { const v = parseInt(col.slice(1), 16); return "rgba(" + (v >> 16 & 255) + "," + (v >> 8 & 255) + "," + (v & 255) + "," + a + ")"; };
+    let spot = null;
+    if (o.glow !== false) {
+      spot = k.el("div", { class: "k-spot" }, worldEl);
+      Object.assign(spot.style, { position: "absolute", inset: 0, zIndex: 2, overflow: "hidden", pointerEvents: "none" });
+      const cy = y + h * 0.5;
+      const rays = k.el("div", {}, spot), glow = k.el("div", {}, spot);
+      Object.assign(rays.style, { position: "absolute", left: cx - 1440 + "px", top: cy - 1440 + "px", width: "2880px", height: "2880px",
+        background: `repeating-conic-gradient(from 0deg, ${hex(P.accent, S.rays_opacity)} 0deg 7deg, ${hex(P.accent, 0)} 7deg 18deg)`,
+        maskImage: "radial-gradient(closest-side, #000 15%, transparent 70%)", webkitMaskImage: "radial-gradient(closest-side, #000 15%, transparent 70%)" });
+      Object.assign(glow.style, { position: "absolute", left: cx - 500 + "px", top: cy - 500 + "px", width: "1000px", height: "1000px",
+        borderRadius: "50%", background: `radial-gradient(closest-side, ${hex(P.accent, S.glow_opacity)}, ${hex(P.accent, 0)})` });
+      sub.fromTo(spot, { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power2.out", immediateRender: at > 0.001 }, at);
+      sub.fromTo(rays, { rotation: 0 }, { rotation: S.rays_turn_deg, duration: k.dur, ease: "none" }, 0);
+    }
+    const rig = k.mascot(name, { x: cx - w / 2, y, h, parent: worldEl, mirror: o.mirror });
+    rig.el.style.zIndex = 3;
+    rig.enter("bottom", at);
+    sub.fromTo(rig.el.querySelector(".k-ms-body"), { scaleY: 0.8, scaleX: 1.2 }, { scaleY: 1, scaleX: 1, duration: 0.5,
+      ease: "elastic.out(1, 0.45)", immediateRender: false, transformOrigin: "50% 100%" }, at + 0.3);
+    if (o.pose) rig.pose(o.pose, o.poseAt ?? at, o.hold ?? null);
+    rig.spot = spot;
+    return rig;
+  };
   // a label chip: k.chip("KASIR", x, y, {bg, color, size, rot, at}) pops in at `at`
   k.chip = function (text, x, y, o = {}) {
     const el = k.el("div", { class: "k-chip", text }, o.parent || worldEl);

@@ -232,6 +232,10 @@ outro). A brand's rules (voice, sign-off, series, hashtags) still apply.
     for the beats that matter (a myth landing → `bingung`, the reveal → `paham`); leave the rest
     automatic. They don't show on non-stage scenes. They gesture on their own while speaking
     (leans, nods on emphasised words, listeners nod along, a squash when they land).
+    **Cold open (cinematic videos with a `world`):** don't spend the hook on a quiet shot. Put the
+    hook in the world's scenes and replay the world's climax under it (docs/CODE-SCENES.md "Cold
+    open"), with `k.headline()` and `k.spotlight("<mascot>", {pose: "kaget"})` on top, then hard-cut
+    to the story's first shot.
     **Spotlight:** `"mascot": {"focus": true}` (or a name) makes that mascot the star of the
     scene: it slides to the centre, big, under a glow and turning sunburst, gestures more (hops
     on emphasised words) and the others step out. With a picture prop (cutout/photo/chart…) the

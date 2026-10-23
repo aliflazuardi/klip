@@ -25,8 +25,8 @@ from klip.stage import _noise_svg
 STYLE_RE = re.compile(r"<style\b[^>]*>(.*?)</style>", re.S | re.I)
 SCRIPT_RE = re.compile(r"<script\b([^>]*)>(.*?)</script>", re.S | re.I)
 CUE_RE = re.compile(r"""\bk\.at\(\s*(["'`])(.+?)\1""")
-MASCOT_RE = re.compile(r"""\bk\.mascot\(\s*(["'`])(.+?)\1""")
-POSE_RE = re.compile(r"""\.pose\(\s*(["'`])(.+?)\1""")
+MASCOT_RE = re.compile(r"""\bk\.(?:mascot|spotlight)\(\s*(["'`])(.+?)\1""")
+POSE_RE = re.compile(r"""(?:\.pose\(\s*|\bpose:\s*)(["'`])(.+?)\1""")
 ASSET = "@asset/"
 
 # Script patterns that break frame-exact rendering (every frame is a seek of the timeline).
@@ -163,7 +163,7 @@ def lint_scene(scene: Scene, spec: Spec | None = None) -> list[tuple[str, str]]:
         cast = {m["name"]: m for m in mascot.settings(style).get("cast") or []}
         for _, name in MASCOT_RE.findall(js):
             if name not in cast:
-                out.append(("error", f"{c.file}: k.mascot({name!r}): not in the style's mascot cast "
+                out.append(("error", f"{c.file}: mascot {name!r}: not in the style's mascot cast "
                                      f"({', '.join(cast) or 'none'})"))
         poses = {p for m in cast.values() for p in mascot._poses(m["dir"])}
         for _, pose in POSE_RE.findall(js):
@@ -363,7 +363,7 @@ def layout(style: dict, sc: dict, brand: dict, caption_top: float) -> dict:
 
 
 def uses_mascots(js: str) -> bool:
-    """The script places mascots: k.mascot("…") or the kit's k.cast()."""
+    """The script places mascots: k.mascot("…"), k.spotlight("…") or the kit's k.cast()."""
     return bool(MASCOT_RE.search(js) or re.search(r"\bk\.cast\(", js))
 
 

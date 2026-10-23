@@ -156,8 +156,22 @@ def test_mascot_names_and_poses_are_checked_against_the_cast(repo, monkeypatch):
                                            'k.mascot("budi"); n.pose("joget", 1);</script>')
     spec = _spec({"id": "s1", "template": "hook", "narration": "a b c", "visual": code("specs/m.html")})
     msgs = [i.message for i in lint(spec) if i.where == "s1"]
-    assert any("k.mascot('budi')" in m for m in msgs) and any("pose 'joget'" in m for m in msgs)
-    assert not any("k.mascot('napa')" in m or "pose 'kaget'" in m for m in msgs)
+    assert any("mascot 'budi'" in m for m in msgs) and any("pose 'joget'" in m for m in msgs)
+    assert not any("mascot 'napa'" in m or "pose 'kaget'" in m for m in msgs)
+
+
+def test_spotlight_names_and_poses_are_checked_too(repo, monkeypatch):
+    from klip import codescene, mascot
+    style = {"mascot": {"cast": [{"name": "napa", "dir": "x", "voice": "female"}]}}
+    monkeypatch.setattr(mascot, "video_style", lambda spec: style)
+    monkeypatch.setattr(mascot, "_poses", lambda d: {"netral": "<svg/>", "kaget": "<svg/>"})
+    (repo / "specs" / "s.html").write_text('<script>k.spotlight("napa", {pose: "kaget"}); '
+                                           'k.spotlight("budi", { pose: "joget" });</script>')
+    spec = _spec({"id": "s1", "template": "hook", "narration": "a b c", "visual": code("specs/s.html")})
+    msgs = [i.message for i in lint(spec) if i.where == "s1"]
+    assert any("mascot 'budi'" in m for m in msgs) and any("pose 'joget'" in m for m in msgs)
+    assert not any("mascot 'napa'" in m or "pose 'kaget'" in m for m in msgs)
+    assert codescene.uses_mascots('k.spotlight("napa")')
 
 
 def test_kit_layout_puts_the_headline_under_the_series_pill_and_mascots_on_their_spots(monkeypatch):

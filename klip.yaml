@@ -451,6 +451,9 @@ code:
     # mascot acting (rig.walk/enter/exit/jump/hop/turn/point): walking speed, step length in time,
     # body bob and foot lift per step, jump height, turn time, how long a point holds its pose
     act: {walk_px_s: 380, step_s: 0.26, bob_px: 10, foot_px: 14, lean_deg: 4, jump_px: 110, turn_s: 0.16, point_hold_s: 1.4}
+    # k.spotlight: a mascot as the star of a code scene (a cold open over a world): this tall, feet
+    # gap px above the captions, a glow and a slowly turning sunburst behind it (opacities, turn over the scene)
+    spotlight: {height: 720, gap: 10, glow_opacity: 0.4, rays_opacity: 0.14, rays_turn_deg: 20}
   # Beat tracking of the music track for k.beats / k.pulse (klip/beats.py). The track is decoded to
   # mono at sample_rate, split at split_hz into low (kick, bass) and high bands, hop = samples per
   # onset frame. Tempo is searched in bpm_min..bpm_max with a soft preference for bpm_prior; each beat
