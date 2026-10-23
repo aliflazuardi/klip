@@ -242,6 +242,11 @@ stage:
     # puffed out under a dropped prop or a stamp (0 = off); anticipate_px = props lean back this far
     # before they sweep off.
     feel: {entry_blur_px: 16, jelly_deg: 5, dust: 8, anticipate_px: 26}
+    # Kinetic title: its words come in one by one (stagger_s apart, with a blur); keywords (emphasis,
+    # or ALL-CAPS in a mixed-case title) slam in from slam_scale when the narration says them, with a
+    # light sweep (shine) and a shake of shake_px. On the hook every word is up at frame 0, so its
+    # keywords pulse from pulse_scale instead.
+    title: {stagger_s: 0.06, slam_scale: 2.2, pulse_scale: 1.35, shine: true, shake_px: 6}
   # Layout: the stage area sits between the title and the stage captions (caption.stage.top).
   # A composition is a list of [x, y, size]: x as a share of the safe width (x 60–960), y as a
   # share of the free area under the title, so a two-line title pushes the props down.
@@ -462,6 +467,8 @@ code:
     spotlight: {height: 720, gap: 10, glow_opacity: 0.4, rays_opacity: 0.14, rays_turn_deg: 20}
     # k.land: falls from_px with this motion blur, lands with a squash, a jelly skew and dust specks
     land: {from_px: 160, blur_px: 16, jelly_deg: 5, dust: 8}
+    # k.reveal: stagger per letter / per word, the slam's start scale and its shake
+    reveal: {letter_stagger_s: 0.03, word_stagger_s: 0.07, slam_scale: 2.2, shake_px: 8}
   # Beat tracking of the music track for k.beats / k.pulse (klip/beats.py). The track is decoded to
   # mono at sample_rate, split at split_hz into low (kick, bass) and high bands, hop = samples per
   # onset frame. Tempo is searched in bpm_min..bpm_max with a soft preference for bpm_prior; each beat
@@ -573,6 +580,16 @@ sfx:
     lead_s: 0.1
     clear_s: 0.7
     boost_db: 4
+
+# ── FX kit ──────────────────────────────────────────────────────────────────
+# One-shot effects drawn in the video (klipFx in templates/default/index.html.j2; code scenes: k.fx).
+# sparks: n streaks of len px flying out; shock: a ring growing to size px; shake: px of jitter.
+# stamp: a stage stamp lands with a shock ring and sparks.
+fx:
+  sparks: {n: 10, len: 46}
+  shock: {size: 380, width: 8}
+  shake: {px: 8}
+  stamp: true
 
 # ── Final mix loudness ───────────────────────────────────────────────────────
 loudness:

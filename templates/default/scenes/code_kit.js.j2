@@ -343,6 +343,45 @@ function klipScene(meta, body) {
     }
     return el;
   };
+  // FX kit (klip.yaml fx), on this scene's timeline: k.fx.sparks(x, y, at, {n, len, color}),
+  // k.fx.shock(x, y, at, {size, width, color}), k.fx.shine(el, at, {dur}), k.fx.shake(el, at, {px, times})
+  k.fx = {
+    sparks: (x, y, at, o = {}) => klipFx.sparks(sub, o.parent || worldEl, x, y, at, o),
+    shock: (x, y, at, o = {}) => klipFx.shock(sub, o.parent || worldEl, x, y, at, o),
+    shine: (target, at, o = {}) => klipFx.shine(sub, one(target), at, o),
+    shake: (target, at, o = {}) => klipFx.shake(sub, one(target), at, o),
+  };
+  // kinetic type: k.reveal(el, at, {mode, stagger, dur}) splits the element's text and animates it in.
+  // mode: "letters" (letters rise in one by one), "words" (words rise with a blur), "mask" (each line
+  // wipes up from behind a mask), "slam" (the whole thing drops from big with a shake and a shine).
+  k.reveal = function (target, at, o = {}) {
+    const el = one(target), mode = o.mode || "words", R = KIT.reveal;
+    const ease = KLIP_LOOK.ease.out;
+    if (mode === "slam") {
+      sub.fromTo(el, { scale: o.from || R.slam_scale, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.2, ease: "power4.in" }, at);
+      klipFx.shake(sub, el.parentNode, at + 0.2, { px: R.shake_px, times: 2 });
+      klipFx.shine(sub, el, at + 0.2);
+      return el;
+    }
+    const text = el.textContent;
+    el.textContent = "";
+    const unit = mode === "letters" ? [...text] : text.split(/(\s+)/);
+    const parts = [];
+    for (const u of unit) {
+      if (/^\s+$/.test(u)) { el.append(u); continue; }
+      const wrap = k.el("span", {}, el);
+      wrap.style.display = "inline-block";
+      if (mode === "mask") { wrap.style.overflow = "hidden"; wrap.style.verticalAlign = "bottom"; }
+      const s = k.el("span", { text: u }, wrap);
+      s.style.display = "inline-block";
+      parts.push(s);
+    }
+    const st = o.stagger ?? (mode === "letters" ? R.letter_stagger_s : R.word_stagger_s), dur = o.dur || 0.35;
+    if (mode === "mask") sub.from(parts, { yPercent: 110, duration: dur, stagger: st, ease }, at);
+    else if (mode === "letters") sub.from(parts, { y: 40, opacity: 0, rotation: 8, duration: dur, stagger: st, ease }, at);
+    else sub.from(parts, { y: 36, opacity: 0, filter: "blur(8px)", duration: dur, stagger: st, ease }, at);
+    return el;
+  };
   // a label chip: k.chip("KASIR", x, y, {bg, color, size, rot, at}) pops in at `at`
   k.chip = function (text, x, y, o = {}) {
     const el = k.el("div", { class: "k-chip", text }, o.parent || worldEl);
@@ -372,13 +411,30 @@ function klipScene(meta, body) {
     k.frame((t) => { el.textContent = full.slice(0, Math.max(0, Math.min(full.length, Math.floor((t - at) * cps)))); });
     return el;
   };
-  // a number counting up from `at`: k.count(el, {to, from, at, dur, decimals, prefix, suffix}), Indonesian format
+  // a number counting up from `at`: k.count(el, {to, from, at, dur, decimals, prefix, suffix, roll}), Indonesian
+  // format. roll: true = an odometer: each digit spins into place on its own wheel, the last digit fastest.
   k.count = function (target, o = {}) {
     const el = one(target), from = o.from || 0, at = o.at || 0, dur = o.dur || KIT.count_s, ease = gsap.parseEase("power2.out");
     const fmt = (v) => {
       const [whole, frac] = Math.abs(v).toFixed(o.decimals || 0).split(".");
       return (o.prefix || "") + (v < 0 ? "-" : "") + whole.replace(/\B(?=(\d{3})+(?!\d))/g, ".") + (frac ? "," + frac : "") + (o.suffix || "");
     };
+    if (o.roll) {
+      const final = fmt(o.to), digits = [...final].filter((c) => /\d/.test(c)).length;
+      el.textContent = "";
+      let d = 0;
+      for (const ch of final) {
+        if (!/\d/.test(ch)) { k.el("span", { text: ch }, el); continue; }
+        const win = k.el("span", {}, el), col = k.el("span", {}, win), place = digits - 1 - d++;
+        Object.assign(win.style, { display: "inline-block", height: "1em", lineHeight: "1em", overflow: "hidden", verticalAlign: "top" });
+        col.style.display = "inline-block";
+        const spins = 1 + Math.max(0, 2 - place);            // the last digits spin more, like a real counter
+        for (let i = 0; i <= spins * 10 + Number(ch); i++) k.el("span", { text: String(i % 10) }, col).style.display = "block";
+        sub.fromTo(col, { y: 0 }, { y: () => -(spins * 10 + Number(ch)) * win.offsetHeight, duration: dur, ease: "power3.out",
+                   immediateRender: false }, at + place * 0.04);
+      }
+      return el;
+    }
     k.frame((t) => { el.textContent = fmt(from + (o.to - from) * ease(Math.max(0, Math.min(1, (t - at) / dur)))); });
     return el;
   };

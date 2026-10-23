@@ -8,6 +8,11 @@ All notable changes to Klip are listed here. The format follows
 
 ### Added
 
+- **Kinetic titles and an FX kit.** A stage scene's title now comes in word by word; its keywords
+  (emphasis, or ALL-CAPS in a mixed-case title) slam in when the narration says them, with a light
+  sweep and a shake (on the hook they pulse, since the hook is up at frame 0). Stamps land with a
+  shockwave and sparks. Code scenes get `k.reveal` (letters, words, mask, slam), `k.fx` (sparks,
+  shock, shine, shake) and an odometer `k.count({roll: true})` (`stage.motion.title`, `fx`).
 - **Motion report in QA.** `qa.json` and the render summary now flag stretches where the picture barely
   moves (dead air) or changes everywhere for too long, per scene (`qa.motion`; informational, never
   fails a render). The stage camera keeps drifting in under the closing outro badge, which the report

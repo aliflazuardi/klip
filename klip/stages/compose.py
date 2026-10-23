@@ -74,6 +74,20 @@ def _headline(text: str | None, emphasis: list[str]) -> list[dict]:
     return [{"text": tok, "emph": e} for tok, e in zip(toks, emphasis_mask(toks, emphasis))]
 
 
+def title_slams(title: list[dict], words: list[dict], scene_id: str) -> None:
+    """Mark a title's keywords (emphasis, or ALL-CAPS in a mixed-case title) with `slam`: the time (s) the
+    narration says that word, else None (the keyword then lands with the rest). In place."""
+    from klip.captions import norm
+    caps_title = all(h["text"].upper() == h["text"] for h in title)
+    said = [(norm(w["text"]), w["startMs"] / 1000) for w in words if w.get("sceneId") == scene_id]
+    for h in title:
+        key = h["emph"] or (not caps_title and len(norm(h["text"])) > 1 and h["text"].upper() == h["text"]
+                            and any(c.isalpha() for c in h["text"]))
+        n = norm(h["text"])
+        h["slam"] = next((t for w, t in said if n and (w == n or (len(n) > 3 and w.startswith(n)))), None) if key else None
+        h["key"] = bool(key)
+
+
 def _list_numbers(spec: Spec) -> dict[str, tuple[int, int]]:
     """Auto-number runs of consecutive list_item scenes (explicit list_index/list_total win)."""
     out: dict[str, tuple[int, int]] = {}
@@ -268,9 +282,11 @@ def _stage_ctx(scene: Scene, t: dict, words: list[dict], media: dict, style: dic
             if el["kind"] == "stamp" and els[el["i"]].tone == "neutral":
                 el["color"] = c["stamp"]["neutral_dark"]
     title_style = (backdrop or {}).get("title") or config.get("stage.title.style")
+    title = _headline(scene.on_screen_text, scene.emphasis)
+    title_slams(title, words, scene.id)
     return {"bg": bg, "builtin": stage_mod.is_builtin(bg), "image": image, "backdrop": backdrop, "elements": out,
             "tone": tone, "area": area, "title_style": title_style, "mascot_scale": k, "mascot_cx": cx,
-            "title": _headline(scene.on_screen_text, scene.emphasis), "list_no": list_no,
+            "title": title, "list_no": list_no,
             "hook": scene.template == "hook", "continues": False, "next_same": False, "bg_from": 0.0, "bg_to": 0.0}
 
 
@@ -554,7 +570,7 @@ def build_context(spec: Spec, timeline: dict, words: list[dict],
                   "bgs": [{"key": b, "css": stage_mod.background_css(b), "grain": stage_mod.grain_css(b)}
                           for b in stage_bgs]} if any(s.get("stage") for s in scenes) else None,
         "code": code_ctx(look, scenes, style, world), "code_look": look, "world": world,
-        "font_files": FONT_FILES, "slug": spec.slug, "cut_zoom": config.get("cuts.cut_zoom", 1.12),
+        "font_files": FONT_FILES, "slug": spec.slug, "fx": config.get("fx"), "cut_zoom": config.get("cuts.cut_zoom", 1.12),
         "sfx": sfx_events(scenes, page_ctx, end_card=bool(brand["end_card"]), nudge=brand["save_nudge"],
                           outro=brand["outro"])
                if spec.sfx else [],

@@ -90,11 +90,13 @@ Start every scene from these, so it is legible and on-brand before you add what 
 | `k.cast({scrim, only})` | The style's mascots at the same spots as on stage scenes, over a bottom scrim: `const { napa, gulung } = k.cast()`. |
 | `k.scrim("top" \| "bottom", {height, color})` | A band of the look's `bg` so type stays readable over a busy picture. |
 | `k.chip(text, x, y, {bg, color, size, rot, at})` | A label chip; pops in at `at`. |
+| `k.reveal(el, at, {mode, stagger, dur})` | Kinetic type: the element's text comes in by `"letters"`, `"words"` (rise with a blur), `"mask"` (lines wipe up from behind a mask) or `"slam"` (drops from big with a shake and a shine). |
+| `k.fx.sparks(x, y, at, {n, len, color})`, `k.fx.shock(x, y, at, {size})`, `k.fx.shine(el, at)`, `k.fx.shake(el, at)` | One-shot effects for impact moments: sparks flying out, a shockwave ring, a light sweep across an element, a shake (klip.yaml `fx`). |
 | `k.land(el, at, {from, dur, dust, color})` | Drop an element in: it falls with motion blur, lands with a squash, a jelly wobble and a dust puff (klip.yaml `code.kit.land`). |
 | `k.spring(stiffness, damping)` | A deterministic spring ease for any tween: `ease: k.spring(180, 12)` (less damping = more bounce). |
 | `k.pop(el, at)`, `k.shake(el, at)` | Pop in with the look's pop ease; a short shake. |
 | `k.type(el, at, {cps})` | Typewriter text. |
-| `k.count(el, {to, from, at, dur, decimals, prefix, suffix})` | A number counting up, Indonesian format (`1.234,5`). |
+| `k.count(el, {to, from, at, dur, decimals, prefix, suffix, roll})` | A number counting up, Indonesian format (`1.234,5`); `roll: true` = an odometer, each digit spinning into place. |
 | `k.draw(path, at, {dur})` | A stroke drawing on. |
 
 ### Music: beats

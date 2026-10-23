@@ -47,3 +47,18 @@ def test_spec_override_and_same_cuts_for_ab_variants():
     transitions.plan(_spec(slug="video-a"), a, STYLE)
     transitions.plan(_spec(slug="video-b"), b, STYLE)
     assert [s["tr_in"] for s in a] == [s["tr_in"] for s in b]
+
+
+def test_title_keywords_slam_when_said():
+    from klip.stages.compose import _headline, title_slams
+    title = _headline("Ongkirnya PINDAH tempat", ["tempat"])
+    words = [{"text": " Jadi", "startMs": 0, "sceneId": "s8"}, {"text": " pindah", "startMs": 2500, "sceneId": "s8"},
+             {"text": " tempat.", "startMs": 2900, "sceneId": "s8"}, {"text": " pindah", "startMs": 100, "sceneId": "s1"}]
+    title_slams(title, words, "s8")
+    by = {h["text"]: h for h in title}
+    assert by["PINDAH"]["key"] and by["PINDAH"]["slam"] == 2.5            # ALL-CAPS in a mixed-case title
+    assert by["tempat"]["key"] and by["tempat"]["slam"] == 2.9            # emphasis
+    assert not by["Ongkirnya"]["key"] and by["Ongkirnya"]["slam"] is None
+    caps = _headline("GRATIS ONGKIR", [])
+    title_slams(caps, words, "s8")
+    assert not any(h["key"] for h in caps)                                 # an all-caps title has no keywords

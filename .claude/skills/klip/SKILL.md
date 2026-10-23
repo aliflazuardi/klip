@@ -232,6 +232,9 @@ outro). A brand's rules (voice, sign-off, series, hashtags) still apply.
     for the beats that matter (a myth landing → `bingung`, the reveal → `paham`); leave the rest
     automatic. They don't show on non-stage scenes. They gesture on their own while speaking
     (leans, nods on emphasised words, listeners nod along, a squash when they land).
+    **Impact moments in code scenes:** `k.reveal(el, at, {mode: "slam"})` for the number or word the line
+    is about, `k.fx.shock/sparks` where it lands, `k.count({roll: true})` for big numbers, `k.land` for
+    objects that drop in. One or two per scene; stage titles and stamps get theirs automatically.
     **Transitions:** cuts vary on their own (whip, zoom, wipe, flash). Set a scene's `"transition"` only
     for a reason (`"flash"` on a shock reveal, `"none"` for a deliberate hard cut).
     **Loop:** `"loop": true` (or the style's `loop.enabled`) makes the end turn into the first frame, so

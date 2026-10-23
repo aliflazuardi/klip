@@ -283,6 +283,7 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; 
 .st-title-row { position: absolute; left: 60px; width: 900px; top: {{ sc.title.top }}px; display: flex; justify-content: center; z-index: 50; }
 .st-title { max-width: 900px; padding: 12px 30px 16px; border-radius: 8px; background: {{ sc.title.bg }}; color: {{ sc.title.color }};
             font-weight: 800; line-height: 1.1; letter-spacing: -0.01em; text-align: center; box-shadow: 0 14px 30px rgba(0,0,0,.35); }
+.st-title .hw { display: inline-block; transform-origin: 50% 60%; }
 .st-title .hw.emph { background: linear-gradient(transparent 56%, {{ sc.highlight.color }} 56%, {{ sc.highlight.color }} 92%, transparent 92%); }
 .st-title-row.plain { justify-content: flex-start; }
 .st-title-row.box { justify-content: flex-start; }
@@ -507,6 +508,46 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; 
 </div>
 <script>
 const tl = gsap.timeline({ paused: true });
+// ---- FX kit: one-shot effects on a timeline T, drawn in `parent` at (x, y) px (klip.yaml fx)
+const KLIP_FX = {{ fx | tojson }};
+const klipFx = {
+  el(parent, css, behind = false) {          // behind: under the parent's own content
+    const d = document.createElement("div");
+    Object.assign(d.style, { position: "absolute", pointerEvents: "none", ...css });
+    if (behind) parent.insertBefore(d, parent.firstChild); else parent.appendChild(d);
+    return d;
+  },
+  sparks(T, parent, x, y, at, o = {}) {
+    const n = o.n || KLIP_FX.sparks.n, len = o.len || KLIP_FX.sparks.len, col = o.color || "var(--accent)";
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + (o.rot ?? 0.3), r = len * (1.7 + 0.7 * Math.abs(Math.sin(i * 1.7)));
+      const d = klipFx.el(parent, { left: x + "px", top: y - 3 + "px", width: len + "px", height: "6px", borderRadius: "3px",
+                                    background: col, transformOrigin: "0 50%", opacity: 0 }, o.behind);
+      gsap.set(d, { rotation: a * 180 / Math.PI });
+      T.fromTo(d, { x: 0, y: 0, scaleX: 0.2, opacity: 1 }, { x: Math.cos(a) * r, y: Math.sin(a) * r, scaleX: 1, opacity: 0,
+               duration: 0.45, ease: "power3.out", immediateRender: false }, at);
+    }
+  },
+  shock(T, parent, x, y, at, o = {}) {
+    const s = o.size || KLIP_FX.shock.size;
+    const d = klipFx.el(parent, { left: x - s / 2 + "px", top: y - s / 2 + "px", width: s + "px", height: s + "px", borderRadius: "50%",
+                                  border: (o.width || KLIP_FX.shock.width) + "px solid " + (o.color || "var(--accent)"), opacity: 0 }, o.behind);
+    T.fromTo(d, { scale: 0.15, opacity: 0.95 }, { scale: 1, opacity: 0, duration: 0.5, ease: "power2.out", immediateRender: false }, at);
+  },
+  shine(T, el, at, o = {}) {
+    if (getComputedStyle(el).position === "static") el.style.position = "relative";
+    el.style.overflow = "hidden";
+    const d = klipFx.el(el, { left: 0, top: 0, width: "70%", height: "100%", opacity: 0,
+      background: "linear-gradient(100deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.8) 50%, rgba(255,255,255,0) 100%)" });
+    const dur = o.dur || 0.45;
+    T.fromTo(d, { xPercent: -150, opacity: 1 }, { xPercent: 230, duration: dur, ease: "power2.inOut", immediateRender: false }, at);
+    T.set(d, { opacity: 0 }, at + dur);
+  },
+  shake(T, el, at, o = {}) {
+    const px = o.px || KLIP_FX.shake.px;
+    T.fromTo(el, { x: 0 }, { x: px, duration: 0.04, yoyo: true, repeat: (o.times || 3) * 2 - 1, ease: "sine.inOut", immediateRender: false }, at);
+  },
+};
 {% if stage %}
 // count a number up in an element's text (motion components): c = {prefix, value, decimals, suffix}
 const klipFmt = (v, c) => {

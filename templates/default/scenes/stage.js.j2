@@ -20,6 +20,30 @@ tl.fromTo("#sc-{{ s.id }} .st-title", { scale: {{ style.headline.hook_punch }} }
 {% else %}
 tl.fromTo("#sc-{{ s.id }} .st-title", { y: -60, opacity: 0 }, { y: 0, opacity: 1, duration: 0.3, ease: "power3.out" }, {{ s.start }});
 {% endif %}
+{% set ty = c.motion.title %}
+// kinetic title: words in one by one; keywords slam in (pulse on the hook) when the voice says them
+(function () {
+  const ws = document.querySelectorAll("#sc-{{ s.id }} .st-title .hw"), row = document.querySelector("#sc-{{ s.id }} .st-title-row");
+{% set ns = namespace(k=0) %}
+{% for h in st.title %}
+{% set late = h.slam is not none and h.slam > s.start + 0.3 and h.slam < s.start + s.dur - 0.4 %}
+{% if s.idx == 0 %}
+{% if h.key and late %}
+  tl.fromTo(ws[{{ loop.index0 }}], { scale: {{ ty.pulse_scale }} }, { scale: 1, duration: 0.32, ease: "back.out(3)", immediateRender: false }, {{ h.slam }});
+{% if ty.shine %}  klipFx.shine(tl, ws[{{ loop.index0 }}], {{ h.slam }});{% endif %}
+  klipFx.shake(tl, row, {{ h.slam }}, { px: {{ ty.shake_px }}, times: 2 });
+{% endif %}
+{% elif h.key and late %}
+  tl.fromTo(ws[{{ loop.index0 }}], { scale: {{ ty.slam_scale }}, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.2, ease: "power4.in" }, {{ (h.slam - 0.2) | round(3) }});
+{% if ty.shine %}  klipFx.shine(tl, ws[{{ loop.index0 }}], {{ h.slam }});{% endif %}
+  klipFx.shake(tl, row, {{ h.slam }}, { px: {{ ty.shake_px }}, times: 2 });
+{% else %}
+  tl.fromTo(ws[{{ loop.index0 }}], { y: 36, opacity: 0, filter: "blur(8px)" }, { y: 0, opacity: 1, filter: "blur(0px)", duration: 0.28, ease: "power3.out" }, {{ (s.start + 0.08 + ns.k * ty.stagger_s) | round(3) }});
+{% if h.key and ty.shine %}  klipFx.shine(tl, ws[{{ loop.index0 }}], {{ (s.start + 0.45 + ns.k * ty.stagger_s) | round(3) }});{% endif %}
+{% set ns.k = ns.k + 1 %}
+{% endif %}
+{% endfor %}
+})();
 {% endif %}
 {% for e in st.elements %}
 {% set sel = "#" ~ e.id %}
@@ -75,6 +99,14 @@ tl.fromTo("{{ sel }} .un-grid i", { scale: 0 }, { scale: 1, duration: 0.18, stag
 {% elif e.kind == "stamp" %}
 tl.fromTo("{{ sel }}", { scale: 2.4, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.18, ease: "power3.in" }, {{ e.start }});
 tl.fromTo("#sc-{{ s.id }} .st-props", { y: 0 }, { y: 7, duration: 0.05, yoyo: true, repeat: 3, ease: "sine.inOut", immediateRender: false }, {{ (e.start + 0.18) | round(3) }});
+{% if fx.stamp %}
+(function () {
+  const el = document.querySelector("{{ sel }}"), x = el.offsetWidth / 2, y = el.offsetHeight / 2;
+  const col = getComputedStyle(el.querySelector(".st-stamp-in") || el).color;      // the stamp's ink
+  klipFx.shock(tl, el, x, y, {{ (e.start + 0.18) | round(3) }}, { color: col, behind: true });
+  klipFx.sparks(tl, el, x, y, {{ (e.start + 0.18) | round(3) }}, { color: col, behind: true });
+})();
+{% endif %}
 {% elif e.kind == "highlight" %}
 tl.fromTo("{{ sel }} .st-hl", { clipPath: "inset(0% 100% 0% 0%)" }, { clipPath: "inset(0% 0% 0% 0%)", duration: 0.35, ease: "power2.inOut" }, {{ e.start }});
 {% endif %}
