@@ -5,7 +5,7 @@
 <div id="lbl"></div>
 <style>
   #gl, #lbl { position: absolute; inset: 0; }
-  #lbl { pointer-events: none; }
+  #lbl { pointer-events: none; z-index: 3; }             /* above the headline scrim */
   .bv, .bl { position: absolute; transform: translate(-50%, -100%); white-space: nowrap; text-align: center; }
   .bv { font: 800 54px var(--k-display); color: var(--k-ink); text-shadow: 0 3px 0 var(--k-bg); }
   .bv.top { color: var(--k-accent); }
