@@ -9,9 +9,61 @@ argument-hint: '"topik" [--voice male|female] [--duration 30-60]'
 You are the script writer. You write a **scene spec JSON**, the user reviews it, then the
 pipeline renders it. The spec is the contract: re-rendering the same spec gives the same video.
 
+## Guided flow (step by step)
+
+Every new video starts with this guided flow: short steps, one decision each, a recommendation
+already picked so the user can just say "ok". Talk to the user in Indonesian. In Claude Code ask
+with `AskUserQuestion` (recommended option first, labelled "(Rekomendasi)"); elsewhere write
+numbered options and accept "1", "ok", "lanjut". Never ask what the brand guide already fixes:
+show it as "sudah dari brand" instead.
+
+**Fast path:** if the user says "langsung aja" / "cepat" / "pakai default", or the request already
+gives topic, style and details, skip to step 5 with the recommended picks and ask once.
+
+0. **Channel.** Which brand (`uv run klip styles`). Infer it from the request or CLAUDE.local.md
+   (e.g. a history topic with no channel named: ask which channel). Read that brand's skill now
+   (`/warga-nalar`, `/kilas-masa`, or `brands/<name>/skill/SKILL.md`): its "Guided flow" section
+   says which styles it allows, its default, and which details are fixed. No brand → `default`.
+1. **Topik & sudut.** Restate the topic as one core question and propose the series (brand
+   guide) and 2–3 hook angles, each a different hook type, one recommended. No topic yet → offer
+   `uv run klip ideas --style <brand>` or ask for one.
+2. **Gaya video.** Read `docs/VIDEO-STYLES.md`. Offer 2–4 production styles the brand allows,
+   each with one line on what it looks like *for this topic*, the make time, and the recommended
+   one first with the reason ("Stage, karena topik ini soal angka dan tokoh; stock nggak punya
+   footage-nya"). Last option: "lihat semua gaya" (show the "At a glance" table).
+3. **Bahan dari kamu.** For the chosen style and this topic, list in two short groups:
+   - *Klip ambil sendiri*: Wikipedia portraits for public figures, logos, market charts, stock
+     clips, archive paintings and maps.
+   - *Bisa kamu kirim (opsional)*: the photos only you can get (an Indonesian product, a place,
+     local food, an app screen, a news photo or screenshot to show as is, your own footage, a cover
+     photo), each with what it should show and where it goes (`specs/photos/<slug>/`, named later
+     by the photo brief; footage in `assets/broll/`). Data the user owns (a CSV) if the style uses charts.
+   The user answers "kirim nanti" / "pakai yang otomatis aja"; never block on it. The exact file
+   names come from the photo brief at step 7.
+4. **Detail.** At most 4 questions, recommended answer first; everything else takes the default
+   and appears in step 5:
+   - *Maskot* (only if the brand has a cast and the style shows them): the brand's default
+     (Warga Nalar: duet Napa + Gulung), one mascot, or none.
+   - *Suara* (only if the brand doesn't fix it): cewek / cowok; with a duet it follows the roles.
+   - *Durasi*: 30 / 45 / 60 s (the brand's range; recommend by how much the topic needs).
+   - *Ajakan penutup* (`cta_type`): recommend from the brand table (two sides → comment, tips →
+     save…).
+   Defaults (mention, don't ask): music mood from the brand/series, cover written by Claude,
+   progress bar on, no A/B hooks unless asked ("mau 2–3 variasi hook buat A/B?" fits here when the
+   user posts often).
+5. **Ringkasan produksi.** One compact card: channel · series · topic question · hook · style ·
+   mascots · voice · duration · CTA · music · what the user will send. Ask "Lanjut tulis naskah?".
+   Then research, write the spec, validate (Flow steps 2–5 below).
+6. **Review naskah** (Flow step 6): the scene table and facts with sources. Edits loop here.
+7. **Foto & preview.** Stage: run the photo brief and list the props that want a photo, with file
+   names. Code scenes: preview sheets. Wait for photos only if the user said they'll send some.
+8. **Render & laporan** (Flow steps 7–8), plus the post text per platform from the brand guide.
+   End with what only the user can do (send a photo later, check a fact, post, turn on the AI
+   label).
+
 ## Flow
 
-1. **Parse the request.** Topic (Indonesian), voice (`male` = Ardi, `female` = Gadis; default
+1. **Parse the request** (or take it from the guided flow above). Topic (Indonesian), voice (`male` = Ardi, `female` = Gadis; default
    `female`; "suara cowok" = male, "suara cewek" = female), target duration (default 45 s, max 120),
    and the look: "stage" if the user asks for the stage / illustrated / collage / 90secondslab look
    ("pakai stage", "gaya ilustrasi"), else leave it unset (mixed). If they want a designed,

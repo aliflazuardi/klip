@@ -161,6 +161,8 @@ all gitignored, so you can pull updates from this repo without conflicts.
 
 - [Usage reference](docs/USAGE.md): templates, spec cheat sheet, hooks and A/B tests, delivery,
   cuts, sound effects, music, stock media, batch, QA, performance report.
+- [Video styles](docs/VIDEO-STYLES.md): stock, stage, motion graphic, cinematic 3D, one world, mixed:
+  what each looks like, what it needs from you, which topics it suits.
 - [Brand packs](docs/BRANDS.md): your own style, logo and Claude skill.
 - [Contributing](CONTRIBUTING.md): dev setup, tests, conventions, pull requests.
 - [Maintaining](docs/MAINTAINING.md): versioning, releases, GitHub settings.

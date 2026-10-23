@@ -25,7 +25,19 @@ from klip.paths import ROOT
 from klip.spec import Spec, export_schema
 
 INSTRUCTIONS = """Klip turns an Indonesian topic into a TikTok video (1080x1920 MP4 with voiceover,
-word-synced captions, b-roll, music). Workflow:
+word-synced captions, b-roll, music).
+GUIDED FLOW: for a new video, guide the user step by step in Indonesian before writing, one short
+message per step with a recommended option first (they can just say "ok"); never ask what the brand
+guide fixes. Skip to step 5 if they say "langsung aja" or already gave everything.
+  0 Channel: which brand (list_styles); call get_brand_guide and follow its "Guided flow" section.
+  1 Topik: the topic as one core question, the series, 2-3 hook angles (one recommended).
+  2 Gaya video: call video_styles; offer 2-4 styles the brand allows, each with what it looks like for
+    this topic and the make time, the recommended one first with the reason.
+  3 Bahan: what Klip fetches itself vs what the user may send (product/place photos, screenshots,
+    own footage); optional, never block on it.
+  4 Detail (max 4 questions): mascots, voice (only if the brand doesn't fix it), duration, CTA type.
+  5 Ringkasan produksi: one card with every choice; ask to go on. Then the workflow below.
+Workflow:
 1. Call get_spec_schema once: it returns the JSON Schema, the writing guide, and an example spec.
    BRAND: if the user names a channel or brand (e.g. "Warga Nalar", "/warga-nalar") or a style from
    list_styles, call get_brand_guide(style) BEFORE writing and follow it: it sets the voice, series,
@@ -150,6 +162,13 @@ def list_styles() -> dict[str, Any]:
         info["has_brand_guide"] = (ROOT / "brands" / name / "skill" / "SKILL.md").is_file()
         out[name] = info
     return out
+
+
+@server.tool()
+def video_styles() -> dict[str, Any]:
+    """The production styles Klip can make (stock, stage, motion graphic, cinematic 3D, one world, mixed):
+    what each looks like, what it needs from the user, which topics it suits. Step 2 of the guided flow."""
+    return {"guide": (ROOT / "docs" / "VIDEO-STYLES.md").read_text(encoding="utf-8")}
 
 
 @server.tool()

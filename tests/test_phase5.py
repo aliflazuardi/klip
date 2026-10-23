@@ -123,7 +123,12 @@ def test_mcp_lists_all_tools():
             return {t.name for t in (await c.list_tools()).tools}
     assert asyncio.run(go()) == {"get_spec_schema", "list_voices", "list_templates", "list_styles",
                                  "validate_spec", "render_spec", "photo_brief", "job_status", "list_jobs",
-                                 "get_brand_guide", "preview_spec"}
+                                 "get_brand_guide", "preview_spec", "video_styles"}
+
+
+def test_mcp_video_styles():
+    guide = call("video_styles")["guide"]
+    assert "## At a glance" in guide and "Stage" in guide
 
 
 def test_mcp_brand_guide_and_styles(tmp_path, monkeypatch):

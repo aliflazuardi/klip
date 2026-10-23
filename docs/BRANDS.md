@@ -64,3 +64,14 @@ ln -s ../../brands/my-brand/skill .claude/skills/my-brand
 ```markdown
 For any my-brand video, also follow .claude/skills/my-brand/SKILL.md and use "style": "my-brand".
 ```
+
+Give the skill a **"Guided flow"** section so the step-by-step flow (`/klip`, "Guided flow") offers
+only what fits your channel. It answers four things:
+
+```markdown
+## Guided flow
+- Styles: default `stage`; allowed stage, stage + data, motion graphic, mixed (names from docs/VIDEO-STYLES.md).
+- Fixed (never asked): series list, sign-off, mascot roles and voices, music per series.
+- Ask: voice (if not fixed), mascots (which options), duration range, CTA (recommend from §…).
+- Inputs: what this channel usually needs from you (product photos, screenshots…).
+```

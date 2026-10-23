@@ -8,6 +8,14 @@ All notable changes to Klip are listed here. The format follows
 
 ### Added
 
+- **Guided flow.** `/klip` (and the MCP server from Claude Desktop) now walks you through a new video
+  step by step: channel → topic and hook → video style with a recommendation for the topic → what
+  photos you could send → mascots, voice, duration, CTA → a production summary, then the script
+  review. Brand guides say which styles they allow and which details are fixed. Say "langsung aja"
+  to skip to the summary.
+- **Video style catalog** ([docs/VIDEO-STYLES.md](docs/VIDEO-STYLES.md)): stock, stage, stage + data,
+  motion graphic, cinematic 3D, one world and mixed, with what each needs from you and which topics
+  each suits; MCP tool `video_styles`.
 - **Pace targets (`klip measure`).** `klip measure <videos…>` reports cuts and visual beats per minute,
   average shot length, how much the picture moves and the share of dead air / busy stretches;
   `--save` turns the median of reference videos you like into targets. QA compares every render with
