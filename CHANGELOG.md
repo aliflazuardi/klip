@@ -125,6 +125,9 @@ All notable changes to Klip are listed here. The format follows
 
 ### Fixed
 
+- Duration estimates (validate, the script word budget) now use the speed of the engine that records the
+  final voice: Gemini speaks ~2.3-2.5 words/s, not the Edge calibration's 1.7-2.2, so Gemini videos came
+  out 20-30 % shorter than planned (`voices.base_words_per_second_by_engine`).
 - Mascots' eyes no longer slide down their faces when they blink (a CSS transform-box on the eyes
   fought GSAP's own SVG origin; it now scales each eye about its centre).
 - `post.txt` no longer repeats hashtags that the caption already contains.

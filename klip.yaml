@@ -47,6 +47,10 @@ voices:
   base_words_per_second:
     male: 2.176
     female: 1.713
+  # ...per engine where it differs (the engine that records the final voice). Gemini barely follows the
+  # rate: measured over 17 renders (2026-10-20..23) female 2.38-2.55 w/s at +8%, male 2.2-2.65 at +8-18%.
+  base_words_per_second_by_engine:
+    gemini: {male: 2.25, female: 2.3}
 
 # ElevenLabs engine (voices.engine: elevenlabs). Voice settings: lower stability = livelier.
 elevenlabs:
