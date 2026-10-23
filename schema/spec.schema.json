@@ -1052,6 +1052,26 @@
           "description": "This scene's narrator when it differs from the video's `voice` (a dialogue: alternate male and female). Unset = the voice of the scene's mascot speaker if one is set, else the video's voice.",
           "title": "Voice"
         },
+        "transition": {
+          "anyOf": [
+            {
+              "enum": [
+                "whip",
+                "zoom",
+                "wipe",
+                "flash",
+                "none"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The cut into this scene; unset = picked from the style's transitions pool.",
+          "title": "Transition"
+        },
         "delivery": {
           "anyOf": [
             {

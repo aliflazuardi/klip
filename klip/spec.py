@@ -478,6 +478,8 @@ class Scene(_Strict):
                                                       "`voice` (a dialogue: alternate male and female). Unset = "
                                                       "the voice of the scene's mascot speaker if one is set, "
                                                       "else the video's voice.")
+    transition: Literal["whip", "zoom", "wipe", "flash", "none"] | None = Field(
+        None, description="The cut into this scene; unset = picked from the style's transitions pool.")
     delivery: Delivery | None = Field(None, description="Voice style for this scene (rate/pitch preset in "
                                                         "klip.yaml prosody); unset = by template.")
     # Template-specific data

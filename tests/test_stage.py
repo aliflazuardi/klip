@@ -314,7 +314,8 @@ def test_compose_stage_run_keeps_background_and_cues_sfx(tmp_path):
     assert s2["elements"][0]["bars"][1]["pct"] == 100
     moments = [(e["moment"], e["t"]) for e in ctx["sfx"]]
     assert ("scene_cut", pytest.approx(3 - compose.WHOOSH_PEAK_S)) not in moments     # no whoosh s1→s2
-    assert ("scene_cut", pytest.approx(6 - compose.WHOOSH_PEAK_S)) in moments         # stage → cta
+    assert any(m in ("scene_cut", "transition") and t == pytest.approx(6 - compose.WHOOSH_PEAK_S)
+               for m, t in moments)                                                 # stage → cta
     assert ("stage_pop", pytest.approx(0.54)) in moments and ("stage_number", pytest.approx(1.34)) in moments
 
     from jinja2 import Environment, FileSystemLoader, StrictUndefined

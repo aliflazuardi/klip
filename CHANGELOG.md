@@ -8,6 +8,11 @@ All notable changes to Klip are listed here. The format follows
 
 ### Added
 
+- **Transition library.** Cuts between scenes now vary: whip (a fast slide with sideways motion
+  blur), zoom (a dive through the frame), wipe (a brand-colour circle sweeps across) and flash, each
+  with its own sound, never the same twice in a row; the cut out of the hook gets the strongest
+  (`style.transitions`). A scene's `"transition"` picks the cut into it. Stage scenes on one set and
+  scenes inside a world keep their own continuous moves.
 - **Sound on camera moves.** The post stage reads the rendered video and plays a whoosh where a code
   scene's camera starts a big move (most of the picture changing at once), louder for bigger moves,
   clear of scene cuts and of whooshes already cued (`sfx.motion`).

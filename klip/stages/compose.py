@@ -17,7 +17,7 @@ from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 from klip import config
 from klip import beats as beats_mod
-from klip import codescene, ffmpeg, mascot, motion
+from klip import codescene, ffmpeg, mascot, motion, transitions
 from klip import stage as stage_mod
 from klip.captions import CaptionWord, emphasis_mask, norm, paginate, tokenize
 from klip.paths import RENDERER_DIR, ROOT, TEMPLATES_DIR
@@ -545,6 +545,7 @@ def build_context(spec: Spec, timeline: dict, words: list[dict],
     for s in scenes:
         if s.get("code"):
             s["code"]["meta"]["layout"] = codescene.layout(style, s, brand, caption_style(style, True)["top"])
+    transitions.plan(spec, scenes, style)
     stage_bgs = sorted({s["stage"]["bg"] for s in scenes if s.get("stage") and s["stage"]["builtin"]})
     ctx = {
         "total": total, "style": style, "scenes": scenes, "pages": page_ctx, "brand": brand, "mascots": mascots,
@@ -718,7 +719,11 @@ def sfx_events(scenes: list[dict], pages: list[dict], end_card: bool = False,
         if s["idx"] == 0 and s["template"] == "hook":
             add("hook_start", 0.0)
         if s["idx"] > 0 and not (s.get("stage") and s["stage"]["continues"]):
-            add("scene_cut", s["start"] - WHOOSH_PEAK_S)
+            if (tr := s.get("tr_in")) and tr.get("sfx"):          # the transition's own sound
+                out.append({"t": round(max(s["start"] - (WHOOSH_PEAK_S if tr["sfx"] == "whoosh" else 0), 0), 3),
+                            "moment": "transition", "sfx": tr["sfx"]})
+            else:
+                add("scene_cut", s["start"] - WHOOSH_PEAK_S)
         for e in (s.get("stage") or {}).get("elements", []):
             add({"number": "stage_number", "highlight": "stage_highlight", "stamp": "stage_stamp"}.get(e["kind"], "stage_pop"), e["start"])
             comp = e.get("comp")

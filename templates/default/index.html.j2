@@ -322,6 +322,11 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; 
 {% if code.caption_font %}.cap { font-family: "{{ code.caption_font }}", system-ui, sans-serif; }{% endif %}
 {% endif %}
 
+/* Scene transitions (style.transitions): overlays above the scenes, under the mascots and captions */
+.tr-over { position: absolute; inset: 0; z-index: 6; pointer-events: none; opacity: 0; }
+#tr-wipe { background: {{ (style.transitions or {}).get("wipe_color") or style.accent_color }}; clip-path: circle(0% at 50% 50%); opacity: 1; }
+#tr-flash { background: #FFFFFF; }
+
 /* Mascots (style.mascot): stacked pose SVGs; one shows at a time */
 .ms { position: absolute; z-index: 9; opacity: 0; }
 .ms-body, .ms-act, .ms-flip, .ms-pose { position: absolute; inset: 0; }
@@ -465,6 +470,13 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; 
     </div>
   </div>
 {% endif %}
+{% set trs = scenes | selectattr("tr_in") | list %}
+{% if trs %}
+<svg width="0" height="0" style="position: absolute;" aria-hidden="true"><filter id="tr-whip" x="-20%" y="0" width="140%" height="100%">
+  <feGaussianBlur id="tr-whip-b" in="SourceGraphic" stdDeviation="0 0" /></filter></svg>
+<div id="tr-wipe" class="tr-over"></div>
+<div id="tr-flash" class="tr-over"></div>
+{% endif %}
 {% if mascots and (style.mascot or {}).get("outline") %}{% set mo = style.mascot.outline %}
 <svg width="0" height="0" style="position: absolute;" aria-hidden="true"><filter id="ms-outline" x="-10%" y="-10%" width="120%" height="120%">
   <feMorphology in="SourceAlpha" operator="dilate" radius="{{ mo.px }}" result="d" /><feFlood flood-color="{{ mo.color }}" />
@@ -540,6 +552,50 @@ tl.fromTo("#sc-{{ s.id }} .b2", { x: 0, y: 0 }, { x: -160, y: -120, duration: {{
 {% include "scenes/" ~ s.template ~ ".js.j2" %}
 {% endif %}
 {% endfor %}
+{% if trs %}
+// ---- scene transitions (klip/transitions.py): the outgoing half, then the incoming half
+{% set T = style.transitions %}
+{% for s in scenes if not s.hidden %}
+{% for r, way in [(s.tr_out, "out"), (s.tr_in, "in")] if r %}
+{% set at = r.at %}{% set d = r.d %}{% set sel = r.sel %}
+{% if r.kind == "whip" %}
+tl.set("{{ sel }}", { filter: "url(#tr-whip)" }, {{ at }});
+{% if way == "out" %}
+tl.fromTo("{{ sel }}", { x: 0, scale: 1 }, { x: {{ -r.dir * T.whip_px }}, scale: {{ T.whip_scale }}, duration: {{ d }}, ease: "power3.in", immediateRender: false }, {{ at }});
+tl.fromTo("#tr-whip-b", { attr: { stdDeviation: "0 0" } }, { attr: { stdDeviation: "{{ T.whip_blur }} 0" }, duration: {{ d }}, ease: "power2.in", immediateRender: false }, {{ at }});
+{% else %}
+tl.fromTo("{{ sel }}", { x: {{ r.dir * T.whip_px }}, scale: {{ T.whip_scale }} }, { x: 0, scale: 1, duration: {{ d }}, ease: "power3.out", immediateRender: false }, {{ at }});
+tl.fromTo("#tr-whip-b", { attr: { stdDeviation: "{{ T.whip_blur }} 0" } }, { attr: { stdDeviation: "0 0" }, duration: {{ d }}, ease: "power2.out", immediateRender: false }, {{ at }});
+tl.set("{{ sel }}", { filter: "none" }, {{ (at + d) | round(3) }});
+{% endif %}
+{% elif r.kind == "zoom" %}
+{% if way == "out" %}
+tl.fromTo("{{ sel }}", { scale: 1, filter: "blur(0px)" }, { scale: {{ T.zoom_out }}, filter: "blur({{ T.zoom_blur }}px)", transformOrigin: "540px 860px", duration: {{ d }}, ease: "power3.in", immediateRender: false }, {{ at }});
+tl.fromTo("#tr-flash", { opacity: 0 }, { opacity: 0.35, duration: {{ d }}, ease: "power2.in", immediateRender: false }, {{ at }});
+{% else %}
+tl.fromTo("{{ sel }}", { scale: {{ T.zoom_in }}, filter: "blur({{ T.zoom_blur }}px)" }, { scale: 1, filter: "blur(0px)", transformOrigin: "540px 860px", duration: {{ d }}, ease: "power3.out", immediateRender: false }, {{ at }});
+tl.fromTo("#tr-flash", { opacity: 0.35 }, { opacity: 0, duration: {{ d }}, ease: "power2.out", immediateRender: false }, {{ at }});
+tl.set("{{ sel }}", { filter: "none" }, {{ (at + d) | round(3) }});
+{% endif %}
+{% elif r.kind == "wipe" %}
+{% set x0 = 15 if r.dir > 0 else 85 %}{% set x1 = 100 - x0 %}
+{% if way == "out" %}
+tl.fromTo("#tr-wipe", { clipPath: "circle(0% at {{ x0 }}% 45%)" }, { clipPath: "circle(130% at {{ x0 }}% 45%)", duration: {{ d }}, ease: "power3.in", immediateRender: false }, {{ at }});
+{% else %}
+tl.fromTo("#tr-wipe", { clipPath: "circle(130% at {{ x1 }}% 45%)" }, { clipPath: "circle(0% at {{ x1 }}% 45%)", duration: {{ d }}, ease: "power3.out", immediateRender: false }, {{ at }});
+tl.fromTo("{{ sel }}", { scale: 1.08 }, { scale: 1, duration: {{ (d + 0.2) | round(3) }}, ease: "power2.out", immediateRender: false }, {{ at }});
+{% endif %}
+{% elif r.kind == "flash" %}
+{% if way == "out" %}
+tl.fromTo("#tr-flash", { opacity: 0 }, { opacity: {{ T.flash_opacity }}, duration: {{ d }}, ease: "power3.in", immediateRender: false }, {{ at }});
+{% else %}
+tl.fromTo("#tr-flash", { opacity: {{ T.flash_opacity }} }, { opacity: 0, duration: {{ d }}, ease: "power2.out", immediateRender: false }, {{ at }});
+tl.fromTo("{{ sel }}", { x: -18 }, { x: 0, duration: {{ d }}, ease: "elastic.out(1, 0.3)", immediateRender: false }, {{ at }});
+{% endif %}
+{% endif %}
+{% endfor %}
+{% endfor %}
+{% endif %}
 // ---- branding: progress fills linearly over the whole video; the pill punches in with its scene
 {% if brand.progress %}
 tl.fromTo("#progress .fill", { scaleX: 0 }, { scaleX: 1, duration: {{ total }}, ease: "none" }, 0);
