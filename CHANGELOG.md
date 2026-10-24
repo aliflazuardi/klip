@@ -8,6 +8,12 @@ All notable changes to Klip are listed here. The format follows
 
 ### Added
 
+- **Quiz ("tebak dulu").** A `quiz` on a hook/explain scene: the on-screen text is the question, 2–4
+  options pop in on their words, a countdown ring runs from `countdown_at`, and at `reveal_at` the right
+  option lights up (sparks, a ding) while the others are struck out. Ask in the hook and answer near the
+  end with the same options; validate warns when the hook answers itself or a quiz is never answered.
+  Works over stock/photo/solid scenes and on stage scenes (under the props); code scenes get the starter
+  `quiz.html`. Example `examples/quiz.json` (`quiz` in klip.yaml, `sfx.events.quiz_*`).
 - **Brand colours on look presets.** A style's `looks` recolours a klip.yaml `code.looks` preset (or adds
   its own): `"preset": "cinematic"` keeps the film grain, glow and slow eases but takes the brand's
   palette instead of the preset's warm black.

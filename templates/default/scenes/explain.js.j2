@@ -1,4 +1,4 @@
 tl.fromTo("#sc-{{ s.id }}", { opacity: 0 }, { opacity: 1, duration: 0.2, ease: "none" }, {{ s.start }});
 {% if s.headline %}tl.fromTo("#sc-{{ s.id }} .headline .hw", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.3, stagger: 0.05, ease: "power3.out" }, {{ s.start + 0.1 }});{% endif %}
-{% if s.icon %}tl.fromTo("#sc-{{ s.id }} .iconwrap", { scale: 0.4, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: "back.out(1.8)" }, {{ s.start + 0.15 }});
+{% if s.icon and not s.quiz %}tl.fromTo("#sc-{{ s.id }} .iconwrap", { scale: 0.4, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: "back.out(1.8)" }, {{ s.start + 0.15 }});
 tl.fromTo("#sc-{{ s.id }} .iconwrap", { y: 0 }, { y: -40, duration: {{ s.dur }}, ease: "sine.inOut", immediateRender: false }, {{ s.start }});{% endif %}

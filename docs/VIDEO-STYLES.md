@@ -23,7 +23,8 @@ Two separate choices make a video's look:
 | 5 | **Cinematic 3D** | Dark, glowing, film grain; 3D globe, map of Indonesia, terrain, particles, 3D cards and bars | "Big" topics: geography, global trade, history spanning places, big data | Nothing; more review rounds | Optional | 30–90 min |
 | 6 | **One world** (camera journey) | One continuous place the camera flies through scene after scene (a road, a map, a timeline), optional cold open on the climax | Journeys, timelines, step-by-step stories with a strong climax | Nothing; most review rounds | Optional | 45–120 min |
 | 7 | **Chat** (group chat story) | A family group chat filling up: forwarded chain messages, replies after typing dots, your own reply, a "HOAKS" stamp on the message | Hoaxes, chain messages, scams, myths that spread in WA groups | Nothing (the chat is written by Claude; names are made up) | Yes (stage scene) | ~3 min render |
-| 8 | **Mixed** | Picks per scene: a stock hook, stage for the explaining, a code scene for the punchline | When one beat needs real footage and another needs a diagram | Depends on the scenes | On stage/code scenes | 5–30 min |
+| 8 | **Quiz** ("tebak dulu", on any style) | A question, 2–4 options popping in, a countdown ring; the answer lights up later in the video | Comparisons people get wrong, "which one is it?", history dates, myths | Nothing (answer backed by facts) | Yes on stage scenes | ~3–5 min (+ preview rounds in code) |
+| 9 | **Mixed** | Picks per scene: a stock hook, stage for the explaining, a code scene for the punchline | When one beat needs real footage and another needs a diagram | Depends on the scenes | On stage/code scenes | 5–30 min |
 
 "Make time" is Claude's writing + rendering for a 45 s video, not counting your review.
 
@@ -111,7 +112,23 @@ the start. See CODE-SCENES.md "One world" and "Cold open".
   have one (blur names and numbers first).
 - **Example:** `examples/chat.json`.
 
-## 8. Mixed
+## 8. Quiz ("tebak dulu", on any style)
+
+A scene field, not a set: any `hook`/`explain` scene can carry `"quiz": {options, answer, countdown_at,
+reveal_at}`; its `on_screen_text` is the question. The strongest shape follows the curiosity arc: ask in
+the hook (options + countdown, no answer), build up, answer in the scene before the cta (same options +
+`reveal_at`), and end on `cta_type: "comment"` ("Tadi kamu jawab apa?").
+
+| On… | How it looks | Notes |
+|---|---|---|
+| Stock / Mixed card scenes | A panel of options over the footage, under the question | The clip plays behind; pick a clip of the subject |
+| Stage / Stage + data | Options in the bottom of the props area, the props above | Keep 1 small prop (a label, icon or one cut-out); with mascots the options take the room they need |
+| Chat | Not on a chat set (it covers the bubbles) | Ask in the chat ("Tante: ini beneran?"), quiz in the next scene |
+| Motion graphic / Cinematic 3D / One world | The code starter `quiz.html` on the look bible's colours | Copy it, mirror the options/answer/cues in its `CFG`; validate checks they match |
+
+- **Example:** `examples/quiz.json` (stage ask, stock reveal); the code starter in `examples/code-gallery.json`.
+
+## 9. Mixed
 
 No `look` (or `"mixed"`); each scene picks its own visual. Typical: a stock hook (a real moment),
 stage pages for the explanation, a code scene for the punchline, the brand's outro. Mascots show
@@ -129,6 +146,7 @@ only on the stage and code scenes.
 | a process or a journey with a climax | One world, or Stage + `timeline`/`flow` | Continuity carries the story |
 | a myth vs fact | Stage (stamps, mascot reactions) or Stock with `myth_fact` cards | |
 | a hoax, a chain message, a scam message | Chat | Shows how it spreads; the stamp gives the verdict |
+| "which one is it?", a ranking people get wrong, a date to guess | Quiz (on the topic's style) | Viewers commit to a guess and stay for the answer; comments fill with guesses |
 
 When time matters, Stock and Stage render in minutes; director styles need preview rounds.
 
@@ -139,8 +157,8 @@ uses and which details are fixed. Today:
 
 | Brand | Default style | Allowed | Fixed by the brand |
 |---|---|---|---|
-| `warga-nalar` | Stage (mascots need it) | Stage, Stage + data, Chat, Motion graphic, Mixed; Cinematic 3D and One world when a place or a journey is the answer (rare; brand palette, mascots via the scene kit); Stock (the mascots then don't appear) | Napa (cewek, asks) + Gulung (cowok, explains) duet; series; sign-off "Tetap bernalar, Warga." |
-| `kilas-masa` | Stage (dark map set) | Stage, Stage + data, Cinematic 3D, One world, Motion graphic, Mixed; Chat rarely (labelled "ilustrasi", no invented quotes); Stock not advised (no footage of the past) | No mascots; voice male unless you ask; series; sign-off "Sampai di masa berikutnya." |
+| `warga-nalar` | Stage (mascots need it) | Stage, Stage + data, Chat, Quiz, Motion graphic, Mixed; Cinematic 3D and One world when a place or a journey is the answer (rare; brand palette, mascots via the scene kit); Stock (the mascots then don't appear) | Napa (cewek, asks) + Gulung (cowok, explains) duet; series; sign-off "Tetap bernalar, Warga." |
+| `kilas-masa` | Stage (dark map set) | Stage, Stage + data, Quiz, Cinematic 3D, One world, Motion graphic, Mixed; Chat rarely (labelled "ilustrasi", no invented quotes); Stock not advised (no footage of the past) | No mascots; voice male unless you ask; series; sign-off "Sampai di masa berikutnya." |
 | `default` / `bold` | Mixed | all | nothing |
 
 A new brand pack: add a "Guided flow" section to its skill (see [BRANDS.md](BRANDS.md)).

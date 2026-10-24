@@ -48,6 +48,7 @@
       </div>{% if e.kind == "bubble" and not e.me %}<div class="cb-typing"><i></i><i></i><i></i></div>{% endif %}{% if e.kind in ("cutout", "stack") and stage.cfg.depth.ground %}<div class="st-ground"></div>{% endif %}</div>
     {% endfor %}
     </div></div>
+    {% if s.quiz %}{% include "scenes/quiz.html.j2" %}{% endif %}
     {% if st.depth.fg %}<div class="st-fg">{% for b in st.depth.fg %}<i class="{{ 'warm' if b.warm }}" style="left: {{ b.x - b.r }}px; top: {{ b.y - b.r }}px; width: {{ 2 * b.r }}px; height: {{ 2 * b.r }}px; opacity: {{ b.o }}; filter: blur({{ b.blur }}px);"></i>{% endfor %}</div>{% endif %}
     {% if st.title or st.list_no %}
     {% set ts = st.title_style %}

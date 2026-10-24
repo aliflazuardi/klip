@@ -226,6 +226,25 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; 
 .cb-typing { position: absolute; left: 0; top: 0; display: flex; gap: 10px; padding: 26px 30px; border-radius: {{ ch.radius }}px;
              border-top-left-radius: 6px; background: {{ ch.them.bg }}; opacity: 0; }
 .cb-typing i { width: 14px; height: 14px; border-radius: 50%; background: {{ ch.them.muted }}; }
+.qz { position: absolute; left: 60px; width: 900px; z-index: 40; display: flex; align-items: center; gap: 24px; }
+.qz-opts { flex: 1; min-width: 0; }
+.qz-ring { position: relative; flex: none; display: flex; justify-content: center; }
+.qz-ring svg { transform: rotate(-90deg); }
+.qz-track { fill: rgba(0,0,0,.45); stroke: rgba(255,255,255,.25); stroke-width: 8; }
+.qz-arc { fill: none; stroke: var(--qz-letter); stroke-width: 8; stroke-linecap: round; }
+.qz-n, .qz-q { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: {{ (quiz.ring_px * 0.48) | round }}px;
+               font-weight: 800; color: #FFFFFF; font-variant-numeric: tabular-nums; }
+.qz-q { opacity: 0; color: var(--qz-letter); }
+.qz-opt { position: relative; display: flex; align-items: center; gap: .55em; padding: 0 .7em 0 .45em; border-radius: 26px;
+          background: {{ quiz.option_bg }}; color: {{ quiz.option_text }}; font-weight: 800; line-height: 1.1;
+          box-shadow: 0 10px 26px rgba(0,0,0,.32); }
+.qz-l { flex: none; width: 1.55em; height: 1.55em; border-radius: 50%; background: var(--qz-letter); color: #FFFFFF;
+        display: flex; align-items: center; justify-content: center; font-style: normal; font-size: .9em; }
+.qz-t { flex: 1; background-image: linear-gradient(var(--qz-wrong), var(--qz-wrong)); background-repeat: no-repeat;
+        background-position: 0 55%; background-size: 0% 6px; }
+.qz-mark { flex: none; width: 1.2em; height: 1.2em; opacity: 0; font-style: normal; }
+.qz-mark svg { width: 100%; height: 100%; stroke-width: 3.2; }
+.qz-opt:not(.right) .qz-mark { color: var(--qz-wrong); }
 .lg-card { width: 100%; height: 100%; padding: {{ (sc.logo.pad * 100) | round(1) }}%; border-radius: 18px; background: {{ sc.logo.bg }};
            box-shadow: var(--st-shadow); display: flex; align-items: center; justify-content: center; }
 .lg-card img { max-width: 100%; max-height: 100%; object-fit: contain; }
@@ -474,6 +493,7 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; 
     <div class="content">
     {% include "scenes/" ~ s.template ~ ".html.j2" %}
     </div>
+    {% if s.quiz %}{% include "scenes/quiz.html.j2" %}{% endif %}
     {% endif %}
   </section>
 {% endfor %}
@@ -626,6 +646,9 @@ tl.fromTo("#sc-{{ s.id }} .content", { y: 0 }, { y: -24, duration: {{ s.dur }}, 
 tl.fromTo("#sc-{{ s.id }} .b1", { x: 0, y: 0 }, { x: 180, y: 140, duration: {{ s.dur }}, ease: "none" }, {{ s.start }});
 tl.fromTo("#sc-{{ s.id }} .b2", { x: 0, y: 0 }, { x: -160, y: -120, duration: {{ s.dur }}, ease: "none" }, {{ s.start }});
 {% include "scenes/" ~ s.template ~ ".js.j2" %}
+{% endif %}
+{% if s.quiz %}
+{% include "scenes/quiz.js.j2" %}
 {% endif %}
 {% endfor %}
 {% if trs %}

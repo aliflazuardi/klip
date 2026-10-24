@@ -147,6 +147,17 @@ outro). A brand's rules (voice, sign-off, series, hashtags) still apply.
     separuh") and be backed by `facts[]`.
   - `compare`: requires `compare: {left: {label, text?, icon?}, right: {...}}`. Labels ≤ 3 words,
     text ≤ 3 words. `on_screen_text` is an optional title ("Power nap vs tidur lama").
+  - **Quiz ("tebak dulu")** on a `hook` or `explain` scene: `"quiz": {"options": ["Hiu", "Ular",
+    "Nyamuk"], "answer": 3, "countdown_at": "Tiga", "reveal_at": "Jawabannya"}`. The `on_screen_text` is
+    the question; 2–4 options (≤ 4 words) pop in on their words when the narration reads them; a ring
+    counts down from `countdown_at` (say "Tiga, dua, satu." in the narration: no silence needed); at
+    `reveal_at` the right one lights up and the others are struck out. **Ask early, answer late:** put
+    the quiz without `reveal_at` in the hook, build up in between, then repeat the same options with
+    `reveal_at` in the scene before the cta (validate warns when the hook answers itself or a quiz is
+    never answered). Works on stock/photo/solid scenes (a panel over the footage) and stage scenes (the
+    options take the bottom of the props area: keep 1 small prop); a code scene draws its own from
+    `examples/code-scenes/starters/quiz.html`; on a chat set, quiz in its own scene. Pair with
+    `cta_type: "comment"` ("Tadi kamu jawab apa?"). Example: `examples/quiz.json`.
   - `cta`: always the last scene. Set `cta_type` to pick the ask (see the writing guide):
     `follow` | `save` | `comment` | `share`. It adds an action chip (icon + "Follow" / "Simpan" /
     "Komen di bawah" / "Kirim ke teman") under the headline; for `comment`, `on_screen_text` is

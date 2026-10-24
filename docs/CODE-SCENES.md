@@ -208,6 +208,7 @@ and `examples/code-gallery-3d.json` (Three.js) render all of them (`uv run klip 
 | `path-timeline.html` | a timeline or route drawing itself, milestones popping on their words |
 | `road-traffic.html` | a top-down road with lanes of different density and speed, our car in the accent |
 | `counter-hero.html` | one big number counting up inside a filling ring |
+| `quiz.html` | a "tebak dulu" quiz: options pop in on their words, a countdown ring, the right one lights up on `revealAt` (null = only ask, the ring ends on "?"); mirror the scene's `quiz` field in `CFG` |
 | `three-terrain.html` | Three.js: a wireframe terrain flyover (HUD look) |
 | `three-particles.html` | Three.js: a particle galaxy that gathers into a ring on the key moment |
 | `three-globe.html` | Three.js: a globe turned toward its places, which light up as arcs fly between them |

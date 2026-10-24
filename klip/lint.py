@@ -77,10 +77,16 @@ def _lint_stage(spec: Spec, s: Scene, tokens: list[str], err, warn) -> None:
         pos = max([k, *(j for j in found if j is not None)]) + 1
     wps = words_per_second(scene_voice(spec, s), spec.speech_rate)
     lo, hi = config.get("stage.lint_min_gap_s"), config.get("stage.lint_max_gap_s")
+    own = {i for i in idx if i is not None}
+    norms = [norm(t) for t in tokens]
+    if q := s.quiz:                            # a quiz's options, countdown and reveal change the picture too
+        for w in [*q.options, q.countdown_at or "", q.reveal_at or ""]:
+            if w.split() and norm(w.split()[0]) in norms:
+                idx.append(norms.index(norm(w.split()[0])))
     marks = [-1] + sorted({i for i in idx if i is not None}) + [len(tokens)]
     for a, b in zip(marks, marks[1:]):
         gap = (b - max(a, 0)) / wps
-        if a >= 0 and b < len(tokens) and gap < lo:
+        if a in own and b in own and gap < lo:
             warn(s.id, f"stage elements at {tokens[a]!r} and {tokens[b]!r} are ~{gap:.1f}s apart; "
                        f"they'll land almost together (keep ≥ {lo}s)")
         elif gap > hi:
@@ -219,6 +225,42 @@ def _lint_code(spec: Spec, s: Scene, err, warn) -> None:
         (err if level == "error" else warn)(s.id, msg)
 
 
+def _lint_quiz(spec: Spec, i: int, tokens: list[str], err, warn) -> None:
+    """A quiz: its cue words, short options, an answer that comes late (an open loop) and comes at all."""
+    s, q = spec.scenes[i], spec.scenes[i].quiz
+    for what, word in (("countdown_at", q.countdown_at), ("reveal_at", q.reveal_at)):
+        if word and not _contains(tokens, word.split()[0]):
+            err(s.id, f"quiz {what} {word!r} is not a word in the narration")
+    if q.countdown_at and q.reveal_at and _contains(tokens, q.countdown_at.split()[0]) \
+            and _contains(tokens, q.reveal_at.split()[0]):
+        norms = [norm(t) for t in tokens]
+        if norms.index(norm(q.reveal_at.split()[0])) < norms.index(norm(q.countdown_at.split()[0])):
+            err(s.id, "quiz reveal_at comes before countdown_at: count down first, then reveal")
+    limit = int(config.get("quiz.option_words"))
+    for o in q.options:
+        if len(o.split()) > limit:
+            warn(s.id, f"quiz option {o!r} has {len(o.split())} words; keep options ≤ {limit} so they read at a glance")
+    if not s.on_screen_text:
+        warn(s.id, "a quiz shows its question as the on_screen_text; add one (≤ 6 words)")
+    if s.visual.type == "code" and s.visual.code:
+        from klip.paths import ROOT
+        f = ROOT / s.visual.code.file
+        text = f.read_text(encoding="utf-8") if f.is_file() else ""
+        if not all(f'"{o}"' in text for o in q.options):
+            warn(s.id, "a code scene draws its own quiz: start from examples/code-scenes/starters/quiz.html and "
+                       "put the same options, answer, countdownAt and revealAt in its CFG")
+    if s.visual.backdrop and s.visual.backdrop.kind == "chat":
+        warn(s.id, "a quiz on a chat set covers the bubbles: ask in the chat, quiz in its own scene")
+    same = [j for j, o in enumerate(spec.scenes) if o.quiz and o.quiz.options == q.options]
+    answered = [j for j in same if spec.scenes[j].quiz.reveal_at]
+    if q.reveal_at and i == 0:
+        warn(s.id, "the quiz is answered in the hook: ask here and reveal it in a later scene (the same "
+                   "options + reveal_at), so viewers stay for the answer")
+    elif not answered and i == same[0]:
+        warn(s.id, "this quiz is never answered: give it reveal_at here, or repeat its options with reveal_at "
+                   "in a later scene")
+
+
 def _lint_code_mascots(spec: Spec, warn) -> None:
     """Mascots show on stage scenes on their own, but a code scene has to place them (k.cast / k.spotlight).
     With a cast, the hook and the last scene before the cta (where the answer lands) should show them."""
@@ -331,7 +373,14 @@ def lint(spec: Spec) -> list[Issue]:
 
     if spec.scenes[0].template != "hook":
         warn(spec.scenes[0].id, "the first scene should use the 'hook' template")
-    hooks = [("hook", spec.scenes[0].narration, spec.scenes[0].on_screen_text)] + \
+    first = spec.scenes[0]
+    hook_text = first.narration
+    if first.quiz:                             # the options and the countdown aren't the hook: the question is
+        toks = first.narration.split()
+        cut = [i for i, t in enumerate(toks) for w in [*first.quiz.options, first.quiz.countdown_at or ""]
+               if w.split() and norm(t) == norm(w.split()[0])]
+        hook_text = " ".join(toks[:min(cut)]) if cut else hook_text
+    hooks = [("hook", hook_text, first.on_screen_text)] + \
         [(f"hook_variants[{i}]", v.narration, v.on_screen_text) for i, v in enumerate(spec.hook_variants)]
     for where, narration, on_screen in hooks:
         if len(narration.split()) > 14:
@@ -372,6 +421,8 @@ def lint(spec: Spec) -> list[Issue]:
             _lint_code(spec, s, err, warn)
         if s.mascot:
             _lint_mascot(spec, s, tokens, err, warn)
+        if s.quiz:
+            _lint_quiz(spec, i, tokens, err, warn)
         if s.visual.type in ("stock_video", "stock_photo") and s.visual.max_shots != 1:
             from klip.pipeline import words_per_second
             shots_n = len(s.visual.beats or s.visual.queries) + 1

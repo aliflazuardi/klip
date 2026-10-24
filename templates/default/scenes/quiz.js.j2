@@ -1,0 +1,37 @@
+{% set q = s.quiz %}
+{% set qs = "#sc-" ~ s.id ~ " .qz" %}
+// quiz: options pop in, the countdown ring runs out, the answer lights up
+{% for o in q.options %}
+tl.fromTo("{{ qs }} .qz-opts > .qz-opt:nth-child({{ loop.index }})", { x: {{ -120 if loop.index is odd else 120 }}, opacity: 0, scale: 0.9 }, { x: 0, opacity: 1, scale: 1, duration: 0.32, ease: "back.out(1.7)" }, {{ o.t }});
+{% endfor %}
+{% if q.ring %}
+{% set ring_end = (q.ring.t + q.ring.dur) | round(3) %}
+tl.fromTo("{{ qs }} .qz-ring", { scale: 0, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.25, ease: "back.out(2)" }, {{ q.ring.t }});
+tl.fromTo("{{ qs }} .qz-arc", { strokeDashoffset: 0 }, { strokeDashoffset: 100, duration: {{ q.ring.dur }}, ease: "none" }, {{ q.ring.t }});
+(() => {
+  const n = document.querySelector("{{ qs }} .qz-n"), c = { v: {{ quiz.countdown_s }} };
+  tl.fromTo(c, { v: {{ quiz.countdown_s }} }, { v: {{ quiz.countdown_s - q.ring.dur }}, duration: {{ q.ring.dur }}, ease: "none",
+    onUpdate: () => { n.textContent = Math.max(1, Math.ceil(c.v - 1e-3)); } }, {{ q.ring.t }});
+})();
+{% if q.reveal is none %}
+// no answer here: the ring ends on a question mark
+tl.fromTo("{{ qs }} .qz-n", { opacity: 1 }, { opacity: 0, duration: 0.08, ease: "none", immediateRender: false }, {{ ring_end }});
+tl.fromTo("{{ qs }} .qz-q", { opacity: 0, scale: 1.6 }, { opacity: 1, scale: 1, duration: 0.25, ease: "back.out(2.4)" }, {{ ring_end }});
+{% else %}
+tl.to("{{ qs }} .qz-ring", { opacity: 0, scale: 0.6, duration: 0.2, ease: "power2.in" }, {{ q.reveal }});
+{% endif %}
+{% endif %}
+{% if q.reveal is not none %}
+tl.to("{{ qs }} .qz-opt:not(.right)", { opacity: 0.45, scale: 0.96, duration: 0.25, ease: "power2.out" }, {{ q.reveal }});
+tl.fromTo("{{ qs }} .qz-opt:not(.right) .qz-t", { backgroundSize: "0% 6px" }, { backgroundSize: "100% 6px", duration: 0.3, ease: "power2.inOut" }, {{ q.reveal }});
+tl.to("{{ qs }} .qz-opt.right", { backgroundColor: "{{ q.right }}", color: "#FFFFFF", duration: 0.2, ease: "none" }, {{ q.reveal }});
+tl.to("{{ qs }} .qz-opt.right .qz-l", { backgroundColor: "#FFFFFF", color: "{{ q.right }}", duration: 0.2, ease: "none" }, {{ q.reveal }});
+tl.fromTo("{{ qs }} .qz-opt.right", { scale: 1 }, { scale: 1.07, duration: 0.2, yoyo: true, repeat: 1, ease: "power2.out", immediateRender: false }, {{ q.reveal }});
+tl.fromTo("{{ qs }} .qz-mark", { scale: 0, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.3, ease: "back.out(2.4)" }, {{ (q.reveal + 0.08) | round(3) }});
+{% if fx.stamp %}
+(function () {
+  const el = document.querySelector("{{ qs }} .qz-opt.right");
+  klipFx.sparks(tl, el, el.offsetWidth - 70, el.offsetHeight / 2, {{ (q.reveal + 0.1) | round(3) }}, { color: "{{ q.right }}" });
+})();
+{% endif %}
+{% endif %}

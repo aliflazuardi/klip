@@ -986,6 +986,60 @@
       "title": "Post",
       "type": "object"
     },
+    "Quiz": {
+      "additionalProperties": false,
+      "description": "A \"tebak dulu\" quiz on a hook/explain scene: the scene's on_screen_text is the question, the\noptions pop in (on their words when the narration reads them), a countdown ring runs from\n`countdown_at`, and at `reveal_at` the right option lights up and the others are struck out. Ask in\none scene and answer in a later one (the same options + `reveal_at`) to keep the loop open.",
+      "properties": {
+        "options": {
+          "description": "2-4 short answers (≤ 4 words each), shown as A, B, C, D.",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 4,
+          "minItems": 2,
+          "title": "Options",
+          "type": "array"
+        },
+        "answer": {
+          "description": "Which option is right (1-based).",
+          "minimum": 1,
+          "title": "Answer",
+          "type": "integer"
+        },
+        "countdown_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Narration word where the countdown ring starts ('Tebak', 'tiga'); unset = no countdown.",
+          "title": "Countdown At"
+        },
+        "reveal_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Narration word where the answer lights up ('Jawabannya'); unset = this scene only asks.",
+          "title": "Reveal At"
+        }
+      },
+      "required": [
+        "options",
+        "answer"
+      ],
+      "title": "Quiz",
+      "type": "object"
+    },
     "Scene": {
       "additionalProperties": false,
       "properties": {
@@ -1206,6 +1260,18 @@
           ],
           "default": null,
           "description": "Mascots (only when the style has a mascot cast): who speaks and pose changes."
+        },
+        "quiz": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Quiz"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "hook/explain: a 'tebak dulu' quiz (options, countdown, the answer lighting up); on_screen_text is the question."
         },
         "cta_type": {
           "anyOf": [

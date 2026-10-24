@@ -427,6 +427,32 @@ stage:
     min_share: 0.6                  # validate warns when real pictures are fewer than this share of a
                                     # stage scene's object props (pictures + icons/stacks)
 
+# ── Quiz ("tebak dulu" on a hook/explain scene) ──────────────────────────────
+# The panel of options under the question (the scene's on_screen_text). On card scenes (stock, photo,
+# solid, icon) it fills the frame from top_px to the captions; on stage scenes it takes the bottom of
+# the props area and the props keep stage_props_share of it (a hero picture above the options).
+# countdown_s: how long the ring runs from countdown_at (cut short by the reveal or the scene's end).
+# Options without their word in the narration pop in stagger_s apart from first_s into the scene.
+# Colours: null = the style's (option letter = accent_color, right = fact_color, wrong = myth_color).
+# option_words: validate warns above this.
+quiz:
+  top_px: 560
+  stage_props_share: 0.38
+  option_h: 132
+  option_min_h: 100                 # on a crowded stage (mascots) the props give way before options go below this
+  option_gap: 22
+  font_px: 50
+  ring_px: 150
+  countdown_s: 3
+  first_s: 0.35
+  stagger_s: 0.22
+  option_bg: "#FFFFFF"
+  option_text: "#15151C"
+  letter: null
+  right: null
+  wrong: null
+  option_words: 4
+
 # ── Code scenes (visual.type "code", director mode) ─────────────────────────
 # A scene whose look and motion are a file Claude writes against the scene kit `k`
 # (docs/CODE-SCENES.md). The look bible (spec look_bible ← style look_bible ← code.look below) keeps
@@ -603,6 +629,9 @@ sfx:
     stage_highlight: null     # a yellow highlight box draws in
     stage_stamp: hit          # a stamp thumps down
     stage_bubble: pop         # a chat bubble lands
+    quiz_option: pop          # a quiz option pops in
+    quiz_countdown: riser     # builds under the countdown ring, ending as it runs out
+    quiz_reveal: ding         # the right answer lights up
   # Camera moves (post stage): the rendered video is read small (size, fps); where most of the picture
   # changes at once (share of pixels in the crop band, y as shares of the height, that change by more
   # than pixel_diff /255) for at least min_s, a camera is moving: the effect plays lead_s before that

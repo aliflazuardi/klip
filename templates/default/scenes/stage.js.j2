@@ -187,3 +187,6 @@ tl.to("{{ sel }}", { opacity: 0, scale: 0.85, y: "+=40", duration: {{ c.exit_s }
 {% endif %}
 {% endif %}
 {% endfor %}
+{% if s.quiz %}
+{% include "scenes/quiz.js.j2" %}
+{% endif %}

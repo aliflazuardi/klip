@@ -11,6 +11,7 @@
     {"id": "timeline", "template": "explain", "narration": "Garis waktu yang tergambar sendiri, dengan titik di setiap peristiwa.", "on_screen_text": "Garis waktu", "visual": {"type": "code", "code": {"file": "examples/code-scenes/starters/path-timeline.html"}}},
     {"id": "road", "template": "explain", "narration": "Jalan dari atas: tiap jalur punya kepadatan dan kecepatannya sendiri.", "on_screen_text": "Jalur padat, jalur lancar", "visual": {"type": "code", "code": {"file": "examples/code-scenes/starters/road-traffic.html"}}},
     {"id": "counter", "template": "explain", "narration": "Satu angka besar yang menghitung naik di dalam cincin.", "on_screen_text": "Satu angka besar", "visual": {"type": "code", "code": {"file": "examples/code-scenes/starters/counter-hero.html"}}},
+    {"id": "quiz", "template": "explain", "narration": "Kuis tebak dulu: pilihannya muncul satu per satu, lalu jawabannya menyala.", "on_screen_text": "Tebak dulu", "visual": {"type": "code", "code": {"file": "examples/code-scenes/starters/quiz.html"}}},
     {"id": "beam", "template": "explain", "narration": "Seberkas cahaya melesat masuk, menghantam pusat lingkaran, lalu menembus keluar.", "on_screen_text": "Satu titik TEMU", "visual": {"type": "code", "code": {"file": "examples/code-scenes/starters/light-beam.html", "texture": "film"}}}
   ]
 }

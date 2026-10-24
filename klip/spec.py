@@ -463,6 +463,26 @@ class MascotPose(_Strict):
                                                                "= until the next pose or the scene's end.")
 
 
+class Quiz(_Strict):
+    """A "tebak dulu" quiz on a hook/explain scene: the scene's on_screen_text is the question, the
+    options pop in (on their words when the narration reads them), a countdown ring runs from
+    `countdown_at`, and at `reveal_at` the right option lights up and the others are struck out. Ask in
+    one scene and answer in a later one (the same options + `reveal_at`) to keep the loop open."""
+    options: list[str] = Field(min_length=2, max_length=4, description="2-4 short answers (≤ 4 words each), "
+                                                                      "shown as A, B, C, D.")
+    answer: int = Field(ge=1, description="Which option is right (1-based).")
+    countdown_at: str | None = Field(None, description="Narration word where the countdown ring starts "
+                                                       "('Tebak', 'tiga'); unset = no countdown.")
+    reveal_at: str | None = Field(None, description="Narration word where the answer lights up ('Jawabannya'); "
+                                                    "unset = this scene only asks.")
+
+    @model_validator(mode="after")
+    def _answer_in_range(self) -> Quiz:
+        if self.answer > len(self.options):
+            raise ValueError(f"quiz answer {self.answer} but only {len(self.options)} options")
+        return self
+
+
 class SceneMascot(_Strict):
     """The style's mascots (a brand pack's cast) in this scene."""
     speaker: str | None = Field(None, description="Who speaks this scene's narration (mouth moves with the words); "
@@ -509,6 +529,8 @@ class Scene(_Strict):
     compare: Compare | None = None
     mascot: SceneMascot | None = Field(None, description="Mascots (only when the style has a mascot cast): who "
                                                          "speaks and pose changes.")
+    quiz: Quiz | None = Field(None, description="hook/explain: a 'tebak dulu' quiz (options, countdown, the "
+                                                "answer lighting up); on_screen_text is the question.")
     cta_type: CtaType | None = Field(None, description="cta: what the outro asks for; shows an action chip "
                                                        "(icon + label). 'comment' = on_screen_text is a "
                                                        "two-sided question shown as the headline.")
@@ -521,6 +543,8 @@ class Scene(_Strict):
             raise ValueError(f"template {self.template!r} requires: {', '.join(missing)}")
         if self.cta_type and self.template != "cta":
             raise ValueError("cta_type is only for the 'cta' template")
+        if self.quiz and self.template not in ("hook", "explain"):
+            raise ValueError("a quiz goes on a 'hook' or 'explain' scene")
         return self
 
 

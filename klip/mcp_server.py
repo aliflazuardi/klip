@@ -166,7 +166,7 @@ def list_styles() -> dict[str, Any]:
 
 @server.tool()
 def video_styles() -> dict[str, Any]:
-    """The production styles Klip can make (stock, stage, chat, motion graphic, cinematic 3D, one world, mixed):
+    """The production styles Klip can make (stock, stage, chat, quiz, motion graphic, cinematic 3D, one world, mixed):
     what each looks like, what it needs from the user, which topics it suits. Step 2 of the guided flow."""
     return {"guide": (ROOT / "docs" / "VIDEO-STYLES.md").read_text(encoding="utf-8")}
 

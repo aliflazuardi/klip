@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "slug": "quiz",
+  "voice": "female",
+  "target_duration_s": 28,
+  "progress_bar": false,
+  "facts": [
+    {
+      "claim": "Sekitar 81.410–137.880 orang meninggal tiap tahun karena gigitan ular",
+      "source": "https://www.who.int/news-room/fact-sheets/detail/snakebite-envenoming"
+    },
+    {
+      "claim": "Tahun 2024 ada sekitar 610.000 kematian karena malaria, yang ditularkan nyamuk Anopheles",
+      "source": "https://www.who.int/news-room/fact-sheets/detail/malaria"
+    }
+  ],
+  "scenes": [
+    {
+      "id": "s1",
+      "template": "hook",
+      "narration": "Tebak dulu: hewan apa yang paling banyak membunuh manusia? Hiu, ular, atau nyamuk? Tiga, dua, satu.",
+      "on_screen_text": "Hewan paling MEMATIKAN?",
+      "emphasis": ["membunuh"],
+      "quiz": {"options": ["Hiu", "Ular", "Nyamuk"], "answer": 3, "countdown_at": "Tiga"},
+      "visual": {
+        "type": "stage",
+        "background": "spotlight",
+        "elements": [
+          {"at": "Tebak", "kind": "cutout", "query": "shark", "name": "fish", "label": "?"}
+        ]
+      }
+    },
+    {
+      "id": "s2",
+      "template": "explain",
+      "narration": "Kebanyakan orang langsung jawab hiu, karena filmnya bikin takut.",
+      "on_screen_text": "Semua orang jawab hiu",
+      "emphasis": ["hiu"],
+      "visual": {"type": "stock_video", "query": "shark underwater", "name": "fish"}
+    },
+    {
+      "id": "s3",
+      "template": "explain",
+      "narration": "Ular memang berbisa, gigitannya merenggut puluhan ribu nyawa tiap tahun. Tapi masih ada yang lebih mematikan.",
+      "on_screen_text": "Ular? Belum juara",
+      "emphasis": ["lebih mematikan"],
+      "visual": {
+        "type": "stage",
+        "background": "grid",
+        "elements": [
+          {"at": "Ular", "kind": "cutout", "query": "cobra snake", "name": "worm", "label": "Ular"},
+          {"at": "puluhan", "kind": "number", "text": "81–138rb", "tone": "down"},
+          {"at": "Tapi", "kind": "stamp", "text": "BELUM", "tone": "neutral"}
+        ]
+      }
+    },
+    {
+      "id": "s4",
+      "template": "explain",
+      "narration": "Jawabannya nyamuk. Lewat malaria saja, nyamuk ikut menyebabkan ratusan ribu kematian setahun.",
+      "on_screen_text": "Hewan paling MEMATIKAN?",
+      "emphasis": ["nyamuk"],
+      "quiz": {"options": ["Hiu", "Ular", "Nyamuk"], "answer": 3, "reveal_at": "Jawabannya"},
+      "visual": {"type": "stock_video", "query": "mosquito closeup", "name": "bug"}
+    },
+    {
+      "id": "s5",
+      "template": "cta",
+      "narration": "Tadi kamu jawab apa? Tulis di komentar.",
+      "on_screen_text": "Tadi kamu jawab apa?",
+      "cta_type": "comment",
+      "visual": {"type": "icon", "name": "message-circle"}
+    }
+  ],
+  "post": {
+    "caption": "Jawaban kamu tadi benar nggak? 🦟",
+    "hashtags": ["#tebakdulu", "#faktaunik", "#edukasi"]
+  }
+}
