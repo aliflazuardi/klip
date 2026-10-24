@@ -139,8 +139,8 @@ uses and which details are fixed. Today:
 
 | Brand | Default style | Allowed | Fixed by the brand |
 |---|---|---|---|
-| `warga-nalar` | Stage (mascots need it) | Stage, Stage + data, Chat, Motion graphic, Mixed; Stock (the mascots then don't appear) | Napa (cewek, asks) + Gulung (cowok, explains) duet; series; sign-off "Tetap bernalar, Warga." |
-| `kilas-masa` | Stage (dark map set) | Stage, Stage + data, Cinematic 3D, One world, Mixed | No mascots; voice male unless you ask; series; sign-off "Sampai di masa berikutnya." |
+| `warga-nalar` | Stage (mascots need it) | Stage, Stage + data, Chat, Motion graphic, Mixed; Cinematic 3D and One world when a place or a journey is the answer (rare; brand palette, mascots via the scene kit); Stock (the mascots then don't appear) | Napa (cewek, asks) + Gulung (cowok, explains) duet; series; sign-off "Tetap bernalar, Warga." |
+| `kilas-masa` | Stage (dark map set) | Stage, Stage + data, Cinematic 3D, One world, Motion graphic, Mixed; Chat rarely (labelled "ilustrasi", no invented quotes); Stock not advised (no footage of the past) | No mascots; voice male unless you ask; series; sign-off "Sampai di masa berikutnya." |
 | `default` / `bold` | Mixed | all | nothing |
 
 A new brand pack: add a "Guided flow" section to its skill (see [BRANDS.md](BRANDS.md)).
