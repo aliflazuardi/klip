@@ -143,7 +143,8 @@ outro). A brand's rules (voice, sign-off, series, hashtags) still apply.
     "Faktanya, …". Set `reveal_at` to that word ("Faktanya,") so the fact card appears on cue.
   - `stat`: requires `stat: {value, suffix?, prefix?, decimals?, label?}`. One striking number,
     e.g. `{"value": 20, "suffix": " menit", "label": "durasi ideal tidur siang"}`. The number
-    must appear in the narration and be backed by `facts[]`.
+    must appear in the narration (or, when the brand guide keeps numbers on screen, its meaning: "hampir
+    separuh") and be backed by `facts[]`.
   - `compare`: requires `compare: {left: {label, text?, icon?}, right: {...}}`. Labels ≤ 3 words,
     text ≤ 3 words. `on_screen_text` is an optional title ("Power nap vs tidur lama").
   - `cta`: always the last scene. Set `cta_type` to pick the ask (see the writing guide):
