@@ -14,6 +14,9 @@ All notable changes to Klip are listed here. The format follows
   end with the same options; validate warns when the hook answers itself or a quiz is never answered.
   Works over stock/photo/solid scenes and on stage scenes (under the props); code scenes get the starter
   `quiz.html`. Example `examples/quiz.json` (`quiz` in klip.yaml, `sfx.events.quiz_*`).
+- **Bigger mascot casts.** A brand may list more mascots than one video should show (e.g. one guide per
+  topic area) and pick per video with `"mascots"`; `validate` warns when more than `mascot.crowd`
+  (default 2) would appear.
 - **Brand colours on look presets.** A style's `looks` recolours a klip.yaml `code.looks` preset (or adds
   its own): `"preset": "cinematic"` keeps the film grain, glow and slow eases but takes the brand's
   palette instead of the preset's warm black.

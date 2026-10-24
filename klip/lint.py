@@ -202,14 +202,20 @@ def _lint_mascot(spec: Spec, s: Scene, tokens: list[str], err, warn) -> None:
         warn(s.id, "mascots only show on stage scenes (and say a folded cta's closing line)")
 
 
-def _lint_mascots(spec: Spec, err) -> None:
-    """`mascots` names must be in the style's cast."""
-    if not isinstance(spec.mascots, list):
-        return
+def _lint_mascots(spec: Spec, err, warn) -> None:
+    """`mascots` names must be in the style's cast; a big cast wants a pick (mascot.crowd)."""
     from klip import mascot
     try:
-        cast = mascot.names(config.style(spec.style))
+        style = config.style(spec.style)
     except KeyError:
+        return
+    cast = mascot.names(style)
+    crowd = mascot.settings(style).get("crowd")
+    shown = mascot.names(mascot.with_cast(style, spec))
+    if crowd and len(shown) > int(crowd):
+        warn("spec", f"{len(shown)} mascots on stage ({', '.join(shown)}): pick at most {crowd} with \"mascots\" "
+                     f"(the brand guide says who fits the topic)")
+    if not isinstance(spec.mascots, list):
         return
     for name in spec.mascots:
         if name not in cast:
@@ -349,7 +355,7 @@ def lint(spec: Spec) -> list[Issue]:
     _lint_code_mascots(spec, warn)
     _lint_world(spec, err, warn)
     _lint_sets(spec, warn)
-    _lint_mascots(spec, err)
+    _lint_mascots(spec, err, warn)
     if config.get("post.lowercase_hashtags", True):
         import re
         caps = sorted({t for t in re.findall(r"#\w+", spec.post.caption + " " + " ".join(spec.post.hashtags))

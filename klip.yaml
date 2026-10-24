@@ -876,6 +876,8 @@ styles:
       # with a voice speaks the scenes narrated in that voice; a scene whose spec names it as the
       # speaker is narrated in its voice. A spec picks who appears with "mascots".
       cast: []
+      crowd: 2                      # validate warns when a video shows more mascots than this (a
+                                    # brand with a bigger cast picks per video with "mascots")
       height: 240                   # px
       gap_px: 6                     # above the stage captions
       inset_px: 10                  # from the safe zone's left/right edge

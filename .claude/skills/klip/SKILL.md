@@ -43,7 +43,8 @@ gives topic, style and details, skip to step 5 with the recommended picks and as
 4. **Detail.** At most 4 questions, recommended answer first; everything else takes the default
    and appears in step 5:
    - *Maskot* (only if the brand has a cast and the style shows them): the brand's default
-     (Warga Nalar: duet Napa + Gulung), one mascot, or none.
+     (Warga Nalar: duet Napa + Gulung), one mascot, or none. A brand with a bigger cast picks who fits
+     the topic (its guide says how); always write `"mascots"` then (validate warns on a crowd).
    - *Suara* (only if the brand doesn't fix it): cewek / cowok; with a duet it follows the roles.
    - *Durasi*: 30 / 45 / 60 s (the brand's range; recommend by how much the topic needs).
    - *Ajakan penutup* (`cta_type`): recommend from the brand table (two sides → comment, tips →

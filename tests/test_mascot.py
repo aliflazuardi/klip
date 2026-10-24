@@ -222,3 +222,14 @@ def test_lint_focus_name_and_crowded_strip():
     errs = [str(i) for i in issues if i.level == "error"]
     warns = [str(i) for i in issues if i.level != "error"]
     assert any("focus: 'napa'" in e for e in errs) and any("strip above the star" in w for w in warns)
+
+
+def test_lint_warns_when_too_many_mascots_show(monkeypatch):
+    m = STYLE["mascot"]
+    trio = {**STYLE, "mascot": {**m, "crowd": 2, "cast": [{**m["cast"][0], "name": n} for n in ("a", "b", "c")]}}
+    monkeypatch.setattr(config, "style", lambda name: trio)
+    scene = {"id": "s1", "template": "hook", "narration": "bandar selalu menang",
+             "visual": stage({"at": "bandar", "kind": "label", "text": "Bandar"})}
+    crowded = lambda sp: [str(i) for i in lint(sp) if "mascots on stage" in str(i)]   # noqa: E731
+    assert crowded(spec(scene)) and "3 mascots" in crowded(spec(scene))[0]
+    assert not crowded(Spec.model_validate({**spec(scene).model_dump(), "mascots": ["a", "c"]}))
