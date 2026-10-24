@@ -215,11 +215,12 @@ def look(spec: Spec, style: dict) -> dict:
     out["palette"] = {**out["palette"], "accent": style["accent_color"], "emph": style["emphasis_color"]}
     own = spec.look_bible.model_dump(exclude_none=True) if spec.look_bible else {}
     layers = [style.get("look_bible") or {}]
+    mine = style.get("looks") or {}                 # the style's own take on a preset (its palette), or its own looks
     if preset := own.pop("preset", None) or layers[0].get("preset"):
-        if preset not in cfg("looks"):
+        if preset not in cfg("looks") and preset not in mine:
             raise CodeSceneError(f"look_bible.preset: unknown look {preset!r} (klip.yaml code.looks: "
-                                 f"{', '.join(cfg('looks'))})")
-        layers.append(cfg("looks")[preset])
+                                 f"{', '.join(sorted({*cfg('looks'), *mine}))})")
+        layers += [cfg("looks").get(preset) or {}, mine.get(preset) or {}]
     layers.append(own)
     for layer in layers:
         for k, v in layer.items():
@@ -360,6 +361,19 @@ def layout(style: dict, sc: dict, brand: dict, caption_top: float) -> dict:
     if o and sc["start"] <= o["start"] < sc["end"]:
         out["outro"] = {"t": round(o["start"] - sc["start"], 3), "top": o["top"]}
     return out
+
+
+def scene_uses_mascots(scene: Scene) -> bool:
+    """The scene's code file (with its includes) places the mascots; False when it can't be read."""
+    c = scene.visual.code
+    p = ROOT / c.file if c else None
+    if not p or not p.is_file():
+        return False
+    js = "".join((ROOT / i).read_text(encoding="utf-8") for i in c.include if (ROOT / i).is_file())
+    try:
+        return uses_mascots(js + parse(p.read_text(encoding="utf-8")).js)
+    except CodeSceneError:
+        return False
 
 
 def uses_mascots(js: str) -> bool:

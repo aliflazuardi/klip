@@ -8,6 +8,12 @@ All notable changes to Klip are listed here. The format follows
 
 ### Added
 
+- **Brand colours on look presets.** A style's `looks` recolours a klip.yaml `code.looks` preset (or adds
+  its own): `"preset": "cinematic"` keeps the film grain, glow and slow eases but takes the brand's
+  palette instead of the preset's warm black.
+- **Mascots in code scenes.** With a mascot cast, `validate` warns when the hook or the scene before the
+  cta is a code scene that doesn't place the mascots (`k.cast` / `k.spotlight` / `k.mascot`); they
+  appear on their own only on stage scenes.
 - **Chat video style.** A stage backdrop `chat` (a group chat with its name and member count) and
   `bubble` elements: messages land on their words after typing dots, forwarded chain messages are
   marked, your own replies sit on the right, and the chat scrolls up as it fills. A `stamp` with

@@ -771,6 +771,8 @@ styles:
     myth_color: "#F43F5E"
     fact_color: "#22C55E"
     look_bible: {}                  # code scenes: this style's look bible (palette, fonts, texture…; see code.look)
+    looks: {}                       # this style's take on code.looks presets ({cinematic: {palette: …}}), merged over the
+                                    # preset (a brand keeps its colours on the preset's feel); new names add looks
     # Branding strip at the top of the safe zone: progress bar (left) + watermark (right).
     # Kept above y 250, where headlines/cards start, and below TikTok's top tabs.
     progress_bar:

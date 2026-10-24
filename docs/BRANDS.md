@@ -65,6 +65,10 @@ ln -s ../../brands/my-brand/skill .claude/skills/my-brand
 For any my-brand video, also follow .claude/skills/my-brand/SKILL.md and use "style": "my-brand".
 ```
 
+For code scenes (motion graphic, cinematic 3D, one world), give the style a `look_bible` with your
+colours and fonts, and a `looks` entry for each klip.yaml `code.looks` preset you'll use (e.g.
+`looks: {cinematic: {palette: {bg: "#12213B", ink: "#F6F1E7"}}}`), so a preset keeps your palette.
+
 Give the skill a **"Guided flow"** section so the step-by-step flow (`/klip`, "Guided flow") offers
 only what fits your channel. It answers four things:
 

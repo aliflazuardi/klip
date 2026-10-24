@@ -219,6 +219,31 @@ def _lint_code(spec: Spec, s: Scene, err, warn) -> None:
         (err if level == "error" else warn)(s.id, msg)
 
 
+def _lint_code_mascots(spec: Spec, warn) -> None:
+    """Mascots show on stage scenes on their own, but a code scene has to place them (k.cast / k.spotlight).
+    With a cast, the hook and the last scene before the cta (where the answer lands) should show them."""
+    from klip import codescene, mascot
+    cast = mascot.names(mascot.video_style(spec))
+    if not cast or not any(s.visual.type == "code" for s in spec.scenes):
+        return
+    try:
+        world = codescene.world_run(spec) if spec.world else []
+        world_has = bool(world) and codescene.scene_uses_mascots(codescene.world_scene(spec))
+    except codescene.CodeSceneError:                 # reported by the world's own checks
+        world, world_has = [], False
+    shows = {s.id for s in spec.scenes if s.visual.type == "stage" and not (s.mascot and s.mascot.hide)}
+    shows |= {s.id for s in spec.scenes if s.visual.type == "code" and codescene.scene_uses_mascots(s)}
+    if world_has:
+        shows |= {s.id for s in world}
+    body = [s for s in spec.scenes if s.template != "cta"]
+    key = [s for s in {id(x): x for x in (body[:1] + body[-1:])}.values() if s.visual.type == "code"]
+    for s in key:
+        if s.id not in shows:
+            what = "the hook" if s is body[0] else "the answer's scene (last before the cta)"
+            warn(s.id, f"{what} is a code scene without the mascots ({', '.join(cast)}): they only appear on "
+                       f"their own on stage scenes; call k.cast() or k.spotlight({cast[0]!r}, {{pose: \"kaget\"}})")
+
+
 def _lint_code_look(spec: Spec, err, warn=None) -> None:
     if not any(s.visual.type == "code" for s in spec.scenes):
         return
@@ -279,6 +304,7 @@ def lint(spec: Spec) -> list[Issue]:
     warn = lambda where, msg: issues.append(Issue("warning", where, msg))   # noqa: E731
     _lint_look(spec, err)
     _lint_code_look(spec, err, warn)
+    _lint_code_mascots(spec, warn)
     _lint_world(spec, err, warn)
     _lint_sets(spec, warn)
     _lint_mascots(spec, err)

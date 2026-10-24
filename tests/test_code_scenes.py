@@ -317,3 +317,39 @@ def test_kit_has_motion_helpers():
     from klip.paths import TEMPLATES_DIR
     kit = (TEMPLATES_DIR / "default" / "scenes" / "code_kit.js.j2").read_text()
     assert "k.trail = function" in kit and "k.motionBlur = function" in kit and "sceneAt(t)" in kit
+
+
+def test_a_style_can_recolour_a_preset_and_add_its_own_looks(repo):
+    from klip import config
+    style = {**config.style("default"), "look_bible": {"texture": "paper"},
+             "looks": {"cinematic": {"palette": {"bg": "#12213B", "ink": "#F6F1E7"}},
+                       "kertas": {"palette": {"bg": "#F6F1E7"}, "texture": "riso"}}}
+    sc = {"id": "s1", "template": "hook", "narration": "a"}
+    lk = codescene.look(_spec(sc, look_bible={"preset": "cinematic"}), style)
+    assert lk["palette"]["bg"] == "#12213B" and lk["palette"]["ink"] == "#F6F1E7"     # the style's colours...
+    assert lk["texture"] == "film" and lk["ease"]["inOut"] == "expo.inOut"             # ...on the preset's feel
+    own = codescene.look(_spec(sc, look_bible={"preset": "cinematic", "palette": {"bg": "#202020"}}), style)
+    assert own["palette"]["bg"] == "#202020"                                         # the spec still wins
+    assert codescene.look(_spec(sc, look_bible={"preset": "kertas"}), style)["texture"] == "riso"
+    plain = codescene.look(_spec(sc, look_bible={"preset": "cinematic"}), config.style("default"))
+    assert plain["palette"]["bg"] == config.get("code.looks.cinematic.palette.bg")
+
+
+def test_lint_wants_the_mascots_in_code_hooks_and_answers(repo):
+    (repo / "specs" / "cast.html").write_text(SCENE.replace("k.frame(", 'k.cast(); k.frame('))
+    narr = "matahari terbit pagi ini"
+    scenes = [{"id": "s1", "template": "hook", "narration": narr, "visual": code(assets=["specs/farm.png"])},
+              {"id": "s2", "template": "explain", "narration": narr, "visual": code(assets=["specs/farm.png"])},
+              {"id": "s3", "template": "cta", "cta_type": "follow", "narration": "follow ya", "visual": {"type": "solid"}}]
+    spec = Spec.model_validate({"slug": "t", "style": "example", "scenes": scenes})
+    msgs = [(i.where, i.message) for i in lint(spec) if "without the mascots" in i.message]
+    assert [w for w, _ in msgs] == ["s1", "s2"] and "the hook" in msgs[0][1] and "bulat" in msgs[0][1]
+    scenes[0]["visual"] = code("specs/cast.html", assets=["specs/farm.png"])
+    scenes[1]["visual"] = code("specs/cast.html", assets=["specs/farm.png"])
+    spec = Spec.model_validate({"slug": "t", "style": "example", "scenes": scenes})
+    assert not any("without the mascots" in i.message for i in lint(spec))
+    scenes[0]["visual"] = scenes[1]["visual"] = code(assets=["specs/farm.png"])     # no mascots again
+    off = Spec.model_validate({"slug": "t", "style": "example", "mascots": False, "scenes": scenes})
+    assert not any("without the mascots" in i.message for i in lint(off))
+    plain = Spec.model_validate({"slug": "t", "scenes": scenes})
+    assert not any("without the mascots" in i.message for i in lint(plain))

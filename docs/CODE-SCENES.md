@@ -87,7 +87,7 @@ Start every scene from these, so it is legible and on-brand before you add what 
 | `k.camera(cam, {to, origin, at, dur})` | A slow push-in (to `code.kit.camera_zoom` by the scene's end). Works on SVG groups and HTML. |
 | `k.headline({text, size, top, at, align, scrim})` | The scene's `on_screen_text`, placed below the series pill when it shows, emphasis and ALL-CAPS words in the accent, popping in word by word. Adds a top scrim. |
 | `k.spotlight("napa", {pose, poseAt, hold, at, h, x})` | A mascot as the scene's star: big (klip.yaml `code.kit.spotlight`), feet on the captions, centred on `x`, popping up with a squash at `at` under a glow and a turning sunburst; takes `pose` on `poseAt`. Returns the rig. For a cold open over a world. |
-| `k.cast({scrim, only})` | The style's mascots at the same spots as on stage scenes, over a bottom scrim: `const { napa, gulung } = k.cast()`. |
+| `k.cast({scrim, only})` | The style's mascots at the same spots as on stage scenes, over a bottom scrim: `const { napa, gulung } = k.cast()`. Mascots appear on their own only on stage scenes: with a cast, `validate` warns when the hook or the last scene before the cta is a code scene that doesn't place them (`k.cast`, `k.spotlight` or `k.mascot`). |
 | `k.scrim("top" \| "bottom", {height, color})` | A band of the look's `bg` so type stays readable over a busy picture. |
 | `k.chip(text, x, y, {bg, color, size, rot, at})` | A label chip; pops in at `at`. |
 | `k.reveal(el, at, {mode, stagger, dur})` | Kinetic type: the element's text comes in by `"letters"`, `"words"` (rise with a blur), `"mask"` (lines wipe up from behind a mask) or `"slam"` (drops from big with a shake and a shine). |
@@ -239,7 +239,9 @@ film.
 - `preset`: a named look to start from (klip.yaml `code.looks`). `"cinematic"` is the dark
   motion-graphics look: warm near-black, hairline strokes (`line: 1.5`), film texture, slow expo
   eases, notes on lighting; it keeps the style's accent unless you set one. The fields you set
-  override it: `{"preset": "cinematic", "palette": {"accent": "#FF8A3D"}}`.
+  override it: `{"preset": "cinematic", "palette": {"accent": "#FF8A3D"}}`. A brand pack can recolour a
+  preset in its style's `looks` (`looks: {cinematic: {palette: {bg: …, ink: …}}}`): the preset keeps its
+  texture, line and eases, the brand's colours replace its warm black. Its `looks` can also add new names.
 - `palette`: named colours. Keep it to 4–7, with **one** accent that carries the story.
 - `fonts`: keys from klip.yaml `code.fonts`: `jakarta` (Plus Jakarta Sans), `fraunces` (serif,
   with italics), `fredoka` (round, friendly), `anton` (condensed caps), `mono` (JetBrains Mono).
