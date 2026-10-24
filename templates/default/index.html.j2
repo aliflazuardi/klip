@@ -204,6 +204,28 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; 
              letter-spacing: .02em; }
 .bd-header span { display: inline-block; padding: .2em .8em; border-radius: 999px; background: rgba(0,0,0,.85); }
 .bd-phone .bd-header span { padding: 0; background: none; }
+{% set ch = sc.chat %}
+.bd-chat { position: absolute; left: 70px; right: 70px; display: flex; align-items: center; gap: 18px; color: {{ ch.them.text }}; }
+.bd-chat i { width: 54px; height: 54px; border-radius: 50%; background: {{ ch.them.bg }}; color: {{ ch.them.muted }}; flex: none;
+             display: flex; align-items: center; justify-content: center; font-style: normal; font-size: 28px; font-weight: 800; }
+.bd-chat div { display: flex; flex-direction: column; line-height: 1.15; }
+.bd-chat b { font-size: 30px; font-weight: 700; }
+.bd-chat span { font-size: 22px; color: {{ sc.backdrop.chat.bar }}; }
+.cb { position: relative; width: 100%; height: 100%; padding: {{ ch.pad }}px; border-radius: {{ ch.radius }}px; font-size: {{ ch.font_px }}px;
+      line-height: 1.32; box-shadow: 0 6px 18px rgba(0,0,0,.28); }
+.cb.them { background: {{ ch.them.bg }}; color: {{ ch.them.text }}; border-top-left-radius: 6px; }
+.cb.me { background: {{ ch.me.bg }}; color: {{ ch.me.text }}; border-top-right-radius: 6px; }
+.cb-name { font-size: .78em; font-weight: 800; line-height: 1.35; }
+.cb-fwd { display: flex; align-items: center; gap: .3em; font-size: .72em; font-style: italic; line-height: 1.4; color: {{ ch.them.muted }}; }
+.cb.me .cb-fwd { color: {{ ch.me.muted }}; }
+.cb-text { font-weight: 600; overflow-wrap: anywhere; }
+.cb-meta { float: right; margin: .55em 0 -.3em .8em; font-size: .55em; font-weight: 600; line-height: 1; color: {{ ch.them.muted }};
+           display: inline-flex; align-items: center; gap: .3em; }
+.cb.me .cb-meta { color: {{ ch.me.muted }}; }
+.cb.me .cb-meta svg { color: {{ ch.me.ticks }}; }
+.cb-typing { position: absolute; left: 0; top: 0; display: flex; gap: 10px; padding: 26px 30px; border-radius: {{ ch.radius }}px;
+             border-top-left-radius: 6px; background: {{ ch.them.bg }}; opacity: 0; }
+.cb-typing i { width: 14px; height: 14px; border-radius: 50%; background: {{ ch.them.muted }}; }
 .lg-card { width: 100%; height: 100%; padding: {{ (sc.logo.pad * 100) | round(1) }}%; border-radius: 18px; background: {{ sc.logo.bg }};
            box-shadow: var(--st-shadow); display: flex; align-items: center; justify-content: center; }
 .lg-card img { max-width: 100%; max-height: 100%; object-fit: contain; }

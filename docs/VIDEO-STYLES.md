@@ -22,7 +22,8 @@ Two separate choices make a video's look:
 | 4 | **Motion graphic** (director mode, 2D) | Designed shot by shot: kinetic type, documents with markers, counters, split screens, characters acting | Punchy explainers, comparisons, one striking number, storytelling | Nothing; more review rounds (preview sheets) | Yes (in code scenes, can act) | 20–60 min (write + preview loop) |
 | 5 | **Cinematic 3D** | Dark, glowing, film grain; 3D globe, map of Indonesia, terrain, particles, 3D cards and bars | "Big" topics: geography, global trade, history spanning places, big data | Nothing; more review rounds | Optional | 30–90 min |
 | 6 | **One world** (camera journey) | One continuous place the camera flies through scene after scene (a road, a map, a timeline), optional cold open on the climax | Journeys, timelines, step-by-step stories with a strong climax | Nothing; most review rounds | Optional | 45–120 min |
-| 7 | **Mixed** | Picks per scene: a stock hook, stage for the explaining, a code scene for the punchline | When one beat needs real footage and another needs a diagram | Depends on the scenes | On stage/code scenes | 5–30 min |
+| 7 | **Chat** (group chat story) | A family group chat filling up: forwarded chain messages, replies after typing dots, your own reply, a "HOAKS" stamp on the message | Hoaxes, chain messages, scams, myths that spread in WA groups | Nothing (the chat is written by Claude; names are made up) | Yes (stage scene) | ~3 min render |
+| 8 | **Mixed** | Picks per scene: a stock hook, stage for the explaining, a code scene for the punchline | When one beat needs real footage and another needs a diagram | Depends on the scenes | On stage/code scenes | 5–30 min |
 
 "Make time" is Claude's writing + rendering for a 45 s video, not counting your review.
 
@@ -96,7 +97,21 @@ the start. See CODE-SCENES.md "One world" and "Cold open".
 
 - **Example:** `examples/code-world.json`.
 
-## 7. Mixed
+## 7. Chat (group chat story)
+
+- **Spec:** stage scenes with `"backdrop": {"kind": "chat", "title": "Keluarga Besar", "info": "23
+  anggota"}` and `bubble` elements (`sender`, `text`, `forwarded`, `me`, `date`), each landing on its
+  word; a `stamp` with `target` gives the verdict on one bubble. Mix with ordinary stage pages for the
+  explanation ("three signs of a chain message"), then back to the chat for the verdict.
+- **Strengths:** instantly recognisable in Indonesia; shows *how* a hoax spreads, not just that it's
+  wrong; the stamp moment lands hard.
+- **Rules:** names are made up, never a real person's name or number; the messenger's look, not its
+  logo; quote the hoax as it circulates, with the debunk in `facts`.
+- **You provide:** nothing. A screenshot of the real chain message can go in as a `photo` prop if you
+  have one (blur names and numbers first).
+- **Example:** `examples/chat.json`.
+
+## 8. Mixed
 
 No `look` (or `"mixed"`); each scene picks its own visual. Typical: a stock hook (a real moment),
 stage pages for the explanation, a code scene for the punchline, the brand's outro. Mascots show
@@ -113,6 +128,7 @@ only on the stage and code scenes.
 | one shocking number or a comparison | Motion graphic | A counter or split screen lands harder |
 | a process or a journey with a climax | One world, or Stage + `timeline`/`flow` | Continuity carries the story |
 | a myth vs fact | Stage (stamps, mascot reactions) or Stock with `myth_fact` cards | |
+| a hoax, a chain message, a scam message | Chat | Shows how it spreads; the stamp gives the verdict |
 
 When time matters, Stock and Stage render in minutes; director styles need preview rounds.
 
@@ -123,7 +139,7 @@ uses and which details are fixed. Today:
 
 | Brand | Default style | Allowed | Fixed by the brand |
 |---|---|---|---|
-| `warga-nalar` | Stage (mascots need it) | Stage, Stage + data, Motion graphic, Mixed; Stock (the mascots then don't appear) | Napa (cewek, asks) + Gulung (cowok, explains) duet; series; sign-off "Tetap bernalar, Warga." |
+| `warga-nalar` | Stage (mascots need it) | Stage, Stage + data, Chat, Motion graphic, Mixed; Stock (the mascots then don't appear) | Napa (cewek, asks) + Gulung (cowok, explains) duet; series; sign-off "Tetap bernalar, Warga." |
 | `kilas-masa` | Stage (dark map set) | Stage, Stage + data, Cinematic 3D, One world, Mixed | No mascots; voice male unless you ask; series; sign-off "Sampai di masa berikutnya." |
 | `default` / `bold` | Mixed | all | nothing |
 

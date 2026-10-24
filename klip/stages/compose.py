@@ -231,6 +231,9 @@ def _stage_ctx(scene: Scene, t: dict, words: list[dict], media: dict, style: dic
             el.update(fs=round(b["w"] * 0.07, 1), outlet=e.outlet, date=e.date)
         elif e.kind == "notif":
             el.update(fs=round(b["w"] * 0.045, 1), outlet=e.outlet, date=e.date, stat=e.stat)
+        elif e.kind == "bubble":
+            el.update(sender=None if e.me else e.sender, color=stage_mod.sender_color(e.sender), me=e.me,
+                      forwarded=e.forwarded, date=e.date)
         elif e.kind in COMPONENTS:
             end = exits.get(i) or (t["start_ms"] + t["duration_ms"]) / 1000
             st_times = stage_mod.step_times(e, times[i], end, words)
@@ -263,6 +266,12 @@ def _stage_ctx(scene: Scene, t: dict, words: list[dict], media: dict, style: dic
         if e.label and e.kind in ("cutout", "photo", "icon", "logo", "screenshot"):
             el["label_font"] = c["label_px"]["s" if b["size"] == "s" else "m"]
         out.append(el)
+    chat = []                                  # chat pages scroll up as their bubbles come
+    for n, page in enumerate(pgs):
+        if stage_mod.is_chat_page(els, page):
+            scroll = stage_mod.chat_scroll([el for el in out if el["page"] == n], area[1], float(c["chat"]["typing_s"]))
+            if scroll:
+                chat.append({"page": n, "scroll": scroll})
     image, backdrop = None, None
     if v.backdrop:
         backdrop = _backdrop_ctx(scene, media, warnings)
@@ -285,7 +294,8 @@ def _stage_ctx(scene: Scene, t: dict, words: list[dict], media: dict, style: dic
     title = _headline(scene.on_screen_text, scene.emphasis)
     title_slams(title, words, scene.id)
     return {"bg": bg, "builtin": stage_mod.is_builtin(bg), "image": image, "backdrop": backdrop, "elements": out,
-            "tone": tone, "area": area, "title_style": title_style, "mascot_scale": k, "mascot_cx": cx,
+            "tone": tone, "area": area, "title_style": title_style, "chat": chat,
+            "title_top": stage_title_top(scene), "mask": area[0] if v.backdrop and v.backdrop.kind == "chat" else None, "mascot_scale": k, "mascot_cx": cx,
             "title": title, "list_no": list_no,
             "hook": scene.template == "hook", "continues": False, "next_same": False, "bg_from": 0.0, "bg_to": 0.0}
 
@@ -297,7 +307,7 @@ def _backdrop_ctx(scene: Scene, media: dict, warnings: list[str]) -> dict | None
     b = v.backdrop
     d = stage_mod.backdrop_settings(v)
     out = {"kind": b.kind, "dim": float(d.get("dim") or 0), "tint": b.tint, "title": d.get("title"),
-           "header": b.title, "cfg": d}
+           "header": b.title, "info": b.info, "cfg": d}
     if b.kind in ("photo", "screenshot"):
         row = media.get("backdrop")
         if not row:
@@ -312,9 +322,18 @@ def _backdrop_ctx(scene: Scene, media: dict, warnings: list[str]) -> dict | None
     return out
 
 
+def stage_title_top(scene: Scene) -> float:
+    """Top edge (px) of a stage scene's title: its backdrop's title_top (a chat's header sits above it),
+    else stage.title.top."""
+    if scene.visual.type == "stage" and scene.visual.backdrop:
+        if (top := stage_mod.backdrop_settings(scene.visual).get("title_top")) is not None:
+            return float(top)
+    return float(config.get("stage.title.top"))
+
+
 def stage_title_bottom(scene: Scene) -> float:
     """Bottom edge (px) of a stage scene's title, estimating how many lines the text wraps to."""
-    t = config.get("stage.title")
+    t = {**config.get("stage.title"), "top": stage_title_top(scene)}
     font = t["hook_font_size"] if scene.template == "hook" else t["font_size"]
     text = (scene.on_screen_text or "") + (" 1/3 " if scene.template == "list_item" else "")
     if not text.strip():
@@ -741,7 +760,8 @@ def sfx_events(scenes: list[dict], pages: list[dict], end_card: bool = False,
             else:
                 add("scene_cut", s["start"] - WHOOSH_PEAK_S)
         for e in (s.get("stage") or {}).get("elements", []):
-            add({"number": "stage_number", "highlight": "stage_highlight", "stamp": "stage_stamp"}.get(e["kind"], "stage_pop"), e["start"])
+            add({"number": "stage_number", "highlight": "stage_highlight", "stamp": "stage_stamp",
+                 "bubble": "stage_bubble"}.get(e["kind"], "stage_pop"), e["start"])
             comp = e.get("comp")
             for st in (comp or {}).get("steps", []):
                 if comp["kind"] == "reel":

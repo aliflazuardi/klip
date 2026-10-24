@@ -1,17 +1,18 @@
 {% set st = s.stage %}
 {% set bd = st.backdrop %}
-    <div class="stage-bg{{ (' bd bd-' ~ bd.kind) if bd }}"><div class="stage-pan{{ ' bg-' ~ st.bg if st.builtin }}"{% if st.image %} style="background: url('{{ st.image.src }}') center {{ 'top' if bd and bd.kind == 'screenshot' else 'center' }} / cover;"{% elif bd %} style="background: {{ bd.cfg.base }};"{% endif %}>{% if st.builtin %}<div class="st-grain st-grain-{{ st.bg }}"></div>{% endif %}
+    <div class="stage-bg{{ (' bd bd-' ~ bd.kind) if bd }}"><div class="stage-pan{{ ' bg-' ~ st.bg if st.builtin }}"{% if st.image %} style="background: url('{{ st.image.src }}') center {{ 'top' if bd and bd.kind == 'screenshot' else 'center' }} / cover;"{% elif bd and bd.kind == "chat" %} style="background: radial-gradient(circle, {{ bd.cfg.doodle }} 3px, rgba(0,0,0,0) 3.6px) 0 0 / 46px 46px, radial-gradient(circle, {{ bd.cfg.doodle }} 2px, rgba(0,0,0,0) 2.6px) 23px 23px / 46px 46px, {{ bd.cfg.base }};"{% elif bd %} style="background: {{ bd.cfg.base }};"{% endif %}>{% if st.builtin %}<div class="st-grain st-grain-{{ st.bg }}"></div>{% endif %}
       {% if bd and bd.kind == "board" %}<div class="bd-board" style="font-size: {{ bd.cfg.font_px }}px; color: {{ bd.cfg.ink }};">{% for row in bd.rows %}<div class="bd-row" style="height: {{ bd.cfg.row_px }}px;">{% for c in row %}<span class="bd-cell {{ c.tone }}">{{ c.text }}</span>{% endfor %}</div>{% endfor %}</div>{% endif %}
       </div>
       {% if bd and bd.tint %}<div class="bd-tint" style="background: {{ bd.tint }};"></div>{% endif %}
       {% if bd and bd.dim %}<div class="bd-dim" style="opacity: {{ bd.dim }};"></div>{% endif %}
       {% if bd and bd.cfg.shade %}<div class="bd-shade" style="opacity: {{ bd.cfg.shade }};"></div>{% endif %}
-      {% if bd and bd.kind == "phone" %}<div class="bd-status"><b>09.41</b><span><i></i><i></i><i></i><em></em></span></div>{% endif %}
-      {% if bd and bd.header %}<div class="bd-header" style="top: {{ bd.cfg.header_top }}px;"><span>{{ bd.header }}</span></div>{% endif %}
+      {% if bd and bd.kind in ("phone", "chat") %}<div class="bd-status"><b>09.41</b><span><i></i><i></i><i></i><em></em></span></div>{% endif %}
+      {% if bd and bd.kind == "chat" %}<div class="bd-chat" style="top: {{ bd.cfg.header_top }}px;"><i>{{ (bd.header or "?")[:1] }}</i><div><b>{{ bd.header }}</b>{% if bd.info %}<span>{{ bd.info }}</span>{% endif %}</div></div>
+      {% elif bd and bd.header %}<div class="bd-header" style="top: {{ bd.cfg.header_top }}px;"><span>{{ bd.header }}</span></div>{% endif %}
     </div>
-    <div class="st-cam"><div class="st-props">
+    <div class="st-cam"><div class="st-props"{% if st.mask %} style="-webkit-mask-image: linear-gradient(180deg, rgba(0,0,0,0) {{ st.mask - 60 }}px, #000 {{ st.mask + 20 }}px); mask-image: linear-gradient(180deg, rgba(0,0,0,0) {{ st.mask - 60 }}px, #000 {{ st.mask + 20 }}px);"{% endif %}>
     {% for e in st.elements %}
-      <div id="{{ e.id }}" class="st-el st-{{ e.kind }}" style="left: {{ (e.x - e.w / 2) | round(1) }}px; top: {{ (e.y - e.h / 2) | round(1) }}px; width: {{ e.w }}px; height: {{ e.h }}px; z-index: {{ 100 + e.i if e.kind == 'highlight' else e.i + 1 }};"><div class="st-in">
+      <div id="{{ e.id }}" class="st-el st-{{ e.kind }}{{ ' st-p' ~ e.page if st.chat }}" style="left: {{ (e.x - e.w / 2) | round(1) }}px; top: {{ (e.y - e.h / 2) | round(1) }}px; width: {{ e.w }}px; height: {{ e.h }}px; z-index: {{ 100 + e.i if e.kind in ('highlight', 'stamp') else e.i + 1 }};"><div class="st-in">
       {% if e.kind == "cutout" %}<img src="{{ e.src }}" alt="" />
       {% elif e.kind == "photo" %}<div class="st-card"><img src="{{ e.src }}" alt="" /></div>
       {% elif e.kind == "icon" %}<div class="st-disc">{{ e.svg | safe }}</div>
@@ -38,16 +39,17 @@
       {% elif e.kind == "person" %}<div class="ps-card" style="font-size: {{ e.fs }}px;"><div class="ps-photo"><img src="{{ e.src }}" alt="" /></div><div class="ps-name">{{ e.name }}</div>{% if e.text %}<div class="ps-line">{{ e.text }}</div>{% endif %}{% if e.stat %}<div class="ps-stat" style="color: {{ e.stat_color }};">{{ e.stat }}</div>{% endif %}</div>
       {% elif e.kind == "news" %}<div class="nw-card" style="font-size: {{ e.fs }}px;"><div class="nw-top"><b>{{ e.outlet or "" }}</b><span>{{ e.date or "" }}</span></div><div class="nw-head">{{ e.text }}</div></div>
       {% elif e.kind == "notif" %}<div class="nf-card" style="font-size: {{ e.fs }}px;"><div class="nf-top"><i class="nf-app"></i><b>{{ e.outlet or "" }}</b><span>{{ e.date or "" }}</span></div><div class="nf-line">{{ e.text }}</div>{% if e.stat %}<div class="nf-stat">{{ e.stat }}</div>{% endif %}</div>
+      {% elif e.kind == "bubble" %}<div class="cb {{ 'me' if e.me else 'them' }}">{% if e.forwarded %}<div class="cb-fwd"><svg viewBox="0 0 24 24" width="1em" height="1em"><path d="M14 5l7 7-7 7v-4.2C8.5 14.8 5 16.6 3 20c.6-5.2 3.6-9.6 11-10.6V5z" fill="currentColor"/></svg>{{ stage.cfg.chat.forwarded }}</div>{% endif %}{% if e.sender %}<div class="cb-name" style="color: {{ e.color }};">{{ e.sender }}</div>{% endif %}<div class="cb-text">{{ e.text }}<span class="cb-meta">{{ e.date or "" }}{% if e.me %}<svg viewBox="0 0 18 11" width="1.1em" height=".7em"><path d="M1 6l3 3 6-7M7 9l1 1 7-8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>{% endif %}</span></div></div>
       {% elif e.kind == "logo" %}<div class="lg-card"><img src="{{ e.src }}" alt="" /></div>
       {% elif e.comp is defined %}{% include "scenes/components.html.j2" %}
       {% elif e.kind == "screenshot" %}<div class="st-shot"><div class="sh-bar"><i></i><i></i><i></i><span>{{ e.host }}</span></div><img src="{{ e.src }}" alt="" /></div>
       {% endif %}
       {% if e.label_font %}<div class="st-subrow" style="font-size: {{ e.label_font }}px;"><div class="st-tag">{{ e.label }}</div></div>{% endif %}
-      </div>{% if e.kind in ("cutout", "stack") and stage.cfg.depth.ground %}<div class="st-ground"></div>{% endif %}</div>
+      </div>{% if e.kind == "bubble" and not e.me %}<div class="cb-typing"><i></i><i></i><i></i></div>{% endif %}{% if e.kind in ("cutout", "stack") and stage.cfg.depth.ground %}<div class="st-ground"></div>{% endif %}</div>
     {% endfor %}
     </div></div>
     {% if st.depth.fg %}<div class="st-fg">{% for b in st.depth.fg %}<i class="{{ 'warm' if b.warm }}" style="left: {{ b.x - b.r }}px; top: {{ b.y - b.r }}px; width: {{ 2 * b.r }}px; height: {{ 2 * b.r }}px; opacity: {{ b.o }}; filter: blur({{ b.blur }}px);"></i>{% endfor %}</div>{% endif %}
     {% if st.title or st.list_no %}
     {% set ts = st.title_style %}
-    <div class="st-title-row {{ ts }}"><div class="st-title {{ ts }}" style="font-size: {{ stage.cfg.title.hook_font_size if st.hook else stage.cfg.title.font_size }}px;">{% if st.list_no %}<span class="st-no">{{ st.list_no[0] }}/{{ st.list_no[1] }}</span>{% endif %}{% if ts == "box" %}<span class="bx">{% endif %}{% for h in st.title %}<span class="hw{{ ' emph' if h.emph }}">{{ h.text }}</span>{{ ' ' if not loop.last }}{% endfor %}{% if ts == "box" %}</span>{% endif %}</div></div>
+    <div class="st-title-row {{ ts }}" style="top: {{ st.title_top }}px;"><div class="st-title {{ ts }}" style="font-size: {{ stage.cfg.title.hook_font_size if st.hook else stage.cfg.title.font_size }}px;">{% if st.list_no %}<span class="st-no">{{ st.list_no[0] }}/{{ st.list_no[1] }}</span>{% endif %}{% if ts == "box" %}<span class="bx">{% endif %}{% for h in st.title %}<span class="hw{{ ' emph' if h.emph }}">{{ h.text }}</span>{{ ' ' if not loop.last }}{% endfor %}{% if ts == "box" %}</span>{% endif %}</div></div>
     {% endif %}

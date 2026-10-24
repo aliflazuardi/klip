@@ -8,6 +8,11 @@ All notable changes to Klip are listed here. The format follows
 
 ### Added
 
+- **Chat video style.** A stage backdrop `chat` (a group chat with its name and member count) and
+  `bubble` elements: messages land on their words after typing dots, forwarded chain messages are
+  marked, your own replies sit on the right, and the chat scrolls up as it fills. A `stamp` with
+  `target` lands on the bubble it judges. For hoaxes and chain messages; example `examples/chat.json`
+  (`stage.chat`, `stage.backdrop.chat`, `sfx.events.stage_bubble`).
 - **Guided flow.** `/klip` (and the MCP server from Claude Desktop) now walks you through a new video
   step by step: channel → topic and hook → video style with a recommendation for the topic → what
   photos you could send → mascots, voice, duration, CTA → a production summary, then the script

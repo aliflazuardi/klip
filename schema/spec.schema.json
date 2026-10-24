@@ -2,15 +2,16 @@
   "$defs": {
     "Backdrop": {
       "additionalProperties": false,
-      "description": "A themed set behind a stage scene's props, instead of a plain built-in `background`: a real\nplace (photo), a web page, a market board or a phone screen.",
+      "description": "A themed set behind a stage scene's props, instead of a plain built-in `background`: a real\nplace (photo), a web page, a market board, a phone screen or a group chat.",
       "properties": {
         "kind": {
-          "description": "photo = a full-screen photo of a place or surface (stock `query`, Wikipedia `who` for a painting/map, or your `path`), darkened so props read on it; screenshot = a web page (`url`, optional `wayback`) filling the frame; board = a dense market/departure board of `items` ('BBCA -2,1%'), tinted; phone = a phone app screen with a `title` header (pair it with notif elements).",
+          "description": "photo = a full-screen photo of a place or surface (stock `query`, Wikipedia `who` for a painting/map, or your `path`), darkened so props read on it; screenshot = a web page (`url`, optional `wayback`) filling the frame; board = a dense market/departure board of `items` ('BBCA -2,1%'), tinted; phone = a phone app screen with a `title` header (pair it with notif elements); chat = a messenger group chat with a `title` (the group's name) and `info` (pair it with bubble elements).",
           "enum": [
             "photo",
             "screenshot",
             "board",
-            "phone"
+            "phone",
+            "chat"
           ],
           "title": "Kind",
           "type": "string"
@@ -112,8 +113,21 @@
             }
           ],
           "default": null,
-          "description": "phone: the small header line ('autodebet · tgl 5 Jan'); board: an optional header ('IDX · 15 Okt 2026').",
+          "description": "phone: the small header line ('autodebet · tgl 5 Jan'); board: an optional header ('IDX · 15 Okt 2026'); chat: the group's name ('Keluarga Besar').",
           "title": "Title"
+        },
+        "info": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "chat: the small line under the name ('23 anggota', 'online').",
+          "title": "Info"
         },
         "dim": {
           "anyOf": [
@@ -1385,7 +1399,7 @@
           "type": "string"
         },
         "kind": {
-          "description": "cutout = stock photo with its background removed (a sticker); photo = photo card; icon = Lucide icon on a sticker disc; label = paper tag; number = big number; bar = bar chart; stack = a pile of `count` icons; highlight = yellow box around an earlier element; stamp = a rubber stamp that thumps down (a verdict: 'BERHASIL', 'PALSU'); chart = a line chart that draws on (real data: points, csv or ticker); unit = a grid of `total` squares, `filled` of them highlighted; person = a real person's card (Wikipedia photo of `who`, name, a line, a stat); news = a headline card (outlet, date, text); logo = an organisation's logo (`who`) on a sign; screenshot = a web page (`url`) in a browser window; notif = a phone notification card (`outlet` = the app, `text` = the line, `stat` = a big amount, `date` = the corner note). Motion components (animated diagrams; their `steps` play on their own words): kinetic = big kinetic type, one phrase per step; split = a whole that breaks into shares (step values); flow = amounts flowing from a source (`text`, `name`) to 1-4 destinations; meter = a gauge filling to each step's value out of `max`, with a counter; cycle = a loop of 3-6 steps with a dot going round (a vicious circle); timeline = dated events (step `label` = the date); funnel = layers narrowing step by step; reel = a slot reel spinning through options and landing on the `accent` one.",
+          "description": "cutout = stock photo with its background removed (a sticker); photo = photo card; icon = Lucide icon on a sticker disc; label = paper tag; number = big number; bar = bar chart; stack = a pile of `count` icons; highlight = yellow box around an earlier element; stamp = a rubber stamp that thumps down (a verdict: 'BERHASIL', 'PALSU'); chart = a line chart that draws on (real data: points, csv or ticker); unit = a grid of `total` squares, `filled` of them highlighted; person = a real person's card (Wikipedia photo of `who`, name, a line, a stat); news = a headline card (outlet, date, text); logo = an organisation's logo (`who`) on a sign; screenshot = a web page (`url`) in a browser window; notif = a phone notification card (`outlet` = the app, `text` = the line, `stat` = a big amount, `date` = the corner note); bubble = a chat message on a chat backdrop (`sender`, `text`, `me`, `forwarded`, `date` = the time), stacking down the chat and scrolling it like a real one. Motion components (animated diagrams; their `steps` play on their own words): kinetic = big kinetic type, one phrase per step; split = a whole that breaks into shares (step values); flow = amounts flowing from a source (`text`, `name`) to 1-4 destinations; meter = a gauge filling to each step's value out of `max`, with a counter; cycle = a loop of 3-6 steps with a dot going round (a vicious circle); timeline = dated events (step `label` = the date); funnel = layers narrowing step by step; reel = a slot reel spinning through options and landing on the `accent` one.",
           "enum": [
             "cutout",
             "photo",
@@ -1403,6 +1417,7 @@
             "logo",
             "screenshot",
             "notif",
+            "bubble",
             "kinetic",
             "split",
             "flow",
@@ -1646,8 +1661,33 @@
             }
           ],
           "default": null,
-          "description": "news: the date as shown, e.g. 'Jumat, 16 Okt 2026'; notif: the corner note ('bulan ke-12', '09.41').",
+          "description": "news: the date as shown, e.g. 'Jumat, 16 Okt 2026'; notif: the corner note ('bulan ke-12', '09.41'); bubble: the time ('19.02').",
           "title": "Date"
+        },
+        "sender": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "bubble: who sent it, as the chat shows the name ('Om Hendra', 'Tante Rina'); never a real person's name or number.",
+          "title": "Sender"
+        },
+        "me": {
+          "default": false,
+          "description": "bubble: sent by the phone's owner (right side, the sent colour).",
+          "title": "Me",
+          "type": "boolean"
+        },
+        "forwarded": {
+          "default": false,
+          "description": "bubble: marked 'Diteruskan' (a forwarded chain message).",
+          "title": "Forwarded",
+          "type": "boolean"
         },
         "url": {
           "anyOf": [
@@ -2000,7 +2040,7 @@
             }
           ],
           "default": null,
-          "description": "type=stage: a themed set instead of `background` (a real place, a web page, a market board, a phone screen). Vary sets across the video as the story moves."
+          "description": "type=stage: a themed set instead of `background` (a real place, a web page, a market board, a phone screen, a group chat). Vary sets across the video as the story moves."
         },
         "elements": {
           "description": "type=stage: props that build up on the background, each popping in on its narration word, in narration order.",

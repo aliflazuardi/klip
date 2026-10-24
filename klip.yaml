@@ -215,6 +215,10 @@ stage:
     board:      {dim: 0.30, tone: dark, title: box, shade: 0.6, base: "#0B0D10", ink: "#C9CED6", up: "#22C55E",
                  down: "#EF4444", stripe: "#1A1D23", cols: 3, font_px: 30, row_px: 60, header_top: 236}
     phone:      {dim: 0, tone: dark, title: plain, shade: 0, base: "#0E1013", bar: "#9AA0A6", header_top: 236}
+    # a group chat: dark messenger wallpaper (base + a faint doodle of dots), the group's name in the header
+    # (title_top: the scene title moves below the header; bokeh: false = no foreground bokeh over the chat)
+    chat:       {dim: 0, tone: dark, title: plain, shade: 0, base: "#0B141A", doodle: "rgba(255,255,255,.035)",
+                 bar: "#8696A0", header_top: 240, title_top: 350, bokeh: false}
     size: [1200, 2040]              # px a photo/screenshot set is prepared at (the frame plus the pan)
     tint_opacity: 0.5               # strength of a `tint` colour wash (multiplied over the set)
     query_suffix: background        # photo sets search "<query> background" first, then the plain query
@@ -374,6 +378,23 @@ stage:
            grow: 1.3}                                                      # height = size box height × grow
   news: {bg: "#FFFFFF", text: "#15151C", muted: "#6B7280", aspect: 0.36}
   notif: {bg: "#FFFFFF", text: "#15151C", muted: "#6B7280", app: "#1FA45B", aspect: 0.36}   # phone notification card
+  # Chat bubbles (kind=bubble on a chat backdrop): they stack down the chat in narration order and the
+  # chat scrolls up when the next one wouldn't fit, like a real one. font_px/max_w/pad/gap in px; a
+  # sender's bubble shows typing dots for typing_s before it lands; names take colours from `names`
+  # (by sender, stable). words_max / max_per_page: validate warns above these.
+  chat:
+    font_px: 46
+    max_w: 860
+    pad: 30
+    gap: 18
+    radius: 26
+    typing_s: 0.45
+    them: {bg: "#202C33", text: "#E9EDEF", muted: "#8696A0"}
+    me: {bg: "#005C4B", text: "#E9EDEF", muted: "#9FC6BC", ticks: "#53BDEB"}
+    names: ["#F59E0B", "#34D399", "#F472B6", "#60A5FA", "#A78BFA", "#FB7185"]
+    forwarded: Diteruskan
+    words_max: 22
+    max_per_page: 6
   logo: {bg: "#FFFFFF", pad: 0.12, max_px: 800}                  # pad = share of the sign's width
   screenshot: {max_px: 1400, bar: "#E7E7EC", bar_px: 46}
   cutout:
@@ -581,6 +602,7 @@ sfx:
     stage_number: ding        # a stage number lands
     stage_highlight: null     # a yellow highlight box draws in
     stage_stamp: hit          # a stamp thumps down
+    stage_bubble: pop         # a chat bubble lands
   # Camera moves (post stage): the rendered video is read small (size, fps); where most of the picture
   # changes at once (share of pixels in the crop band, y as shares of the height, that change by more
   # than pixel_diff /255) for at least min_s, a camera is moving: the effect plays lead_s before that

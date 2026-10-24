@@ -136,6 +136,26 @@ def _lint_stage(spec: Spec, s: Scene, tokens: list[str], err, warn) -> None:
         warn(s.id, "a phone backdrop reads best with notif elements (the app's notifications) on it")
     if any(e.kind == "notif" for e in els) and not (b and b.kind == "phone"):
         warn(s.id, 'notif cards sit best on a phone backdrop: "backdrop": {"kind": "phone", "title": "…"}')
+    if b and b.kind == "chat" and not any(e.kind == "bubble" for e in els):
+        warn(s.id, "a chat backdrop reads best with bubble elements (the messages) on it")
+    if any(e.kind == "bubble" for e in els) and not (b and b.kind == "chat"):
+        warn(s.id, 'bubbles sit on a chat backdrop: "backdrop": {"kind": "chat", "title": "…"}')
+    words_max, per_page = (int(config.get(f"stage.chat.{k}")) for k in ("words_max", "max_per_page"))
+    for e in els:
+        if e.kind == "bubble" and len(e.text.split()) > words_max:
+            warn(s.id, f"bubble {e.text[:30]!r}… has {len(e.text.split())} words; keep chats ≤ {words_max} so "
+                       f"they read in time")
+    from klip.stage import pages
+    for page in pages(els):
+        kinds = [els[i].kind for i in page]
+        if "bubble" not in kinds:
+            continue
+        if kinds.count("bubble") > per_page:
+            warn(s.id, f"{kinds.count('bubble')} bubbles on one chat page; older ones scroll away: start a new "
+                       f"page (\"clear\": true) after ~{per_page}")
+        if other := sorted({k for k in kinds if k not in ("bubble", "stamp", "highlight")}):
+            warn(s.id, f"a chat page holds bubbles, stamps and highlights; {', '.join(other)} breaks the chat "
+                       f"layout: put it on its own page (\"clear\": true)")
     bg = s.visual.background
     if bg and bg not in (config.get("stage.backgrounds") or {}):
         from klip.paths import ROOT

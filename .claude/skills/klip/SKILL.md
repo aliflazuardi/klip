@@ -204,7 +204,12 @@ outro). A brand's rules (voice, sign-off, series, hashtags) still apply.
     real codes, and numbers only when they are real figures in `facts`, else codes alone), or
     `{"kind": "phone", "title": "autodebet · tgl 5 Jan"}` (an app screen; put `notif` elements on
     it: `outlet` = the app, `text` = the line, `stat` = a big amount, `date` = the corner note;
-    they stack down the screen). Optional `dim` (0–0.9), `blur`, `tint` ("#7A0F14" for a red
+    they stack down the screen), or `{"kind": "chat", "title": "Keluarga Besar", "info": "23 anggota"}` (a
+    group chat; put `bubble` elements on it: `sender` = the name as the chat shows it (made up, never a real
+    person's), `text` ≤ 22 words, `forwarded: true` for a chain message, `me: true` for the phone owner's
+    reply (right side, no sender), `date` = the time "07.02"; they stack down in narration order, theirs
+    after typing dots, and the chat scrolls up when it fills; a `stamp` with `target` = the bubble's number
+    lands on that bubble: the hoaks verdict). Example: `examples/chat.json`. Optional `dim` (0–0.9), `blur`, `tint` ("#7A0F14" for a red
     crash) and `tone`. On photo/page/board sets the title becomes caps in dark boxes with the
     `emphasis` in an accent box, and the bottom darkens for the captions. Plan 2–4 sets per video,
     one per beat (consecutive scenes on the same backdrop carry it across the cut); `validate` warns
