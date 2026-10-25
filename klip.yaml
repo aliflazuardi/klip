@@ -299,7 +299,7 @@ stage:
   caption_gap_px: 50                # the stage area ends this far above the captions (room for the
                                     # camera push-in and hanging label tags)
   layout_gap_px: 16                 # props on one page keep at least this apart (overlaps are pushed
-                                    # apart, then shrunk); stamps may overlap what they judge
+                                    # apart, then shrunk); a stamp may overlap the props it judges, never a label or number
   lead_s: 0.06                      # an element lands this long before its word
   min_gap_s: 0.25                   # entries closer than this are pushed apart
   exit_s: 0.25                      # props sweep off this long before a cleared stage / stage→stage cut

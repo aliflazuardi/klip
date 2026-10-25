@@ -307,10 +307,10 @@ def fit(x: float, y: float, w: float, h: float, top: float, bottom: float,
 
 
 def separate(boxes: dict[int, dict], below: dict[int, float], top: float, bottom: float,
-             xr: tuple[float, float] = SAFE_X) -> None:
+             xr: tuple[float, float] = SAFE_X, free: frozenset[frozenset[int]] = frozenset()) -> None:
     """Push overlapping boxes apart (in place) along the axis that overlaps least, keeping them in the
     stage area; if some still overlap after that, shrink the bigger box of each such pair and try again.
-    `below`: extra px a box needs under it (its hanging label tag)."""
+    `below`: extra px a box needs under it (its hanging label tag). `free`: pairs of boxes allowed to overlap."""
     from itertools import combinations
     gap, keys = float(cfg("layout_gap_px")), sorted(boxes)
 
@@ -331,6 +331,8 @@ def separate(boxes: dict[int, dict], below: dict[int, float], top: float, bottom
             moved = False
             for i, j in combinations(keys, 2):
                 a, b = boxes[i], boxes[j]
+                if frozenset((i, j)) in free:
+                    continue
                 ox, oy = overlap(a, b)
                 if ox <= 0 or oy <= 0:
                     continue
@@ -343,7 +345,8 @@ def separate(boxes: dict[int, dict], below: dict[int, float], top: float, bottom
                 clamp(b)
             if not moved:
                 break
-        clashes = [(i, j) for i, j in combinations(keys, 2) if min(overlap(boxes[i], boxes[j])) > 0]
+        clashes = [(i, j) for i, j in combinations(keys, 2) if min(overlap(boxes[i], boxes[j])) > 0
+                   and frozenset((i, j)) not in free]
         if not clashes:
             break
         # shrink the bigger box of each clashing pair (a photo gives way before a tag's text does)
@@ -372,11 +375,15 @@ def layout(scene_id: str, elements: list[StageElement], media: dict[int, dict],
             cx, cy = xr[0] + px * (xr[1] - xr[0]), top + py * (bottom - top)
             x, y, w, h = fit(cx, cy, w, h, top, bottom, xr)
             out[i] = {"x": x, "y": y, "w": w, "h": h, "rot": tilt(scene_id, i, e.kind), "size": size, "slot": slot}
-        # stamps slap over what they judge; everything else gets its own space
-        solid = [i for i in page if i in out and elements[i].kind != "stamp"]
+        # a stamp slaps over the props it judges, but never over text (a label or number stays readable);
+        # everything else gets its own space
+        solid = [i for i in page if i in out]
+        free = frozenset(frozenset((i, j)) for i in solid for j in solid if i < j
+                         and "stamp" in (elements[i].kind, elements[j].kind)
+                         and not {elements[i].kind, elements[j].kind} & {"label", "number", "stamp"})
         below = {i: float(cfg("label_px")["s" if out[i]["size"] == "s" else "m"]) * 0.9
                  for i in solid if elements[i].label}
-        separate({i: out[i] for i in solid}, below, top, bottom, xr)
+        separate({i: out[i] for i in solid}, below, top, bottom, xr, free)
         for i in page:
             e = elements[i]
             if e.kind == "highlight" and (tb := out.get(e.target - 1)):

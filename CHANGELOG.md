@@ -153,6 +153,8 @@ All notable changes to Klip are listed here. The format follows
 
 ### Fixed
 
+- **Stamps no longer cover text on a stage.** A stamp may still slap over the prop it judges, but it is
+  now pushed apart from labels and numbers (and other stamps), so "SEMBILAN = DISKON?" stays readable.
 - Duration estimates (validate, the script word budget) now use the speed of the engine that records the
   final voice: Gemini speaks ~2.3-2.5 words/s, not the Edge calibration's 1.7-2.2, so Gemini videos came
   out 20-30 % shorter than planned (`voices.base_words_per_second_by_engine`).
