@@ -129,6 +129,19 @@ def test_photo_boxes_keep_aspect_and_fit_the_stage():
     assert b["w"] / b["h"] == pytest.approx(4, rel=0.01) and b["w"] <= 900
 
 
+def test_stamps_overlap_props_but_never_text():
+    def hit(a, b):
+        return abs(a["x"] - b["x"]) < (a["w"] + b["w"]) / 2 and abs(a["y"] - b["y"]) < (a["h"] + b["h"]) / 2
+
+    text = Visual(**stage({"at": "a", "kind": "label", "text": "Sembilan = diskon?"},
+                          {"at": "b", "kind": "stamp", "text": "Rp100.000"}))
+    b = stage_mod.layout("s1", text.elements, {}, (450, 1170))
+    assert not hit(b[0], b[1])                                          # a stamp never covers a label
+    prop = Visual(**stage({"at": "a", "kind": "cutout", "query": "x"}, {"at": "b", "kind": "stamp", "text": "BOHONG"}))
+    b = stage_mod.layout("s1", prop.elements, {0: {"w": 800, "h": 800, "render": "cutout"}}, (450, 1170))
+    assert len(b) == 2 and b[0]["h"] >= 400                             # the prop stays big; the stamp may land on it
+
+
 def test_tilt_is_deterministic_and_bounded():
     assert stage_mod.tilt("s1", 0, "cutout") == stage_mod.tilt("s1", 0, "cutout")
     assert all(abs(stage_mod.tilt("s", i, "cutout")) <= stage_mod.cfg("tilt_deg") for i in range(20))
@@ -314,7 +327,8 @@ def test_compose_stage_run_keeps_background_and_cues_sfx(tmp_path):
     assert s2["elements"][0]["bars"][1]["pct"] == 100
     moments = [(e["moment"], e["t"]) for e in ctx["sfx"]]
     assert ("scene_cut", pytest.approx(3 - compose.WHOOSH_PEAK_S)) not in moments     # no whoosh s1→s2
-    assert ("scene_cut", pytest.approx(6 - compose.WHOOSH_PEAK_S)) in moments         # stage → cta
+    assert any(m in ("scene_cut", "transition") and t == pytest.approx(6 - compose.WHOOSH_PEAK_S)
+               for m, t in moments)                                                 # stage → cta
     assert ("stage_pop", pytest.approx(0.54)) in moments and ("stage_number", pytest.approx(1.34)) in moments
 
     from jinja2 import Environment, FileSystemLoader, StrictUndefined

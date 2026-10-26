@@ -77,16 +77,50 @@ def top(style: dict, caption_top: float, scale: float = 1.0) -> float:
     return caption_top - float(c["gap_px"]) - float(c["height"]) * scale
 
 
-def shown(scene: Scene, style: dict) -> list[str]:
-    """The mascots visible in a scene (its `show`, within the video's cast)."""
+def shown(scene: Scene, style: dict, spec: Spec | None = None) -> list[str]:
+    """The mascots visible in a scene (its `show`, within the video's cast); a focus scene shows
+    only its star (without the spec to resolve `focus: true`, the first of them)."""
     if not active(scene, style):
         return []
     cast = names(style)
     pick = scene.mascot.show if scene.mascot and scene.mascot.show is not None else None
-    return [n for n in cast if pick is None or n in pick]
+    here = [n for n in cast if pick is None or n in pick]
+    if scene.mascot and scene.mascot.focus:
+        star = focus_of(spec, scene, style) if spec else None
+        return [star] if star in here else here[:1]
+    return here
 
 
-def scale(scene: Scene) -> float:
+def focus_of(spec: Spec, scene: Scene, style: dict) -> str | None:
+    """The mascot a focus scene spotlights: the named one, else (true) the scene's speaker, else
+    the first one shown."""
+    f = scene.mascot.focus if scene.mascot else None
+    if not f:
+        return None
+    cast = names(style)
+    if isinstance(f, str):
+        return f if f in cast else None
+    who = speaker(spec, scene, style)
+    if who in cast:
+        return who
+    pick = scene.mascot.show
+    return next((n for n in cast if pick is None or n in pick), None)
+
+
+def focus_scale(style: dict, caption_top: float, props_top: float) -> float:
+    """A spotlit star's scale: focus.height, shrunk (not below focus.min_height) so the props keep
+    a strip of focus.min_strip_px between props_top and its head."""
+    c = settings(style)
+    f = c["focus"]
+    room = caption_top - float(c["gap_px"]) - float(c["clear_px"]) - float(f["min_strip_px"]) - props_top
+    return max(float(f["min_height"]), min(float(f["height"]), room)) / float(c["height"])
+
+
+def scale(scene: Scene, style: dict | None = None) -> float:
+    """The scene's mascot scale; a focus scene's star is drawn at mascot.focus.height."""
+    if scene.mascot and scene.mascot.focus and style:
+        c = settings(style)
+        return float(c["focus"]["height"]) / float(c["height"])
     return scene.mascot.scale if scene.mascot else 1.0
 
 
@@ -151,19 +185,33 @@ def plan(spec: Spec, scenes: list[dict], words: list[dict], style: dict, caption
     events: dict[str, list[tuple[float, str, float | None]]] = {m["name"]: [] for m in cast}
     mouth: dict[str, list[tuple[float, float]]] = {m["name"]: [] for m in cast}
     spans: dict[str, list[tuple[float, float]]] = {m["name"]: [] for m in cast}
-    sizes: dict[str, list[tuple[float, float]]] = {m["name"]: [] for m in cast}
+    sizes: dict[str, list[tuple[float, float, bool]]] = {m["name"]: [] for m in cast}
+    gestures: dict[str, list[dict]] = {m["name"]: [] for m in cast}
+    focus_spans: dict[str, list[tuple[float, float, float, float]]] = {m["name"]: [] for m in cast}
     for sc in scenes:
         scene = by_id.get(sc["id"])
-        if not scene or sc.get("hidden") or not (here := shown(scene, style)):
+        if not scene or sc.get("hidden") or not (here := shown(scene, style, spec)):
             continue
         t0, t1 = sc["start"], sc["end"]
+        star = focus_of(spec, scene, style)
         for name in here:
             spans[name].append((t0, t1))
-            sizes[name].append((t0, scale(scene)))
+            st = (sc.get("stage") or {}) if name == star else {}
+            sizes[name].append((t0, st.get("mascot_scale") or scale(scene, style),
+                                (st.get("mascot_cx") or 540) if name == star else None))
+        if star in focus_spans:
+            focus_spans[star].append((t0, t1, *sizes[star][-1][1:]))
         sw = [w for w in words if w["sceneId"] == scene.id]
         who = speaker(spec, scene, style)
         if who in mouth:
             mouth[who] += _flaps(sw, c["mouth"])
+        if who in gestures and c.get("lively"):
+            mine = _gestures(sw, scene, c["lively"], big=who == star)
+            gestures[who] += mine
+            if c["lively"].get("listener_nod"):          # the others nod along on every other beat
+                for name in here:
+                    if name != who and name in gestures:
+                        gestures[name] += [{"t": round(g["t"] + 0.25, 3), "k": "nod", "a": 1.0} for g in mine[1::2]]
         if scene.template == "hook":
             for name, pose in (auto.get("hook") or {}).items():
                 if name in events:
@@ -172,7 +220,7 @@ def plan(spec: Spec, scenes: list[dict], words: list[dict], style: dict, caption
         last_point = -1e9
         if auto.get("point") and who in events:
             for e in els:
-                if (e["kind"] in _BIG or e.get("comp")) and e["start"] - last_point >= float(auto["point_gap_s"]):
+                if (e["kind"] in BIG or e.get("comp")) and e["start"] - last_point >= float(auto["point_gap_s"]):
                     events[who].append((e["start"], auto["point"], float(auto["point_hold_s"])))
                     if last_point < -1e8 and (listen := auto.get("listen")):    # the scene's first point:
                         for name in here:                                       # the others lean in
@@ -206,6 +254,8 @@ def plan(spec: Spec, scenes: list[dict], words: list[dict], style: dict, caption
         sw = [w for w in words if w["sceneId"] == scene.id]
         if (who := speaker(spec, scene, style)) in mouth:
             mouth[who] += _flaps(sw, c["mouth"])
+            if c.get("lively"):                       # the closing line gets body language too
+                gestures[who] += _gestures(sw, scene, c["lively"])
         for name, pose in (auto.get("cta") or {}).items():
             if name in events:
                 events[name].append((sc["start"], pose, SOFT))
@@ -218,12 +268,26 @@ def plan(spec: Spec, scenes: list[dict], words: list[dict], style: dict, caption
         x = SAFE_X[0] + inset if m.get("side", "left") == "left" else SAFE_X[1] - inset - w
         segs = _segments(events[name], set(svgs))
         side = m.get("side", "left")
-        # scale changes per scene (grow/shrink from the outer bottom corner, so it stays on screen)
-        steps = [(t, k) for i, (t, k) in enumerate(sizes[name]) if i == 0 or k != sizes[name][i - 1][1]]
+        # scale changes per scene (grow/shrink from the outer bottom corner, so it stays on screen);
+        # a focus scene also slides the star to the centre
+        def move(k: float, cx: float | None) -> dict:
+            if cx is None:
+                return {"s": k, "dx": 0}
+            dx = cx - x - w * k / 2 if side == "left" else cx - (x + w) + w * k / 2
+            return {"s": round(k, 3), "dx": round(dx, 1)}
+        steps = [(t, k, f) for i, (t, k, f) in enumerate(sizes[name])
+                 if i == 0 or (k, f) != sizes[name][i - 1][1:]]
+        first = move(*steps[0][1:]) if steps else {"s": 1.0, "dx": 0}
         out.append({"name": name, "id": f"ms-{name}", "x": round(x, 1), "y": round(y, 1), "w": w, "h": h,
                     "mirror": side == "right", "origin": "0% 100%" if side == "left" else "100% 100%",
-                    "scale0": steps[0][1] if steps else 1.0,
-                    "scales": [{"t": round(t, 3), "s": k} for t, k in steps[1:]],
+                    "scale0": first["s"], "dx0": first["dx"],
+                    # a change while the mascot was off screen (e.g. after code scenes) snaps instead of tweening
+                    "scales": [{"t": round(t, 3), **move(k, f),
+                                "snap": not any(a < t - 0.01 and b >= t - 0.01 for a, b in spans[name])}
+                               for t, k, f in steps[1:]],
+                    "gestures": sorted(gestures[name], key=lambda g: g["t"]),
+                    "focus": [{"start": a, "end": b, "cx": cx, "cy": round(y + h - h * k / 2, 1)}
+                              for a, b, k, cx in focus_spans[name]],
                     "poses": [{"name": p, "svg": _scoped(svg, f"ms-{name}-{p}")} for p, svg in svgs.items()],
                     "segments": segs, "spans": [{"start": a, "end": b} for a, b in spans[name]],
                     "mouth": mouth[name], "blinks": _blinks(spans[name], name, c["blink_s"]),
@@ -231,7 +295,39 @@ def plan(spec: Spec, scenes: list[dict], words: list[dict], style: dict, caption
     return out
 
 
-_BIG = ("cutout", "photo", "person", "logo", "screenshot", "chart", "bar", "unit", "news", "notif")
+def _norm(t: str) -> str:
+    return re.sub(r"[^\w]", "", t).casefold()
+
+
+def _gestures(words: list[dict], scene: Scene, lv: dict, big: bool = False) -> list[dict]:
+    """Body language while speaking: a hop on emphasised words (only when spotlit), a nod or a lean
+    on a sentence's first word, an emphasised word or a long word; never closer than gap_s. A
+    spotlit star gestures focus_boost times as often and as big (`a`, the amplitude)."""
+    stress = {_norm(t) for e in scene.emphasis for t in e.split()}
+    boost = float(lv["focus_boost"]) if big else 1.0
+    gap = float(lv["gap_s"]) / boost
+    out, last, prev = [], -1e9, "."
+    for i, w in enumerate(words):
+        t = w["startMs"] / 1000
+        text = w["text"].strip()
+        emph = _norm(text) in stress
+        starts = prev.endswith((".", "!", "?", ",")) or i == 0
+        long = (w["endMs"] - w["startMs"]) / 1000 > float(lv["long_s"])
+        prev = text
+        if not (emph or starts or long or big) or t - last < gap:
+            continue
+        if emph and big:
+            k = "hop"
+        elif emph:
+            k = "nod"
+        else:
+            k = "lean_l" if _h(scene.id, i) < 0.5 else "lean_r"
+        out.append({"t": round(t, 3), "k": k, "a": boost})
+        last = t
+    return out
+
+
+BIG = ("cutout", "photo", "person", "logo", "screenshot", "chart", "bar", "unit", "news", "notif")
 
 
 def _flaps(words: list[dict], m: dict) -> list[tuple[float, float]]:

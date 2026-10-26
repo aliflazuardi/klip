@@ -9,8 +9,10 @@ Use them when the video should look designed shot by shot: illustrated stories, 
 out a line, kinetic type, data that builds into a picture, 3D. They take longer to write than a
 template, so the loop below (preview → look → fix) is part of the job, not optional.
 
-Director mode needs a writer that can create files (Claude Code). `klip new` and the MCP server
-write template and stage specs.
+Claude Code writes the scene files itself. From Claude Desktop, the MCP tools `validate_spec`,
+`preview_spec` and `render_spec` take them as `scene_files` (`{"s1.html": "…"}`, saved to
+`specs/<slug>/`), and `preview_spec` returns the contact sheets as images, so the preview loop
+below works there too. `klip new` writes template and stage specs only.
 
 ## The scene file
 
@@ -84,13 +86,103 @@ Start every scene from these, so it is legible and on-brand before you add what 
 | `const { svg, cam } = k.stage()` | A full-frame SVG behind the scene's HTML (filled with the look's `bg`), with a camera group `cam` to draw into. |
 | `k.camera(cam, {to, origin, at, dur})` | A slow push-in (to `code.kit.camera_zoom` by the scene's end). Works on SVG groups and HTML. |
 | `k.headline({text, size, top, at, align, scrim})` | The scene's `on_screen_text`, placed below the series pill when it shows, emphasis and ALL-CAPS words in the accent, popping in word by word. Adds a top scrim. |
-| `k.cast({scrim, only})` | The style's mascots at the same spots as on stage scenes, over a bottom scrim: `const { napa, gulung } = k.cast()`. |
+| `k.spotlight("napa", {pose, poseAt, hold, at, h, x})` | A mascot as the scene's star: big (klip.yaml `code.kit.spotlight`), feet on the captions, centred on `x`, popping up with a squash at `at` under a glow and a turning sunburst; takes `pose` on `poseAt`. Returns the rig. For a cold open over a world. |
+| `k.cast({scrim, only})` | The style's mascots at the same spots as on stage scenes, over a bottom scrim: `const { napa, gulung } = k.cast()`. Mascots appear on their own only on stage scenes: with a cast, `validate` warns when the hook or the last scene before the cta is a code scene that doesn't place them (`k.cast`, `k.spotlight` or `k.mascot`). |
 | `k.scrim("top" \| "bottom", {height, color})` | A band of the look's `bg` so type stays readable over a busy picture. |
 | `k.chip(text, x, y, {bg, color, size, rot, at})` | A label chip; pops in at `at`. |
+| `k.reveal(el, at, {mode, stagger, dur})` | Kinetic type: the element's text comes in by `"letters"`, `"words"` (rise with a blur), `"mask"` (lines wipe up from behind a mask) or `"slam"` (drops from big with a shake and a shine). |
+| `k.fx.sparks(x, y, at, {n, len, color})`, `k.fx.shock(x, y, at, {size})`, `k.fx.shine(el, at)`, `k.fx.shake(el, at)` | One-shot effects for impact moments: sparks flying out, a shockwave ring, a light sweep across an element, a shake (klip.yaml `fx`). |
+| `k.land(el, at, {from, dur, dust, color})` | Drop an element in: it falls with motion blur, lands with a squash, a jelly wobble and a dust puff (klip.yaml `code.kit.land`). |
+| `k.spring(stiffness, damping)` | A deterministic spring ease for any tween: `ease: k.spring(180, 12)` (less damping = more bounce). |
 | `k.pop(el, at)`, `k.shake(el, at)` | Pop in with the look's pop ease; a short shake. |
 | `k.type(el, at, {cps})` | Typewriter text. |
-| `k.count(el, {to, from, at, dur, decimals, prefix, suffix})` | A number counting up, Indonesian format (`1.234,5`). |
+| `k.count(el, {to, from, at, dur, decimals, prefix, suffix, roll})` | A number counting up, Indonesian format (`1.234,5`); `roll: true` = an odometer, each digit spinning into place. |
 | `k.draw(path, at, {dur})` | A stroke drawing on. |
+
+### Music: beats
+
+Klip finds the beats of the video's music track (the one `klip render` mixes in, which starts with
+the video and loops), so a scene can move with the music as well as the voice:
+
+| | |
+|---|---|
+| `k.beats` | `[{t, n, down, s}]`: the beats in this scene (scene seconds), `n` = beat number in the video, `down` = the first beat of a bar, `s` = strength 0–1. Empty without music. |
+| `k.bpm`, `k.period` | The tempo, and seconds per beat (`null` without music). |
+| `k.pulse(t, {down, every, decay, strength})` | For `k.frame`: 1 on a beat, falling off over `decay` s (klip.yaml `code.kit.pulse_decay_s`). `down: true` = bars only, `every: 2` = every other beat, `strength: true` = scaled by the hit's strength. 0 without music. |
+| `k.onBeat(fn, {down, every, from, to})` | Calls `fn(t, beat)` for each beat, to put tweens on them: `k.onBeat((t) => k.tl.fromTo(el, {scale: 1.05}, {scale: 1, duration: 0.3}, t))`. |
+
+Keep the voice in charge: the story's reveals stay on `k.at` words, and the beat adds life
+(a breathing glow, a flash on bars, cuts inside a scene). Scenes must still read without music,
+since `k.beats` is empty then. The tracker (klip/beats.py, settings in klip.yaml `code.beats`)
+finds the tempo of tracks with a beat well; a track with no steady beat (ambient, orchestral
+swells) can still get a grid, and compose warns when its confidence is low. Watch that the
+pulses land, or set `"music": {"beats": false}` in the spec.
+
+### Motion: trails and motion blur
+
+Every frame is a sharp still, so something that moves far between frames strobes. For canvas scenes
+(defaults in klip.yaml `code.kit.trail` / `code.kit.motion_blur`):
+
+| | |
+|---|---|
+| `k.trail(ctx, pos, t, {length, width, color, from})` | A tapered streak behind a moving point, fading to the tail: `pos(t)` returns its `{x, y}` at any time, `length` = seconds of path behind it. Cheap: one stroke. |
+| `k.frame(k.motionBlur(ctx, draw, {samples, shutter}))` | Real motion blur for a canvas that `draw(t)` repaints whole: drawn at `samples` instants over `shutter` (share of a frame, 0.5 = film's 180°) and averaged. Costs `samples` times the drawing. |
+
+### One world: a camera that travels across scenes
+
+Code scenes cut from one to the next. For a single place the camera travels through (a map, a
+road, a timeline you fly along), give the spec a `world`: one code file drawn under a run of
+consecutive code scenes, whose own backgrounds turn transparent so the world shows through.
+
+```json
+"world": {"file": "specs/<slug>/world.html", "scenes": ["s2", "s3", "s4"]}
+```
+
+- `scenes` empty = every code scene (they must be consecutive). `assets`, `include`, `libs` as in a scene.
+- In the world file, `k` spans the run: `k.dur` is the run's length, `k.words` / `k.at("…")` cover
+  every scene's narration, `k.scenes` = `[{id, start, end}]` and `k.sceneAt(t)` → `{id, i, p}` tell
+  which scene is on, so the camera can move to scene *i*'s place as it starts.
+- The scenes on top draw only what their line needs (a headline, a label, a mascot):
+  `examples/code-scenes/worlds/title-only.html`. Textures stay on the scenes.
+- Starter: `examples/code-scenes/worlds/journey.html` (a camera flight along a glowing path, one
+  stop per scene), rendered by `examples/code-world.json`.
+
+### Cold open: start on the climax
+
+The first two seconds decide the swipe, so don't open on a quiet establishing shot and save the best
+shot for the middle. Put the hook in the world's run too (`"scenes": ["s1", "s2", …]`) and let the
+world *replay* its climax under the hook: the world draws from `t` alone, so remapping time does it.
+
+```js
+const remap = (t) => (t < S.s1.end ? T_PEAK_START + (t / (S.s1.end - S.s1.start)) * PEAK_LEN : t);
+k.frame((t0) => { const t = remap(t0); /* draw the world at t, pick the camera by t0 */ });
+```
+
+Hard-cut from the hook into the story's first shot (no camera blend across that cut). The hook's own
+file puts the line and a face on top: `k.headline()` and `k.spotlight("napa", {x: 300, h: 560, pose:
+"kaget"})`, with the world shifted right (`camera.setViewOffset(1080, 1920, -190, …)`) so the subject
+isn't behind the mascot.
+
+### Light: glow, bloom, flares
+
+Dark looks live on light. These make the bright parts of a picture bleed (defaults in klip.yaml
+`code.kit.glow` / `code.kit.flare`):
+
+| | |
+|---|---|
+| `const glow = k.glow(ctx, {strength, threshold, radius})` | Glow for a 2D canvas: call `glow()` at the end of each `k.frame`, after drawing. Pixels brighter than `threshold` (0–1) bleed light in their own colour, a tight and a wide halo. |
+| `const render = k.bloom(renderer, scene, camera, {…})` | Three.js with bloom: call `render()` in `k.frame` instead of `renderer.render`. The light goes on a canvas over the WebGL one; `render.ctx` is that overlay's 2D context. |
+| `k.flare(ctx, x, y, {size, color, strength, rays, rot, streak})` | A lens flare: hot core, halo, thin rays, an anamorphic streak. Draw it after `glow()` (on `render.ctx` over Three.js). |
+| `k.glow(el, {radius, color})` | On any other element (SVG, text): a CSS glow in its own colour. |
+
+Glow is for dark looks: on a light background everything is above the threshold and the frame
+washes out. Keep the bright things few (one accent) so the glow means something.
+
+**Dark looks and banding.** H.264 (and TikTok's re-encode) flattens near-black and smooths fine
+grain away, so a glow fading into a very dark ground shows rings. Keep `bg` above video black
+(validate warns under klip.yaml `code.min_bg_luma`; the cinematic preset uses `#16120F`) and use the
+`film` or `grain` texture: its grain dithers the gradient, and `film` grain is 2 px so it survives
+the encode.
 
 `k.layout` holds what the kit used: `headlineTop`, `cast` spots, `scrim`, and `outro` (when the
 style's outro badge slides up over this scene: its time and top, keep that area clear).
@@ -105,8 +197,8 @@ the preview.
 
 Don't start from a blank file. `examples/code-scenes/starters/` holds scenes to copy into
 `specs/<slug>/` and edit: each has a `CFG` block at the top of its script (labels, values, the word
-a beat lands on) and takes its colours and fonts from the look bible. `examples/code-gallery.json`
-renders all of them (`uv run klip preview examples/code-gallery.json`).
+a beat lands on) and takes its colours and fonts from the look bible. `examples/code-gallery.json` (2D)
+and `examples/code-gallery-3d.json` (Three.js) render all of them (`uv run klip preview examples/code-gallery-3d.json`).
 
 | starter | for |
 |---|---|
@@ -116,9 +208,14 @@ renders all of them (`uv run klip preview examples/code-gallery.json`).
 | `path-timeline.html` | a timeline or route drawing itself, milestones popping on their words |
 | `road-traffic.html` | a top-down road with lanes of different density and speed, our car in the accent |
 | `counter-hero.html` | one big number counting up inside a filling ring |
+| `quiz.html` | a "tebak dulu" quiz: options pop in on their words, a countdown ring, the right one lights up on `revealAt` (null = only ask, the ring ends on "?"); mirror the scene's `quiz` field in `CFG` |
 | `three-terrain.html` | Three.js: a wireframe terrain flyover (HUD look) |
 | `three-particles.html` | Three.js: a particle galaxy that gathers into a ring on the key moment |
 | `three-globe.html` | Three.js: a globe turned toward its places, which light up as arcs fly between them |
+| `three-map-id.html` | Three.js: a 3D map of Indonesia (Natural Earth outline, built in); the camera flies to each place on its word, a pillar rises, arcs fly from the first place |
+| `three-card.html` | Three.js: a card with thickness (receipt, ID, document, product) spins in, lands facing the viewer on its word, a light glints across it |
+| `three-bars.html` | Three.js: a 3D bar chart; bars grow on their words with their values, the biggest in the accent, the camera circles |
+| `light-beam.html` | Canvas, cinematic look: a beam strikes the centre of hairline rings on the key word (`at`) and shoots through, a pulse races out on `out`; breathes on the music's beat (`beat`); flare, shockwave, dust, HUD brackets and readouts |
 
 Card text uses `--k-paper-ink` (the look's ink when it reads on `paper`, else its bg), so the starters
 work on light and dark looks.
@@ -140,14 +237,21 @@ film.
 }
 ```
 
+- `preset`: a named look to start from (klip.yaml `code.looks`). `"cinematic"` is the dark
+  motion-graphics look: warm near-black, hairline strokes (`line: 1.5`), film texture, slow expo
+  eases, notes on lighting; it keeps the style's accent unless you set one. The fields you set
+  override it: `{"preset": "cinematic", "palette": {"accent": "#FF8A3D"}}`. A brand pack can recolour a
+  preset in its style's `looks` (`looks: {cinematic: {palette: {bg: …, ink: …}}}`): the preset keeps its
+  texture, line and eases, the brand's colours replace its warm black. Its `looks` can also add new names.
 - `palette`: named colours. Keep it to 4–7, with **one** accent that carries the story.
 - `fonts`: keys from klip.yaml `code.fonts`: `jakarta` (Plus Jakarta Sans), `fraunces` (serif,
   with italics), `fredoka` (round, friendly), `anton` (condensed caps), `mono` (JetBrains Mono).
   `caption` changes the captions' font for the whole video.
-- `texture`: `paper`, `watercolor`, `halftone`, `grain`, `hud`, `riso` or `none`, drawn over the
+- `texture`: `paper`, `watercolor`, `halftone`, `grain`, `hud`, `riso`, `film` (grain and a dark
+  vignette, for dark looks) or `none`, drawn over the
   scene and under the captions. `texture_strength` 0–1.
-- `line`: the stroke width for drawn art (`var(--k-line)`). `motion`: `snappy`, `smooth` or
-  `bouncy` sets `k.look.ease`.
+- `line`: the stroke width for drawn art (`var(--k-line)`). `motion`: `snappy`, `smooth`,
+  `bouncy` or `cinematic` (slow expo eases) sets `k.look.ease`.
 - `notes`: the art direction in words: style, characters, recurring props, camera. Write it
   before the first scene and follow it in every one.
 

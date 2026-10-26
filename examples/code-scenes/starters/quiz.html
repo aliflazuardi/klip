@@ -1,0 +1,71 @@
+<!-- Starter: "tebak dulu" quiz. The question is the scene's on_screen_text (k.headline); 2-4 options pop in
+     on their words, a countdown ring runs from countdownAt, and at revealAt the right one lights up while
+     the others are struck out. Leave revealAt null to only ask (the ring ends on "?") and answer in a later
+     scene. Edit CFG; colours come from the look bible (the brand's in a brand pack). -->
+<div class="qz">
+  <div class="ring"><svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="44"/><circle class="arc" cx="50" cy="50" r="44" pathLength="100"/></svg><b class="n"></b><b class="q">?</b></div>
+  <div class="opts"></div>
+</div>
+<style>
+.qz { position: absolute; left: 60px; right: 60px; top: 520px; display: flex; flex-direction: column; align-items: stretch; gap: 26px; }
+.ring { position: relative; align-self: center; width: 150px; height: 150px; opacity: 0; }
+.ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.track { fill: none; stroke: var(--k-muted); stroke-opacity: .35; stroke-width: 8; }
+.arc { fill: none; stroke: var(--k-accent); stroke-width: 8; stroke-linecap: round; stroke-dasharray: 100; }
+.n, .q { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+         font: 800 72px/1 var(--k-display); color: var(--k-ink); font-variant-numeric: tabular-nums; }
+.q { opacity: 0; color: var(--k-accent); }
+.opts { display: flex; flex-direction: column; gap: 22px; }
+.opt { display: flex; align-items: center; gap: 26px; height: 128px; padding: 0 34px 0 22px; border-radius: 28px;
+       background: var(--k-paper); color: var(--k-paper-ink); font: 800 50px/1.1 var(--k-display); box-shadow: 0 16px 34px rgba(0,0,0,.22); }
+.opt i { flex: none; width: 78px; height: 78px; border-radius: 50%; background: var(--k-accent); color: var(--k-bg);
+         display: flex; align-items: center; justify-content: center; font-style: normal; font-size: 44px; }
+.opt span { flex: 1; background: linear-gradient(var(--k-muted), var(--k-muted)) no-repeat 0 55% / 0% 6px; }
+</style>
+<script>
+const CFG = { options: ["Opsi A", "Opsi B", "Opsi C"], answer: 2,   // answer: 1-based
+              countdownAt: null, revealAt: null, countdownS: 3 };   // words in the narration; null = none
+k.stage();
+k.headline();
+const box = k.$(".opts");
+const opts = CFG.options.map((text, i) => {
+  const el = document.createElement("div");
+  el.className = "opt";
+  el.innerHTML = `<i>${"ABCD"[i]}</i><span></span>`;
+  el.querySelector("span").textContent = text;
+  box.appendChild(el);
+  const at = k.find(text.split(" ")[0]) ?? k.beat(0.08 + i * 0.06);
+  k.tl.from(el, { x: i % 2 ? 140 : -140, opacity: 0, duration: 0.34, ease: k.look.ease.pop }, at);
+  return el;
+});
+const tReveal = CFG.revealAt ? k.find(CFG.revealAt) : null;
+const tRing = CFG.countdownAt ? k.find(CFG.countdownAt) : null;
+if (tRing != null) {
+  const stop = Math.min(tReveal ?? k.dur - 0.1, k.dur - 0.1), dur = Math.max(0.4, Math.min(CFG.countdownS, stop - tRing));
+  const n = k.$(".n"), c = { v: CFG.countdownS };
+  k.tl.to(".ring", { opacity: 1, duration: 0.2 }, tRing);
+  k.tl.fromTo(".arc", { strokeDashoffset: 0 }, { strokeDashoffset: 100, duration: dur, ease: "none" }, tRing);
+  k.tl.fromTo(c, { v: CFG.countdownS }, { v: CFG.countdownS - dur, duration: dur, ease: "none",
+    onUpdate: () => { n.textContent = Math.max(1, Math.ceil(c.v - 1e-3)); } }, tRing);
+  if (tReveal == null) {
+    k.tl.to(".n", { opacity: 0, duration: 0.08 }, tRing + dur);
+    k.tl.fromTo(".q", { opacity: 0, scale: 1.6 }, { opacity: 1, scale: 1, duration: 0.25, ease: k.look.ease.pop }, tRing + dur);
+  } else {
+    k.tl.to(".ring", { opacity: 0, scale: 0.6, duration: 0.2 }, tReveal);
+  }
+}
+if (tReveal != null) {
+  opts.forEach((el, i) => {
+    if (i === CFG.answer - 1) {
+      k.tl.to(el, { backgroundColor: k.look.palette.accent, color: k.look.palette.bg, duration: 0.2 }, tReveal);
+      k.tl.fromTo(el, { scale: 1 }, { scale: 1.07, duration: 0.2, yoyo: true, repeat: 1, ease: "power2.out", immediateRender: false }, tReveal);
+      const qz = k.$(".qz");
+      k.fx.sparks(qz.offsetLeft + el.offsetLeft + el.offsetWidth - 80, qz.offsetTop + el.offsetTop + el.offsetHeight / 2, tReveal + 0.1);
+    } else {
+      k.tl.to(el, { opacity: 0.45, scale: 0.96, duration: 0.25 }, tReveal);
+      k.tl.to(el.querySelector("span"), { backgroundSize: "100% 6px", duration: 0.3 }, tReveal);
+    }
+  });
+}
+k.cast();
+</script>

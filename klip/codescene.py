@@ -25,8 +25,8 @@ from klip.stage import _noise_svg
 STYLE_RE = re.compile(r"<style\b[^>]*>(.*?)</style>", re.S | re.I)
 SCRIPT_RE = re.compile(r"<script\b([^>]*)>(.*?)</script>", re.S | re.I)
 CUE_RE = re.compile(r"""\bk\.at\(\s*(["'`])(.+?)\1""")
-MASCOT_RE = re.compile(r"""\bk\.mascot\(\s*(["'`])(.+?)\1""")
-POSE_RE = re.compile(r"""\.pose\(\s*(["'`])(.+?)\1""")
+MASCOT_RE = re.compile(r"""\bk\.(?:mascot|spotlight)\(\s*(["'`])(.+?)\1""")
+POSE_RE = re.compile(r"""(?:\.pose\(\s*|\bpose:\s*)(["'`])(.+?)\1""")
 ASSET = "@asset/"
 
 # Script patterns that break frame-exact rendering (every frame is a seek of the timeline).
@@ -163,7 +163,7 @@ def lint_scene(scene: Scene, spec: Spec | None = None) -> list[tuple[str, str]]:
         cast = {m["name"]: m for m in mascot.settings(style).get("cast") or []}
         for _, name in MASCOT_RE.findall(js):
             if name not in cast:
-                out.append(("error", f"{c.file}: k.mascot({name!r}): not in the style's mascot cast "
+                out.append(("error", f"{c.file}: mascot {name!r}: not in the style's mascot cast "
                                      f"({', '.join(cast) or 'none'})"))
         poses = {p for m in cast.values() for p in mascot._poses(m["dir"])}
         for _, pose in POSE_RE.findall(js):
@@ -174,20 +174,59 @@ def lint_scene(scene: Scene, spec: Spec | None = None) -> list[tuple[str, str]]:
     return out
 
 
+# ---- world: one code layer under a run of code scenes
+
+WORLD_ID = "world"
+
+
+def world_run(spec: Spec) -> list[Scene]:
+    """The consecutive code scenes the world runs under (spec.world.scenes, else every code scene)."""
+    w = spec.world
+    ids = [s.id for s in spec.scenes]
+    picked = w.scenes or [s.id for s in spec.scenes if s.visual.type == "code"]
+    if not picked:
+        raise CodeSceneError("a world needs code scenes to run under")
+    if missing := [i for i in picked if i not in ids]:
+        raise CodeSceneError(f"world.scenes: no scene {', '.join(missing)}")
+    if WORLD_ID in ids:
+        raise CodeSceneError(f"a scene can't be called {WORLD_ID!r} when the spec has a world")
+    idx = sorted(ids.index(i) for i in picked)
+    if idx != list(range(idx[0], idx[-1] + 1)):
+        raise CodeSceneError("world.scenes must be consecutive scenes")
+    run = [spec.scenes[i] for i in idx]
+    if not_code := [s.id for s in run if s.visual.type != "code"]:
+        raise CodeSceneError(f"world.scenes must be code scenes ({', '.join(not_code)} isn't)")
+    return run
+
+
+def world_scene(spec: Spec) -> Scene:
+    """The world as a code scene (for lint and compose): its narration is the whole run's."""
+    w, run = spec.world, world_run(spec)
+    return Scene.model_validate({"id": WORLD_ID, "template": "explain", "narration": " ".join(s.narration for s in run),
+                                 "visual": {"type": "code", "code": {"file": w.file, "assets": w.assets,
+                                                                     "include": w.include, "libs": w.libs}}})
+
+
 # ---- look bible
 
 def look(spec: Spec, style: dict) -> dict:
     """The resolved look bible: palette, fonts {role: family}, texture + strength, line, ease, tone."""
     out = copy.deepcopy(cfg("look"))
     out["palette"] = {**out["palette"], "accent": style["accent_color"], "emph": style["emphasis_color"]}
+    own = spec.look_bible.model_dump(exclude_none=True) if spec.look_bible else {}
     layers = [style.get("look_bible") or {}]
-    if spec.look_bible:
-        layers.append(spec.look_bible.model_dump(exclude_none=True))
+    mine = style.get("looks") or {}                 # the style's own take on a preset (its palette), or its own looks
+    if preset := own.pop("preset", None) or layers[0].get("preset"):
+        if preset not in cfg("looks") and preset not in mine:
+            raise CodeSceneError(f"look_bible.preset: unknown look {preset!r} (klip.yaml code.looks: "
+                                 f"{', '.join(sorted({*cfg('looks'), *mine}))})")
+        layers += [cfg("looks").get(preset) or {}, mine.get(preset) or {}]
+    layers.append(own)
     for layer in layers:
         for k, v in layer.items():
             if k in ("palette", "fonts"):
                 out[k] = {**out[k], **{a: b for a, b in (v or {}).items() if b is not None}}
-            elif v is not None:
+            elif v is not None and k != "preset":
                 out[k] = v
     fonts = cfg("fonts")
     for role, key in out["fonts"].items():
@@ -253,6 +292,9 @@ def texture_css(name: str, strength: float) -> Markup:
                f"radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0) 50%, rgba(0,0,0,.85) 100%); opacity: {s};",
         "riso": f"background-image: url(\"{fine}\"), url(\"{coarse}\"); mix-blend-mode: multiply; "
                 f"filter: sepia(.4) saturate(2); opacity: {min(1, s * 0.8)};",
+        "film": f"background-image: radial-gradient(ellipse at 50% 48%, rgba(0,0,0,0) 40%, rgba(0,0,0,.75) 100%), "
+                f"url(\"{fine}\"); background-size: 100% 100%, 1200px 2040px; mix-blend-mode: hard-light; "
+                f"opacity: {s};",
     }[name]
     return Markup(css)
 
@@ -288,6 +330,7 @@ def scene_ctx(scene: Scene, t: dict, words: list[dict], lk: dict, caption_top: f
         "captions": c.captions, "libs": list(c.libs),
         "assets": [{"path": str(ROOT / a), "src": f"code/{sid}/{Path(a).name}"} for a in c.assets],
         "meta": {"id": sid, "start": round(start / 1000, 3), "dur": round(dur / 1000, 3), "words": rel,
+                 "fps": config.get("render.fps", 30),
                  "text": scene.on_screen_text or "", "emphasis": scene.emphasis, "hook": scene.template == "hook", "texture": texture,
                  "safe": safe_area(caption_top)},
     }
@@ -320,8 +363,21 @@ def layout(style: dict, sc: dict, brand: dict, caption_top: float) -> dict:
     return out
 
 
+def scene_uses_mascots(scene: Scene) -> bool:
+    """The scene's code file (with its includes) places the mascots; False when it can't be read."""
+    c = scene.visual.code
+    p = ROOT / c.file if c else None
+    if not p or not p.is_file():
+        return False
+    js = "".join((ROOT / i).read_text(encoding="utf-8") for i in c.include if (ROOT / i).is_file())
+    try:
+        return uses_mascots(js + parse(p.read_text(encoding="utf-8")).js)
+    except CodeSceneError:
+        return False
+
+
 def uses_mascots(js: str) -> bool:
-    """The script places mascots: k.mascot("…") or the kit's k.cast()."""
+    """The script places mascots: k.mascot("…"), k.spotlight("…") or the kit's k.cast()."""
     return bool(MASCOT_RE.search(js) or re.search(r"\bk\.cast\(", js))
 
 

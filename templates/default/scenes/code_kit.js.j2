@@ -2,7 +2,7 @@
 const KLIP_LOOK = {{ code_look | tojson }};
 const KLIP_KIT = {{ code.kit | tojson }};
 const KLIP_CAST = {{ (code.cast or none) | tojson }};
-let klipMascotN = 0;
+let klipMascotN = 0, klipGlowN = 0;
 const klipNorm = (s) => String(s).toLowerCase().replace(/[^\p{L}\p{N}_]/gu, "");
 function klipScene(meta, body) {
   const root = document.getElementById("sc-" + meta.id);
@@ -13,6 +13,16 @@ function klipScene(meta, body) {
   const k = {
     id: meta.id, root, tl: sub, dur: meta.dur, W: 1080, H: 1920, words: meta.words, text: meta.text,
     emphasis: meta.emphasis, look: KLIP_LOOK, safe: meta.safe, lib: { THREE: window.THREE },
+    // the music's beats in this scene: [{t (scene s), n (beat number in the video), down (bar start), s (0-1 strength)}]
+    beats: meta.beats || [], bpm: meta.bpm ?? null, period: meta.period ?? null, fps: meta.fps || 30,
+    // the world layer only: the scenes it runs under, [{id, start, end}] in its own seconds
+    scenes: meta.scenes || [],
+    // world: which of k.scenes is on at t ({id, start, end, i, p: 0-1 through it}), or null
+    sceneAt(t) {
+      const sc = meta.scenes || [];
+      for (let i = 0; i < sc.length; i++) if (t < sc[i].end || i === sc.length - 1) return { ...sc[i], i, p: Math.max(0, Math.min(1, (t - sc[i].start) / (sc[i].end - sc[i].start))) };
+      return null;
+    },
     $: (sel) => root.querySelector(sel),
     $$: (sel) => Array.from(root.querySelectorAll(sel)),
     // when the voice says `phrase` (scene seconds), at or after `after`
@@ -271,6 +281,107 @@ function klipScene(meta, body) {
     }
     return out;
   };
+  // a mascot as the scene's star (a cold open over a world): big, feet just above the captions, a glow and a
+  // turning sunburst behind it; it pops up from below at `at` and takes `pose` on `poseAt`.
+  // k.spotlight("napa", {pose, poseAt, hold, at, h, x (centre, px), glow: false}) -> the rig (+ .spot)
+  k.spotlight = function (name, o = {}) {
+    const S = KIT.spotlight, c = KLIP_CAST && KLIP_CAST.cast[name];
+    if (!c) throw new Error(`no mascot ${name} in this style`);
+    const h = o.h || S.height, w = h * c.aspect, cx = o.x ?? 540, y = k.safe.captionTop - S.gap - h, at = o.at ?? 0;
+    const hex = (col, a) => { const v = parseInt(col.slice(1), 16); return "rgba(" + (v >> 16 & 255) + "," + (v >> 8 & 255) + "," + (v & 255) + "," + a + ")"; };
+    let spot = null;
+    if (o.glow !== false) {
+      spot = k.el("div", { class: "k-spot" }, worldEl);
+      Object.assign(spot.style, { position: "absolute", inset: 0, zIndex: 2, overflow: "hidden", pointerEvents: "none" });
+      const cy = y + h * 0.5;
+      const rays = k.el("div", {}, spot), glow = k.el("div", {}, spot);
+      Object.assign(rays.style, { position: "absolute", left: cx - 1440 + "px", top: cy - 1440 + "px", width: "2880px", height: "2880px",
+        background: `repeating-conic-gradient(from 0deg, ${hex(P.accent, S.rays_opacity)} 0deg 7deg, ${hex(P.accent, 0)} 7deg 18deg)`,
+        maskImage: "radial-gradient(closest-side, #000 15%, transparent 70%)", webkitMaskImage: "radial-gradient(closest-side, #000 15%, transparent 70%)" });
+      Object.assign(glow.style, { position: "absolute", left: cx - 500 + "px", top: cy - 500 + "px", width: "1000px", height: "1000px",
+        borderRadius: "50%", background: `radial-gradient(closest-side, ${hex(P.accent, S.glow_opacity)}, ${hex(P.accent, 0)})` });
+      sub.fromTo(spot, { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power2.out", immediateRender: at > 0.001 }, at);
+      sub.fromTo(rays, { rotation: 0 }, { rotation: S.rays_turn_deg, duration: k.dur, ease: "none" }, 0);
+    }
+    const rig = k.mascot(name, { x: cx - w / 2, y, h, parent: worldEl, mirror: o.mirror });
+    rig.el.style.zIndex = 3;
+    rig.enter("bottom", at);
+    sub.fromTo(rig.el.querySelector(".k-ms-body"), { scaleY: 0.8, scaleX: 1.2 }, { scaleY: 1, scaleX: 1, duration: 0.5,
+      ease: "elastic.out(1, 0.45)", immediateRender: false, transformOrigin: "50% 100%" }, at + 0.3);
+    if (o.pose) rig.pose(o.pose, o.poseAt ?? at, o.hold ?? null);
+    rig.spot = spot;
+    return rig;
+  };
+  // a spring ease (deterministic): k.tl.to(el, {y: 0, ease: k.spring(180, 12)}). Stiffer = faster,
+  // less damping = more bounce. Settles at 1 by the tween's end.
+  k.spring = function (stiffness = 180, damping = 12) {
+    const w0 = Math.sqrt(stiffness), z = damping / (2 * w0), T = 6 / Math.max(0.5, z * w0);
+    const wd = w0 * Math.sqrt(Math.max(1e-6, 1 - z * z));
+    return (p) => p >= 1 ? 1 : 1 - Math.exp(-z * w0 * p * T) * (Math.cos(wd * p * T) + (z * w0 / wd) * Math.sin(wd * p * T));
+  };
+  // drop an element in: it falls with motion blur, lands with a squash, a jelly wobble and a dust puff.
+  // k.land(el, at, {from (px above), dur, dust (specks; 0 = none), color})
+  k.land = function (target, at, o = {}) {
+    const el = one(target), dur = o.dur || 0.36, F = KIT.land;
+    const r0 = el.getBoundingClientRect(), rr = root.getBoundingClientRect();     // where it lands (before the drop offset)
+    sub.fromTo(el, { y: -(o.from ?? F.from_px), opacity: 0, filter: `blur(${F.blur_px}px)` },
+               { y: 0, opacity: 1, filter: "blur(0px)", duration: dur, ease: "power3.in" }, at);       // hidden until it falls
+    sub.fromTo(el, { scaleX: 1, scaleY: 1 }, { scaleX: 1.07, scaleY: 0.9, duration: 0.07, yoyo: true, repeat: 1,
+               ease: "sine.out", transformOrigin: "50% 100%", immediateRender: false }, at + dur);
+    sub.fromTo(el, { skewX: F.jelly_deg }, { skewX: 0, duration: 0.7, ease: "elastic.out(1, 0.3)", immediateRender: false }, at + dur + 0.07);
+    const n = o.dust ?? F.dust;
+    if (n > 0) {
+      const cx = r0.left - rr.left + r0.width / 2, cy = r0.bottom - rr.top;
+      for (let i = 0; i < n; i++) {
+        const d = k.el("div", {}, el.parentNode);
+        Object.assign(d.style, { position: "absolute", left: cx - 17 + "px", top: cy - 17 + "px", width: "34px", height: "34px",
+          borderRadius: "50%", background: o.color || "rgba(255,255,255,.4)", filter: "blur(2px)", opacity: 0, pointerEvents: "none" });
+        const a = Math.PI * (0.08 + 0.84 * i / Math.max(1, n - 1)), r = 110 + 70 * Math.abs(Math.sin(i * 2.3));
+        sub.fromTo(d, { x: 0, y: 0, scale: 0.35, opacity: 0.85 }, { x: -Math.cos(a) * r * 1.6, y: -Math.sin(a) * r * 0.45,
+                   scale: 1.25, opacity: 0, duration: 0.55, ease: "power2.out", immediateRender: false }, at + dur);
+      }
+    }
+    return el;
+  };
+  // FX kit (klip.yaml fx), on this scene's timeline: k.fx.sparks(x, y, at, {n, len, color}),
+  // k.fx.shock(x, y, at, {size, width, color}), k.fx.shine(el, at, {dur}), k.fx.shake(el, at, {px, times})
+  k.fx = {
+    sparks: (x, y, at, o = {}) => klipFx.sparks(sub, o.parent || worldEl, x, y, at, o),
+    shock: (x, y, at, o = {}) => klipFx.shock(sub, o.parent || worldEl, x, y, at, o),
+    shine: (target, at, o = {}) => klipFx.shine(sub, one(target), at, o),
+    shake: (target, at, o = {}) => klipFx.shake(sub, one(target), at, o),
+  };
+  // kinetic type: k.reveal(el, at, {mode, stagger, dur}) splits the element's text and animates it in.
+  // mode: "letters" (letters rise in one by one), "words" (words rise with a blur), "mask" (each line
+  // wipes up from behind a mask), "slam" (the whole thing drops from big with a shake and a shine).
+  k.reveal = function (target, at, o = {}) {
+    const el = one(target), mode = o.mode || "words", R = KIT.reveal;
+    const ease = KLIP_LOOK.ease.out;
+    if (mode === "slam") {
+      sub.fromTo(el, { scale: o.from || R.slam_scale, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.2, ease: "power4.in" }, at);
+      klipFx.shake(sub, el.parentNode, at + 0.2, { px: R.shake_px, times: 2 });
+      klipFx.shine(sub, el, at + 0.2);
+      return el;
+    }
+    const text = el.textContent;
+    el.textContent = "";
+    const unit = mode === "letters" ? [...text] : text.split(/(\s+)/);
+    const parts = [];
+    for (const u of unit) {
+      if (/^\s+$/.test(u)) { el.append(u); continue; }
+      const wrap = k.el("span", {}, el);
+      wrap.style.display = "inline-block";
+      if (mode === "mask") { wrap.style.overflow = "hidden"; wrap.style.verticalAlign = "bottom"; }
+      const s = k.el("span", { text: u }, wrap);
+      s.style.display = "inline-block";
+      parts.push(s);
+    }
+    const st = o.stagger ?? (mode === "letters" ? R.letter_stagger_s : R.word_stagger_s), dur = o.dur || 0.35;
+    if (mode === "mask") sub.from(parts, { yPercent: 110, duration: dur, stagger: st, ease }, at);
+    else if (mode === "letters") sub.from(parts, { y: 40, opacity: 0, rotation: 8, duration: dur, stagger: st, ease }, at);
+    else sub.from(parts, { y: 36, opacity: 0, filter: "blur(8px)", duration: dur, stagger: st, ease }, at);
+    return el;
+  };
   // a label chip: k.chip("KASIR", x, y, {bg, color, size, rot, at}) pops in at `at`
   k.chip = function (text, x, y, o = {}) {
     const el = k.el("div", { class: "k-chip", text }, o.parent || worldEl);
@@ -300,13 +411,32 @@ function klipScene(meta, body) {
     k.frame((t) => { el.textContent = full.slice(0, Math.max(0, Math.min(full.length, Math.floor((t - at) * cps)))); });
     return el;
   };
-  // a number counting up from `at`: k.count(el, {to, from, at, dur, decimals, prefix, suffix}), Indonesian format
+  // a number counting up from `at`: k.count(el, {to, from, at, dur, decimals, prefix, suffix, roll}), Indonesian
+  // format. roll: true = an odometer: each digit spins into place on its own wheel, the last digit fastest.
   k.count = function (target, o = {}) {
     const el = one(target), from = o.from || 0, at = o.at || 0, dur = o.dur || KIT.count_s, ease = gsap.parseEase("power2.out");
     const fmt = (v) => {
       const [whole, frac] = Math.abs(v).toFixed(o.decimals || 0).split(".");
       return (o.prefix || "") + (v < 0 ? "-" : "") + whole.replace(/\B(?=(\d{3})+(?!\d))/g, ".") + (frac ? "," + frac : "") + (o.suffix || "");
     };
+    if (o.roll) {
+      const final = fmt(o.to), digits = [...final].filter((c) => /\d/.test(c)).length;
+      el.textContent = "";
+      el.style.fontVariantNumeric = "tabular-nums";
+      let d = 0;
+      for (const ch of final) {
+        if (!/\d/.test(ch)) { k.el("span", { text: ch }, el); continue; }
+        const win = k.el("span", {}, el), col = k.el("span", {}, win), place = digits - 1 - d++;
+        Object.assign(win.style, { display: "inline-block", height: "1em", lineHeight: "1em", overflow: "hidden", verticalAlign: "top",
+                                   fontVariantNumeric: "tabular-nums" });
+        col.style.display = "inline-block";
+        const spins = 1 + Math.max(0, 2 - place);            // the last digits spin more, like a real counter
+        for (let i = 0; i <= spins * 10 + Number(ch); i++) k.el("span", { text: String(i % 10) }, col).style.display = "block";
+        sub.fromTo(col, { y: 0 }, { y: () => -(spins * 10 + Number(ch)) * win.offsetHeight, duration: dur, ease: "power3.out",
+                   immediateRender: false }, at + place * 0.04);
+      }
+      return el;
+    }
     k.frame((t) => { el.textContent = fmt(from + (o.to - from) * ease(Math.max(0, Math.min(1, (t - at) / dur)))); });
     return el;
   };
@@ -317,9 +447,162 @@ function klipScene(meta, body) {
     sub.to(el, { strokeDashoffset: 0, duration: o.dur || 0.8, ease: o.ease || KLIP_LOOK.ease.out }, at);
     return el;
   };
+  // ---- music: k.pulse(t) is 1 on a beat and falls off (for k.frame); k.onBeat(fn) places tweens on beats.
+  // Both are no-ops without music (k.beats is empty), so a scene still works on a silent track.
+  // {down: only bar starts, every: every nth beat, decay (s), from / to (scene s)}
+  const pick = (o) => k.beats.filter((b) => (!o.down || b.down) && (!o.every || b.n % o.every === 0) &&
+                                            b.t >= (o.from ?? 0) && b.t <= (o.to ?? k.dur));
+  k.pulse = function (t, o = {}) {
+    const decay = o.decay ?? KIT.pulse_decay_s;
+    let last = null;
+    for (const b of pick(o)) { if (b.t <= t) last = b; else break; }
+    return last ? Math.exp(-(t - last.t) / decay) * (o.strength ? 0.4 + 0.6 * last.s : 1) : 0;
+  };
+  k.onBeat = function (fn, o = {}) {
+    for (const b of pick(o)) fn(b.t, b);
+  };
+  // ---- motion: frames are sharp stills, so fast things strobe. Two fixes for canvas scenes:
+  // k.trail(ctx, pos, t, {length, samples, width, color, head}): a tapered, fading streak behind a moving
+  // point, where pos(t) -> {x, y} is the point's path (cheap: one stroke).
+  k.trail = function (ctx, pos, t, o = {}) {
+    const T = { ...KIT.trail, ...o }, c = o.color || P.accent, n = Math.max(2, T.samples);
+    const pts = [];
+    for (let i = 0; i <= n; i++) { const ti = t - T.length * (1 - i / n); if (ti >= (o.from ?? 0)) pts.push(pos(ti)); }
+    if (pts.length < 2) return;
+    const rgb = (() => { const h = c.replace("#", ""); const v = parseInt(h, 16); return [v >> 16 & 255, v >> 8 & 255, v & 255].join(","); })();
+    ctx.save(); ctx.lineCap = "round"; ctx.globalCompositeOperation = o.blend || "lighter";
+    for (let i = 1; i < pts.length; i++) {
+      const f = i / (pts.length - 1);                 // 0 at the tail, 1 at the head
+      ctx.beginPath(); ctx.moveTo(pts[i - 1].x, pts[i - 1].y); ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.lineWidth = Math.max(0.5, T.width * f); ctx.strokeStyle = "rgba(" + rgb + "," + (f * f * T.opacity) + ")"; ctx.stroke();
+    }
+    if (T.head) { const p = pts[pts.length - 1]; ctx.beginPath(); ctx.arc(p.x, p.y, T.width * 0.6, 0, Math.PI * 2);
+                  ctx.fillStyle = "rgba(" + rgb + "," + T.opacity + ")"; ctx.fill(); }
+    ctx.restore();
+  };
+  // k.motionBlur(ctx, draw, {samples, shutter}) -> fn(t): real motion blur for a canvas that draw(t) repaints
+  // whole: it is drawn at `samples` instants across the shutter (share of a frame) and averaged. Costs
+  // samples x the drawing; use it in k.frame instead of draw: k.frame(k.motionBlur(ctx, draw)).
+  k.motionBlur = function (ctx, draw, o = {}) {
+    const M = { ...KIT.motion_blur, ...o }, cv = ctx.canvas, n = Math.max(1, M.samples | 0);
+    const acc = document.createElement("canvas"); acc.width = cv.width; acc.height = cv.height;
+    const a = acc.getContext("2d");
+    return function (t) {
+      if (n === 1) { draw(t); return; }
+      a.clearRect(0, 0, acc.width, acc.height);
+      for (let i = 0; i < n; i++) {
+        draw(t - (M.shutter / k.fps) * (1 - i / (n - 1)));   // the last sample is t itself
+        a.globalAlpha = 1 / (i + 1);                       // running mean of the samples
+        a.drawImage(cv, 0, 0);
+      }
+      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = "copy";
+      ctx.drawImage(acc, 0, 0); ctx.restore();
+    };
+  };
+  // ---- light: glow, bloom, flares (cheap bloom: threshold, shrink, blur, add back; defaults in code.kit.glow)
+  // k.glow(ctx) -> glow(): call it at the end of each k.frame, after drawing; the canvas's bright parts
+  // bleed light. On a WebGL canvas (or a THREE renderer) the light goes on a canvas laid over it.
+  // On any other element it sets a CSS glow (drop-shadows in its own colour, or o.color).
+  // {strength, threshold (0-1: darker pixels don't glow), radius (px, the tight glow; wide ones are
+  // larger), levels (downscale per layer)}
+  k.glow = function (src, o = {}) {
+    const G = { ...KIT.glow, ...o };
+    const cv = src.canvas || src.domElement || one(src);
+    if (!(cv instanceof HTMLCanvasElement)) {
+      const r = G.radius, c = o.color || "currentColor";
+      cv.style.filter = `drop-shadow(0 0 ${r * 0.25}px ${c}) drop-shadow(0 0 ${r}px ${c})`;
+      return cv;
+    }
+    let out = src.canvas ? src : null;
+    if (!out && !src.domElement) out = cv.getContext("2d");      // null when it's a WebGL canvas
+    let over = null;
+    if (!out) {
+      over = k.el("canvas", { class: "k-glow", width: cv.width, height: cv.height });
+      Object.assign(over.style, { position: "absolute", left: cv.offsetLeft + "px", top: cv.offsetTop + "px",
+        width: cv.style.width || cv.width + "px", height: cv.style.height || cv.height + "px",
+        pointerEvents: "none", mixBlendMode: "screen" });
+      cv.after(over);
+      out = over.getContext("2d");
+    }
+    // threshold on luminance into alpha (an SVG filter), so colours keep their hue: a per-channel
+    // threshold (brightness + contrast) turns orange red
+    const th = Math.min(0.95, Math.max(0, G.threshold)), fid = "k-glow-" + meta.id + "-" + (++klipGlowN);
+    const defs = k.el("svg", { width: 0, height: 0, "aria-hidden": "true" });
+    defs.style.position = "absolute";
+    defs.innerHTML = '<filter id="' + fid + '" color-interpolation-filters="sRGB">' +
+      '<feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  .2126 .7152 .0722 0 0"/>' +
+      '<feComponentTransfer><feFuncA type="linear" slope="' + 1 / (1 - th) + '" intercept="' + -th / (1 - th) + '"/></feComponentTransfer></filter>';
+    root.appendChild(defs);
+    const pass = "url(#" + fid + ")";
+    const layers = G.levels.map((f, i) => {
+      const c = document.createElement("canvas");
+      c.width = Math.ceil(cv.width / f); c.height = Math.ceil(cv.height / f);
+      return { c, x: c.getContext("2d"), blur: (G.radius * (i ? 3 ** i : 1)) / f };
+    });
+    const glow = function () {
+      out.save();
+      out.setTransform(1, 0, 0, 1, 0, 0);
+      if (over) out.clearRect(0, 0, over.width, over.height);
+      out.globalCompositeOperation = "lighter";
+      out.imageSmoothingEnabled = true;
+      for (const L of layers) {             // read every layer before adding any back (no feedback)
+        L.x.clearRect(0, 0, L.c.width, L.c.height);
+        L.x.filter = `${pass} blur(${L.blur}px)`;
+        L.x.drawImage(cv, 0, 0, L.c.width, L.c.height);
+      }
+      for (const L of layers) {
+        out.globalAlpha = Math.min(1, G.strength / layers.length * 1.6);
+        out.drawImage(L.c, 0, 0, cv.width, cv.height);
+      }
+      out.restore();
+    };
+    glow.ctx = out;          // the overlay's 2D context on WebGL (draw k.flare there after glow())
+    return glow;
+  };
+  // Three.js with bloom: const render = k.bloom(renderer, scene, camera, {strength, threshold, radius});
+  // call render() in k.frame instead of renderer.render. render.ctx is the light overlay (for k.flare).
+  k.bloom = function (renderer, scene, camera, o = {}) {
+    const glow = k.glow(renderer, o);
+    const render = () => { renderer.render(scene, camera); glow(); };
+    render.ctx = glow.ctx;
+    return render;
+  };
+  // a lens flare on a 2D context at (x, y): hot core, soft halo, thin rays and an anamorphic streak.
+  // {size (core radius px), color (default the accent), strength, rays (count), rot (deg), streak (px, 0 = none)}
+  k.flare = function (ctx, x, y, o = {}) {
+    const F = { ...KIT.flare, ...o }, c = o.color || P.accent, s = F.size, a = F.strength;
+    if (a <= 0 || s <= 0) return;
+    const rgba = (hex, al) => { const h = hex.replace("#", ""); const n = parseInt(h.length === 3 ? h.replace(/./g, "$&$&") : h, 16);
+      return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${Math.max(0, Math.min(1, al))})`; };
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    let g = ctx.createRadialGradient(x, y, 0, x, y, s * 5);
+    g.addColorStop(0, rgba(c, 0.35 * a)); g.addColorStop(1, rgba(c, 0));
+    ctx.fillStyle = g; ctx.fillRect(x - s * 5, y - s * 5, s * 10, s * 10);
+    if (F.streak > 0) {
+      g = ctx.createLinearGradient(x - F.streak, 0, x + F.streak, 0);
+      g.addColorStop(0, rgba(c, 0)); g.addColorStop(0.5, rgba(c, 0.6 * a)); g.addColorStop(1, rgba(c, 0));
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.ellipse(x, y, F.streak, Math.max(1, s * 0.06), 0, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.translate(x, y); ctx.rotate((F.rot * Math.PI) / 180);
+    for (let i = 0; i < F.rays; i++) {
+      ctx.rotate((Math.PI * 2) / F.rays);
+      g = ctx.createLinearGradient(0, 0, s * 2.2, 0);
+      g.addColorStop(0, rgba("#FFFFFF", 0.9 * a)); g.addColorStop(0.3, rgba(c, 0.6 * a)); g.addColorStop(1, rgba(c, 0));
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.moveTo(0, -s * 0.07); ctx.lineTo(s * 2.2, 0); ctx.lineTo(0, s * 0.07); ctx.fill();
+    }
+    g = ctx.createRadialGradient(0, 0, 0, 0, 0, s);
+    g.addColorStop(0, rgba("#FFFFFF", a)); g.addColorStop(0.25, rgba("#FFF4E0", 0.9 * a));
+    g.addColorStop(0.6, rgba(c, 0.45 * a)); g.addColorStop(1, rgba(c, 0));
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, s, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  };
   const tex = root.querySelector(".k-tex");
-  if (tex && meta.texture === "grain") {           // film grain jumps 12 times a second
-    k.frame((t) => { const f = Math.floor(t * 12); tex.style.backgroundPosition = `${(f * 137) % 600}px ${(f * 311) % 1020}px`; });
+  if (tex && (meta.texture === "grain" || meta.texture === "film")) {   // film grain jumps 12 times a second
+    const lead = meta.texture === "film" ? "0px 0px, " : "";     // film: the vignette layer stays put
+    k.frame((t) => { const f = Math.floor(t * 12); tex.style.backgroundPosition = `${lead}${(f * 137) % 600}px ${(f * 311) % 1020}px`; });
   }
   try {
     body(k);

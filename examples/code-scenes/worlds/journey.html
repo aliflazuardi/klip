@@ -1,0 +1,75 @@
+<!-- World starter (canvas 2D, cinematic look): one map the camera flies through under a run of code scenes
+     (spec "world": {"file": …}). Each scene has a stop on a winding path; between scenes the camera pulls
+     back and glides to the next stop while a light travels the path with a trail, and the stop lights up
+     as its scene starts. Dust drifts in parallax, the current stop breathes on the music's beat.
+     The scenes on top only need their words (e.g. worlds/title-only.html). Edit CFG. -->
+<canvas id="w" width="1080" height="1920"></canvas>
+<style>#w { position: absolute; inset: 0; }</style>
+<script>
+const CFG = { gap: 1100, swing: 380, labels: null, fly: 1.3, pullback: 0.78, focusY: 980, dust: 160 };
+const P = k.look.palette, ctx = k.$("#w").getContext("2d"), r = k.rand(9);
+const n = Math.max(1, k.scenes.length);
+// stops: down the world, swinging left and right
+const stops = k.scenes.map((s, i) => ({ x: 540 + (i % 2 ? 1 : -1) * CFG.swing * (i ? 1 : 0.3), y: 600 + i * CFG.gap,
+                                         label: (CFG.labels && CFG.labels[i]) || String(i + 1).padStart(2, "0") }));
+const ease = gsap.parseEase("expo.inOut"), soft = gsap.parseEase("power2.out");
+const clamp = (v) => Math.max(0, Math.min(1, v));
+const rgba = (hex, a) => { const v = parseInt(hex.slice(1), 16); return "rgba(" + (v >> 16 & 255) + "," + (v >> 8 & 255) + "," + (v & 255) + "," + clamp(a) + ")"; };
+// a point along the path, u = 0 … n-1 (Catmull-Rom through the stops)
+const along = (u) => {
+  const i = Math.max(0, Math.min(n - 2, Math.floor(u))), f = n < 2 ? 0 : u - i;
+  const p0 = stops[Math.max(0, i - 1)], p1 = stops[i], p2 = stops[Math.min(n - 1, i + 1)], p3 = stops[Math.min(n - 1, i + 2)];
+  const c = (a, b, cc, d) => 0.5 * (2 * b + (-a + cc) * f + (2 * a - 5 * b + 4 * cc - d) * f * f + (-a + 3 * b - 3 * cc + d) * f * f * f);
+  return n < 2 ? { x: p1.x, y: p1.y } : { x: c(p0.x, p1.x, p2.x, p3.x), y: c(p0.y, p1.y, p2.y, p3.y) };
+};
+// where along the path we are at t: settled on scene i's stop, flying to the next over the last CFG.fly s of i
+const progress = (t) => {
+  let u = 0;
+  k.scenes.forEach((s, i) => { if (i < n - 1) u += ease(clamp((t - (s.end - CFG.fly * 0.6)) / CFG.fly)); });
+  return u;
+};
+const dust = Array.from({ length: CFG.dust }, () => ({ x: r() * 1600 - 260, y: r() * (n * CFG.gap + 1600) - 400, s: 0.6 + r() * 2,
+                                                       a: 0.1 + r() * 0.4, depth: 0.3 + r() * 0.6, ph: r() * 6.28 }));
+const glow = k.glow(ctx);
+
+const paint = (t) => {
+  const u = progress(t), cam = along(u), mid = Math.sin(Math.PI * (u % 1));       // 0 at a stop, 1 halfway
+  const zoom = 1 - (1 - CFG.pullback) * mid + 0.04 * (t / k.dur), beat = k.pulse(t);
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalCompositeOperation = "source-over";
+  ctx.fillStyle = P.bg; ctx.fillRect(0, 0, 1080, 1920);
+  // dust: parallax (far specks move less with the camera)
+  for (const d of dust) {
+    const x = (d.x - cam.x * d.depth) % 1600 + (d.x - cam.x * d.depth < 0 ? 1600 : 0) - 260;
+    const y = d.y - cam.y * d.depth + CFG.focusY * d.depth - 300;
+    if (y < -20 || y > 1940) continue;
+    ctx.beginPath(); ctx.arc(x, y, d.s, 0, Math.PI * 2); ctx.fillStyle = rgba(P.ink, d.a * (0.6 + 0.4 * Math.sin(t * 1.5 + d.ph))); ctx.fill();
+  }
+  // camera: the current point of the path at (540, focusY), scaled
+  ctx.setTransform(zoom, 0, 0, zoom, 540 - cam.x * zoom, CFG.focusY - cam.y * zoom);
+  // the whole path, dashed and dim; the travelled part bright
+  ctx.setLineDash([3, 12]); ctx.lineWidth = 1.5 / zoom; ctx.strokeStyle = rgba(P.ink, 0.25); ctx.beginPath();
+  for (let i = 0; i <= (n - 1) * 24; i++) { const p = along(i / 24); i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); }
+  ctx.stroke(); ctx.setLineDash([]);
+  ctx.lineWidth = 3 / zoom; ctx.strokeStyle = rgba(P.accent, 0.9); ctx.beginPath();
+  for (let i = 0; i <= u * 24; i++) { const p = along(i / 24); i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); }
+  const head = along(u); ctx.lineTo(head.x, head.y); ctx.stroke();
+  // stops: hairline rings, lit once reached; the current one breathes on the beat
+  const cur = Math.round(u);
+  stops.forEach((s, i) => {
+    const lit = clamp((u - i + 0.15) / 0.15), on = i === cur ? 1 : 0;
+    for (const [R, a] of [[90, 0.35], [104, 0.2]]) {
+      ctx.beginPath(); ctx.arc(s.x, s.y, R + on * beat * 8, 0, Math.PI * 2); ctx.lineWidth = (1.5 + on * beat) / zoom;
+      ctx.strokeStyle = lit > 0 ? rgba(P.accent, a + 0.5 * lit * (on ? 0.6 + 0.4 * beat : 0.4)) : rgba(P.ink, a * 0.8); ctx.stroke();
+    }
+    ctx.beginPath(); ctx.arc(s.x, s.y, 10 + 6 * lit, 0, Math.PI * 2); ctx.fillStyle = lit > 0 ? rgba("#FFF4E6", 0.4 + 0.6 * lit) : rgba(P.ink, 0.3); ctx.fill();
+    ctx.font = "500 26px " + (k.look.families.mono || "monospace"); ctx.fillStyle = rgba(P.ink, 0.45 + 0.4 * lit);
+    ctx.fillText(s.label, s.x + 124, s.y + 9);
+  });
+  // the travelling light leaves a trail while it flies
+  if (mid > 0.02) k.trail(ctx, (ti) => along(progress(ti)), t, { width: 10 / zoom, length: 0.3 });
+  glow();
+  ctx.setTransform(zoom, 0, 0, zoom, 540 - cam.x * zoom, CFG.focusY - cam.y * zoom);
+  k.flare(ctx, head.x, head.y, { size: 28 + 30 * (1 - mid) * (0.6 + 0.4 * beat), strength: 0.9, streak: 220 / zoom });
+};
+k.frame(paint);
+</script>

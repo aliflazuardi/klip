@@ -2,15 +2,16 @@
   "$defs": {
     "Backdrop": {
       "additionalProperties": false,
-      "description": "A themed set behind a stage scene's props, instead of a plain built-in `background`: a real\nplace (photo), a web page, a market board or a phone screen.",
+      "description": "A themed set behind a stage scene's props, instead of a plain built-in `background`: a real\nplace (photo), a web page, a market board, a phone screen or a group chat.",
       "properties": {
         "kind": {
-          "description": "photo = a full-screen photo of a place or surface (stock `query`, Wikipedia `who` for a painting/map, or your `path`), darkened so props read on it; screenshot = a web page (`url`, optional `wayback`) filling the frame; board = a dense market/departure board of `items` ('BBCA -2,1%'), tinted; phone = a phone app screen with a `title` header (pair it with notif elements).",
+          "description": "photo = a full-screen photo of a place or surface (stock `query`, Wikipedia `who` for a painting/map, or your `path`), darkened so props read on it; screenshot = a web page (`url`, optional `wayback`) filling the frame; board = a dense market/departure board of `items` ('BBCA -2,1%'), tinted; phone = a phone app screen with a `title` header (pair it with notif elements); chat = a messenger group chat with a `title` (the group's name) and `info` (pair it with bubble elements).",
           "enum": [
             "photo",
             "screenshot",
             "board",
-            "phone"
+            "phone",
+            "chat"
           ],
           "title": "Kind",
           "type": "string"
@@ -112,8 +113,21 @@
             }
           ],
           "default": null,
-          "description": "phone: the small header line ('autodebet · tgl 5 Jan'); board: an optional header ('IDX · 15 Okt 2026').",
+          "description": "phone: the small header line ('autodebet · tgl 5 Jan'); board: an optional header ('IDX · 15 Okt 2026'); chat: the group's name ('Keluarga Besar').",
           "title": "Title"
+        },
+        "info": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "chat: the small line under the name ('23 anggota', 'online').",
+          "title": "Info"
         },
         "dim": {
           "anyOf": [
@@ -316,7 +330,8 @@
                 "halftone",
                 "grain",
                 "hud",
-                "riso"
+                "riso",
+                "film"
               ],
               "type": "string"
             },
@@ -443,6 +458,76 @@
           "default": null,
           "description": "One short sentence under the title, e.g. 'Ternyata bukan karena bosan'.",
           "title": "Subtitle"
+        },
+        "layout": {
+          "anyOf": [
+            {
+              "enum": [
+                "hero",
+                "text"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "hero = short title on top, a big subject (cut-out photo and/or mascot) below; text = title only. Unset: hero whenever there is a subject.",
+          "title": "Layout"
+        },
+        "image": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Hero photo path (relative to the repo), cut out as a sticker. Unset: <photos dir>/<slug>/cover.*, the hook's stage cut-out, another scene's, else the subject lifted from the hook's b-roll.",
+          "title": "Image"
+        },
+        "mascot": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Mascot pose on the cover (e.g. 'kaget', 'bingung'), or 'none'. Unset: klip.yaml cover.hero.mascot_pose.",
+          "title": "Mascot"
+        },
+        "who": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Which cast member is on the cover. Unset: the hook's speaker.",
+          "title": "Who"
+        },
+        "badge": {
+          "anyOf": [
+            {
+              "maxLength": 18,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "1-2 word sticker on the hero, e.g. 'MITOS?', '1 DETIK', '350 TAHUN'. Teases, never answers.",
+          "title": "Badge"
         }
       },
       "title": "Cover",
@@ -529,6 +614,19 @@
       "additionalProperties": false,
       "description": "Art direction shared by every code scene so the video reads as one film. Unset fields come from\nthe style's look_bible (brand pack), then klip.yaml code.look.",
       "properties": {
+        "preset": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A named look to start from (klip.yaml code.looks, e.g. 'cinematic': dark, hairline, glowing accent, film grain). The fields below override it.",
+          "title": "Preset"
+        },
         "palette": {
           "additionalProperties": {
             "type": "string"
@@ -550,7 +648,8 @@
                 "halftone",
                 "grain",
                 "hud",
-                "riso"
+                "riso",
+                "film"
               ],
               "type": "string"
             },
@@ -559,7 +658,7 @@
             }
           ],
           "default": null,
-          "description": "Overlay on every code scene: paper (fibres + vignette), watercolor (wash blotches), halftone (dot screen), grain (film grain), hud (scanlines + corner marks), riso (misprint grain), none.",
+          "description": "Overlay on every code scene: paper (fibres + vignette), watercolor (wash blotches), halftone (dot screen), grain (film grain), hud (scanlines + corner marks), riso (misprint grain), film (grain + dark vignette, for dark looks), none.",
           "title": "Texture"
         },
         "texture_strength": {
@@ -598,7 +697,8 @@
               "enum": [
                 "snappy",
                 "smooth",
-                "bouncy"
+                "bouncy",
+                "cinematic"
               ],
               "type": "string"
             },
@@ -856,6 +956,12 @@
           "default": null,
           "description": "Explicit track path (overrides mood).",
           "title": "Track"
+        },
+        "beats": {
+          "default": true,
+          "description": "Code scenes follow the track's beats (k.beats, k.pulse). Turn off for a track without a steady beat (ambient, orchestral swells).",
+          "title": "Beats",
+          "type": "boolean"
         }
       },
       "title": "Music",
@@ -878,6 +984,60 @@
         }
       },
       "title": "Post",
+      "type": "object"
+    },
+    "Quiz": {
+      "additionalProperties": false,
+      "description": "A \"tebak dulu\" quiz on a hook/explain scene: the scene's on_screen_text is the question, the\noptions pop in (on their words when the narration reads them), a countdown ring runs from\n`countdown_at`, and at `reveal_at` the right option lights up and the others are struck out. Ask in\none scene and answer in a later one (the same options + `reveal_at`) to keep the loop open.",
+      "properties": {
+        "options": {
+          "description": "2-4 short answers (≤ 4 words each), shown as A, B, C, D.",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 4,
+          "minItems": 2,
+          "title": "Options",
+          "type": "array"
+        },
+        "answer": {
+          "description": "Which option is right (1-based).",
+          "minimum": 1,
+          "title": "Answer",
+          "type": "integer"
+        },
+        "countdown_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Narration word where the countdown ring starts ('Tebak', 'tiga'); unset = no countdown.",
+          "title": "Countdown At"
+        },
+        "reveal_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Narration word where the answer lights up ('Jawabannya'); unset = this scene only asks.",
+          "title": "Reveal At"
+        }
+      },
+      "required": [
+        "options",
+        "answer"
+      ],
+      "title": "Quiz",
       "type": "object"
     },
     "Scene": {
@@ -959,6 +1119,26 @@
           "default": null,
           "description": "This scene's narrator when it differs from the video's `voice` (a dialogue: alternate male and female). Unset = the voice of the scene's mascot speaker if one is set, else the video's voice.",
           "title": "Voice"
+        },
+        "transition": {
+          "anyOf": [
+            {
+              "enum": [
+                "whip",
+                "zoom",
+                "wipe",
+                "flash",
+                "none"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The cut into this scene; unset = picked from the style's transitions pool.",
+          "title": "Transition"
         },
         "delivery": {
           "anyOf": [
@@ -1081,6 +1261,18 @@
           "default": null,
           "description": "Mascots (only when the style has a mascot cast): who speaks and pose changes."
         },
+        "quiz": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Quiz"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "hook/explain: a 'tebak dulu' quiz (options, countdown, the answer lighting up); on_screen_text is the question."
+        },
         "cta_type": {
           "anyOf": [
             {
@@ -1164,6 +1356,22 @@
           "minimum": 0.5,
           "title": "Scale",
           "type": "number"
+        },
+        "focus": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Spotlight: this mascot (true = the scene's speaker) steps to the centre, big, under a spotlight, and the others leave for the scene. For a hook, a punchline or a reaction; the props area is only a strip above it (0-1 small props, or a label).",
+          "title": "Focus"
         }
       },
       "title": "SceneMascot",
@@ -1257,7 +1465,7 @@
           "type": "string"
         },
         "kind": {
-          "description": "cutout = stock photo with its background removed (a sticker); photo = photo card; icon = Lucide icon on a sticker disc; label = paper tag; number = big number; bar = bar chart; stack = a pile of `count` icons; highlight = yellow box around an earlier element; stamp = a rubber stamp that thumps down (a verdict: 'BERHASIL', 'PALSU'); chart = a line chart that draws on (real data: points, csv or ticker); unit = a grid of `total` squares, `filled` of them highlighted; person = a real person's card (Wikipedia photo of `who`, name, a line, a stat); news = a headline card (outlet, date, text); logo = an organisation's logo (`who`) on a sign; screenshot = a web page (`url`) in a browser window; notif = a phone notification card (`outlet` = the app, `text` = the line, `stat` = a big amount, `date` = the corner note). Motion components (animated diagrams; their `steps` play on their own words): kinetic = big kinetic type, one phrase per step; split = a whole that breaks into shares (step values); flow = amounts flowing from a source (`text`, `name`) to 1-4 destinations; meter = a gauge filling to each step's value out of `max`, with a counter; cycle = a loop of 3-6 steps with a dot going round (a vicious circle); timeline = dated events (step `label` = the date); funnel = layers narrowing step by step; reel = a slot reel spinning through options and landing on the `accent` one.",
+          "description": "cutout = stock photo with its background removed (a sticker); photo = photo card; icon = Lucide icon on a sticker disc; label = paper tag; number = big number; bar = bar chart; stack = a pile of `count` icons; highlight = yellow box around an earlier element; stamp = a rubber stamp that thumps down (a verdict: 'BERHASIL', 'PALSU'); chart = a line chart that draws on (real data: points, csv or ticker); unit = a grid of `total` squares, `filled` of them highlighted; person = a real person's card (Wikipedia photo of `who`, name, a line, a stat); news = a headline card (outlet, date, text); logo = an organisation's logo (`who`) on a sign; screenshot = a web page (`url`) in a browser window; notif = a phone notification card (`outlet` = the app, `text` = the line, `stat` = a big amount, `date` = the corner note); bubble = a chat message on a chat backdrop (`sender`, `text`, `me`, `forwarded`, `date` = the time), stacking down the chat and scrolling it like a real one. Motion components (animated diagrams; their `steps` play on their own words): kinetic = big kinetic type, one phrase per step; split = a whole that breaks into shares (step values); flow = amounts flowing from a source (`text`, `name`) to 1-4 destinations; meter = a gauge filling to each step's value out of `max`, with a counter; cycle = a loop of 3-6 steps with a dot going round (a vicious circle); timeline = dated events (step `label` = the date); funnel = layers narrowing step by step; reel = a slot reel spinning through options and landing on the `accent` one.",
           "enum": [
             "cutout",
             "photo",
@@ -1275,6 +1483,7 @@
             "logo",
             "screenshot",
             "notif",
+            "bubble",
             "kinetic",
             "split",
             "flow",
@@ -1518,8 +1727,33 @@
             }
           ],
           "default": null,
-          "description": "news: the date as shown, e.g. 'Jumat, 16 Okt 2026'; notif: the corner note ('bulan ke-12', '09.41').",
+          "description": "news: the date as shown, e.g. 'Jumat, 16 Okt 2026'; notif: the corner note ('bulan ke-12', '09.41'); bubble: the time ('19.02').",
           "title": "Date"
+        },
+        "sender": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "bubble: who sent it, as the chat shows the name ('Om Hendra', 'Tante Rina'); never a real person's name or number.",
+          "title": "Sender"
+        },
+        "me": {
+          "default": false,
+          "description": "bubble: sent by the phone's owner (right side, the sent colour).",
+          "title": "Me",
+          "type": "boolean"
+        },
+        "forwarded": {
+          "default": false,
+          "description": "bubble: marked 'Diteruskan' (a forwarded chain message).",
+          "title": "Forwarded",
+          "type": "boolean"
         },
         "url": {
           "anyOf": [
@@ -1872,7 +2106,7 @@
             }
           ],
           "default": null,
-          "description": "type=stage: a themed set instead of `background` (a real place, a web page, a market board, a phone screen). Vary sets across the video as the story moves."
+          "description": "type=stage: a themed set instead of `background` (a real place, a web page, a market board, a phone screen, a group chat). Vary sets across the video as the story moves."
         },
         "elements": {
           "description": "type=stage: props that build up on the background, each popping in on its narration word, in narration order.",
@@ -1897,6 +2131,58 @@
         }
       },
       "title": "Visual",
+      "type": "object"
+    },
+    "World": {
+      "additionalProperties": false,
+      "description": "One code layer under a run of consecutive code scenes (see docs/CODE-SCENES.md, \"One world\"): a single\npicture the camera travels through while the scenes change on top, instead of a cut per scene. Its\n`k` spans the run: k.words / k.at cover every scene's narration, k.scenes says when each one plays.",
+      "properties": {
+        "file": {
+          "description": "Repo-relative world file, e.g. 'specs/<slug>/world.html'.",
+          "pattern": "\\.html$",
+          "title": "File",
+          "type": "string"
+        },
+        "scenes": {
+          "description": "Ids of the consecutive code scenes it runs under; empty = every code scene (they must be consecutive).",
+          "items": {
+            "type": "string"
+          },
+          "title": "Scenes",
+          "type": "array"
+        },
+        "assets": {
+          "description": "As in a code scene.",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 20,
+          "title": "Assets",
+          "type": "array"
+        },
+        "include": {
+          "description": "As in a code scene.",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 8,
+          "title": "Include",
+          "type": "array"
+        },
+        "libs": {
+          "description": "As in a code scene.",
+          "items": {
+            "const": "three",
+            "type": "string"
+          },
+          "title": "Libs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "file"
+      ],
+      "title": "World",
       "type": "object"
     }
   },
@@ -2003,6 +2289,18 @@
       "default": null,
       "description": "Art direction for code scenes (palette, fonts, texture, motion); unset = the style's."
     },
+    "world": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/World"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "One code layer the camera travels through under a run of consecutive code scenes (their own bg turns transparent)."
+    },
     "mascots": {
       "anyOf": [
         {
@@ -2034,6 +2332,19 @@
       "default": null,
       "description": "Thin progress bar at the top; unset = the style's setting. Set false/true to A/B test it.",
       "title": "Progress Bar"
+    },
+    "loop": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "End on the first frame so the auto-replay is seamless; unset = the style's loop.enabled.",
+      "title": "Loop"
     },
     "save_nudge": {
       "anyOf": [

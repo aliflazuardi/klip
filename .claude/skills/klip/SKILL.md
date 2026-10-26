@@ -9,9 +9,62 @@ argument-hint: '"topik" [--voice male|female] [--duration 30-60]'
 You are the script writer. You write a **scene spec JSON**, the user reviews it, then the
 pipeline renders it. The spec is the contract: re-rendering the same spec gives the same video.
 
+## Guided flow (step by step)
+
+Every new video starts with this guided flow: short steps, one decision each, a recommendation
+already picked so the user can just say "ok". Talk to the user in Indonesian. In Claude Code ask
+with `AskUserQuestion` (recommended option first, labelled "(Rekomendasi)"); elsewhere write
+numbered options and accept "1", "ok", "lanjut". Never ask what the brand guide already fixes:
+show it as "sudah dari brand" instead.
+
+**Fast path:** if the user says "langsung aja" / "cepat" / "pakai default", or the request already
+gives topic, style and details, skip to step 5 with the recommended picks and ask once.
+
+0. **Channel.** Which brand (`uv run klip styles`). Infer it from the request or CLAUDE.local.md
+   (e.g. a history topic with no channel named: ask which channel). Read that brand's skill now
+   (`/warga-nalar`, `/kilas-masa`, or `brands/<name>/skill/SKILL.md`): its "Guided flow" section
+   says which styles it allows, its default, and which details are fixed. No brand → `default`.
+1. **Topik & sudut.** Restate the topic as one core question and propose the series (brand
+   guide) and 2–3 hook angles, each a different hook type, one recommended. No topic yet → offer
+   `uv run klip ideas --style <brand>` or ask for one.
+2. **Gaya video.** Read `docs/VIDEO-STYLES.md`. Offer 2–4 production styles the brand allows,
+   each with one line on what it looks like *for this topic*, the make time, and the recommended
+   one first with the reason ("Stage, karena topik ini soal angka dan tokoh; stock nggak punya
+   footage-nya"). Last option: "lihat semua gaya" (show the "At a glance" table).
+3. **Bahan dari kamu.** For the chosen style and this topic, list in two short groups:
+   - *Klip ambil sendiri*: Wikipedia portraits for public figures, logos, market charts, stock
+     clips, archive paintings and maps.
+   - *Bisa kamu kirim (opsional)*: the photos only you can get (an Indonesian product, a place,
+     local food, an app screen, a news photo or screenshot to show as is, your own footage, a cover
+     photo), each with what it should show and where it goes (`specs/photos/<slug>/`, named later
+     by the photo brief; footage in `assets/broll/`). Data the user owns (a CSV) if the style uses charts.
+   The user answers "kirim nanti" / "pakai yang otomatis aja"; never block on it. The exact file
+   names come from the photo brief at step 7.
+4. **Detail.** At most 4 questions, recommended answer first; everything else takes the default
+   and appears in step 5:
+   - *Maskot* (only if the brand has a cast and the style shows them): the brand's default
+     (Warga Nalar: duet Napa + Gulung), one mascot, or none. A brand with a bigger cast picks who fits
+     the topic (its guide says how); always write `"mascots"` then (validate warns on a crowd).
+   - *Suara* (only if the brand doesn't fix it): cewek / cowok; with a duet it follows the roles.
+   - *Durasi*: 30 / 45 / 60 s (the brand's range; recommend by how much the topic needs).
+   - *Ajakan penutup* (`cta_type`): recommend from the brand table (two sides → comment, tips →
+     save…).
+   Defaults (mention, don't ask): music mood from the brand/series, cover written by Claude,
+   progress bar on, no A/B hooks unless asked ("mau 2–3 variasi hook buat A/B?" fits here when the
+   user posts often).
+5. **Ringkasan produksi.** One compact card: channel · series · topic question · hook · style ·
+   mascots · voice · duration · CTA · music · what the user will send. Ask "Lanjut tulis naskah?".
+   Then research, write the spec, validate (Flow steps 2–5 below).
+6. **Review naskah** (Flow step 6): the scene table and facts with sources. Edits loop here.
+7. **Foto & preview.** Stage: run the photo brief and list the props that want a photo, with file
+   names. Code scenes: preview sheets. Wait for photos only if the user said they'll send some.
+8. **Render & laporan** (Flow steps 7–8), plus the post text per platform from the brand guide.
+   End with what only the user can do (send a photo later, check a fact, post, turn on the AI
+   label).
+
 ## Flow
 
-1. **Parse the request.** Topic (Indonesian), voice (`male` = Ardi, `female` = Gadis; default
+1. **Parse the request** (or take it from the guided flow above). Topic (Indonesian), voice (`male` = Ardi, `female` = Gadis; default
    `female`; "suara cowok" = male, "suara cewek" = female), target duration (default 45 s, max 120),
    and the look: "stage" if the user asks for the stage / illustrated / collage / 90secondslab look
    ("pakai stage", "gaya ilustrasi"), else leave it unset (mixed). If they want a designed,
@@ -91,9 +144,21 @@ outro). A brand's rules (voice, sign-off, series, hashtags) still apply.
     "Faktanya, …". Set `reveal_at` to that word ("Faktanya,") so the fact card appears on cue.
   - `stat`: requires `stat: {value, suffix?, prefix?, decimals?, label?}`. One striking number,
     e.g. `{"value": 20, "suffix": " menit", "label": "durasi ideal tidur siang"}`. The number
-    must appear in the narration and be backed by `facts[]`.
+    must appear in the narration (or, when the brand guide keeps numbers on screen, its meaning: "hampir
+    separuh") and be backed by `facts[]`.
   - `compare`: requires `compare: {left: {label, text?, icon?}, right: {...}}`. Labels ≤ 3 words,
     text ≤ 3 words. `on_screen_text` is an optional title ("Power nap vs tidur lama").
+  - **Quiz ("tebak dulu")** on a `hook` or `explain` scene: `"quiz": {"options": ["Hiu", "Ular",
+    "Nyamuk"], "answer": 3, "countdown_at": "Tiga", "reveal_at": "Jawabannya"}`. The `on_screen_text` is
+    the question; 2–4 options (≤ 4 words) pop in on their words when the narration reads them; a ring
+    counts down from `countdown_at` (say "Tiga, dua, satu." in the narration: no silence needed); at
+    `reveal_at` the right one lights up and the others are struck out. **Ask early, answer late:** put
+    the quiz without `reveal_at` in the hook, build up in between, then repeat the same options with
+    `reveal_at` in the scene before the cta (validate warns when the hook answers itself or a quiz is
+    never answered). Works on stock/photo/solid scenes (a panel over the footage) and stage scenes (the
+    options take the bottom of the props area: keep 1 small prop); a code scene draws its own from
+    `examples/code-scenes/starters/quiz.html`; on a chat set, quiz in its own scene. Pair with
+    `cta_type: "comment"` ("Tadi kamu jawab apa?"). Example: `examples/quiz.json`.
   - `cta`: always the last scene. Set `cta_type` to pick the ask (see the writing guide):
     `follow` | `save` | `comment` | `share`. It adds an action chip (icon + "Follow" / "Simpan" /
     "Komen di bawah" / "Kirim ke teman") under the headline; for `comment`, `on_screen_text` is
@@ -152,7 +217,12 @@ outro). A brand's rules (voice, sign-off, series, hashtags) still apply.
     real codes, and numbers only when they are real figures in `facts`, else codes alone), or
     `{"kind": "phone", "title": "autodebet · tgl 5 Jan"}` (an app screen; put `notif` elements on
     it: `outlet` = the app, `text` = the line, `stat` = a big amount, `date` = the corner note;
-    they stack down the screen). Optional `dim` (0–0.9), `blur`, `tint` ("#7A0F14" for a red
+    they stack down the screen), or `{"kind": "chat", "title": "Keluarga Besar", "info": "23 anggota"}` (a
+    group chat; put `bubble` elements on it: `sender` = the name as the chat shows it (made up, never a real
+    person's), `text` ≤ 22 words, `forwarded: true` for a chain message, `me: true` for the phone owner's
+    reply (right side, no sender), `date` = the time "07.02"; they stack down in narration order, theirs
+    after typing dots, and the chat scrolls up when it fills; a `stamp` with `target` = the bubble's number
+    lands on that bubble: the hoaks verdict). Example: `examples/chat.json`. Optional `dim` (0–0.9), `blur`, `tint` ("#7A0F14" for a red
     crash) and `tone`. On photo/page/board sets the title becomes caps in dark boxes with the
     `emphasis` in an accent box, and the bottom darkens for the captions. Plan 2–4 sets per video,
     one per beat (consecutive scenes on the same backdrop carry it across the cut); `validate` warns
@@ -230,7 +300,25 @@ outro). A brand's rules (voice, sign-off, series, hashtags) still apply.
     `"mascot"` also takes `poses` [{who, pose, at, hold_s}] (pose =
     a file in the mascot's folder: netral, kepo, kaget, paham, bingung, tunjuk), `hide`. Use poses
     for the beats that matter (a myth landing → `bingung`, the reveal → `paham`); leave the rest
-    automatic. They don't show on non-stage scenes.
+    automatic. They don't show on non-stage scenes. They gesture on their own while speaking
+    (leans, nods on emphasised words, listeners nod along, a squash when they land).
+    **Impact moments in code scenes:** `k.reveal(el, at, {mode: "slam"})` for the number or word the line
+    is about, `k.fx.shock/sparks` where it lands, `k.count({roll: true})` for big numbers, `k.land` for
+    objects that drop in. One or two per scene; stage titles and stamps get theirs automatically.
+    **Transitions:** cuts vary on their own (whip, zoom, wipe, flash). Set a scene's `"transition"` only
+    for a reason (`"flash"` on a shock reveal, `"none"` for a deliberate hard cut).
+    **Loop:** `"loop": true` (or the style's `loop.enabled`) makes the end turn into the first frame, so
+    TikTok's replay runs on seamlessly; nothing to write for it.
+    **Cold open (cinematic videos with a `world`):** don't spend the hook on a quiet shot. Put the
+    hook in the world's scenes and replay the world's climax under it (docs/CODE-SCENES.md "Cold
+    open"), with `k.headline()` and `k.spotlight("<mascot>", {pose: "kaget"})` on top, then hard-cut
+    to the story's first shot.
+    **Spotlight:** `"mascot": {"focus": true}` (or a name) makes that mascot the star of the
+    scene: it slides to the centre, big, under a glow and turning sunburst, gestures more (hops
+    on emphasised words) and the others step out. With a picture prop (cutout/photo/chart…) the
+    star stands left of centre and the props take the right column; with labels only it stays
+    centred and they get a strip above its head. Use it for 1-2 scenes per video: the hook, a
+    punchline or a big reaction (pair with a pose like `kaget`); give it 0-2 props.
     Rules: one element per narration subject, every ~1–2 s; `at` words in narration order.
     **Fewer, bigger props read better:** the layout is automatic and composes by count: one
     prop is a big centred hero; a photo/chart + a tag or number becomes hero + tag; three with
@@ -314,3 +402,13 @@ outro). A brand's rules (voice, sign-off, series, hashtags) still apply.
   "Menguap?", "subtitle": "Ternyata bukan karena bosan"}`. Unset → the hook's `on_screen_text`
   (its emphasised ending becomes the keyword) with no subtitle; write one whenever the hook
   text isn't a good title on its own.
+  The cover uses the **hero layout** whenever there's a subject: the short title up top, the
+  keyword on a tilted accent block, then one big subject (a cut-out photo and/or the brand's
+  mascot pulling a face) with an arrow pointing at it and the subtitle as a tag. The subject is
+  found on its own (the hook's stage cut-out, another scene's, else the subject lifted from the
+  hook's b-roll, else that still as a photo card). Optional extras: `badge` (1-2 words stuck on
+  the subject, a tease like `"MITOS?"`, `"1 DETIK"`, `"350 TAHUN"`, never the answer), `mascot`
+  (pose: `kaget`, `bingung`, `kepo`… or `"none"`), `who` (which cast member), `image` (your own
+  photo, repo-relative; or drop `cover.png`/`cover-*.jpg` in the spec's photo folder) and
+  `"layout": "text"` for the old title-only cover. Keep title + keyword to ~3-6 words: the
+  cover is read at grid size. Redo just the cover after an edit with `uv run klip cover <spec>`.

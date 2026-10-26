@@ -48,6 +48,23 @@ Items run one after another; a failure (script, render or QA) is recorded and th
 on. You get a summary table, a JSON report in `projects/_batch/`, and exit code 1 if any item
 failed.
 
+## Ideas from today's trends
+
+```bash
+uv run klip ideas --style warga-nalar                 # today's Google Trends (Indonesia) → ideas
+uv run klip ideas --from trends.txt --no-trends       # only your own signals, one per line
+uv run klip batch specs/ideas-<date>-<style>.yaml --scripts-only
+```
+
+`klip ideas` reads the day's trending searches (Google Trends RSS for klip.yaml `ideas.geo`, with
+each trend's news headlines) and anything you paste with `--from` (hashtags or sounds from TikTok
+Creative Center, questions from your comments), then asks the LLM for explainer topics that fit
+the channel's brand guide (`brands/<style>/skill/SKILL.md`) and aren't already in `projects/` or
+`specs/`. A trend is the reason to post now; the topic still has to teach something, so match
+scores and gossip are skipped unless there's a real explainer behind them. You get a table and a
+batch file with one item per idea and its angle, hook, trend, facts to check and a ⚠ on sensitive
+topics as comments: delete the ones you don't want, then run it with `--scripts-only`.
+
 ## Standalone: topic → video without Claude Code
 
 ```bash
@@ -115,6 +132,14 @@ dot going round), `timeline`, `funnel` and `reel` (a slot reel landing on the an
 `show` count up. See `examples/motion-components.json` (one of each) and `stage.components` in
 `klip.yaml` for sizes, colours and timing.
 
+### Pace: measure videos you like
+
+`uv run klip measure ref1.mp4 ref2.mp4 …` reports, per video, cuts and visual beats per minute (a beat =
+the picture visibly changing: a cut, a prop popping in, a camera move), the average shot, how much the
+picture moves, and the share of dead air and of too-busy stretches. Add `--save` to turn the median of
+your references into targets (`projects/pace-targets.yaml`); every render's QA then shows how it compares
+(`qa.pace` in klip.yaml; informational, never fails a render).
+
 ### Mascots
 
 A brand pack can bring characters who "explain" the video: `mascot.cast` in its `brand.yaml` lists
@@ -122,7 +147,10 @@ them, each a folder of pose SVGs (`netral.svg` required; `brands/example/mascot/
 format). On stage scenes they stand above the captions: the scene's speaker mouths each word
 (flip-book lip sync between the pose's `mouth` and `mouth-open`), they blink and sway, point at
 new big props, and react to stamps. A scene's `"mascot"` picks the speaker and adds poses on
-words. Settings: `styles.default.mascot` in `klip.yaml`.
+words. They gesture while speaking (leans, nods on emphasised words, a squash when they land;
+`mascot.lively`). `"mascot": {"focus": true}` (or a name) spotlights one: it slides to the centre,
+big, under a glow and sunburst, and the others step out for that scene; picture props then take the
+right column (`mascot.focus`). Settings: `styles.default.mascot` in `klip.yaml`.
 
 A video picks its mascots with `"mascots"` in the spec (`false`, `["napa"]`, unset = all) or
 `klip render … --mascots none|all|napa,gulung`. A cast member can have a `voice`: scenes narrated in

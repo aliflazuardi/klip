@@ -1,0 +1,212 @@
+{
+  "version": 1,
+  "slug": "chat",
+  "voice": "female",
+  "target_duration_s": 32,
+  "look": "stage",
+  "progress_bar": false,
+  "facts": [
+    {
+      "claim": "Klaim bahwa minum air dingin setelah makan menyebabkan kanker adalah salah (hoaks)",
+      "source": "https://www.medcom.id/telusur/cek-fakta/gNQ8Ra5K-cek-fakta-benarkah-minum-air-es-setelah-makan-bisa-sebabkan-kanker-cek-faktanya"
+    },
+    {
+      "claim": "Makanan atau minuman yang dikonsumsi akan mengikuti suhu tubuh, sehingga tidak membahayakan",
+      "source": "https://www.halodoc.com/artikel/ketahui-mitos-kesehatan-yang-masih-dipercaya"
+    }
+  ],
+  "scenes": [
+    {
+      "id": "s1",
+      "template": "hook",
+      "narration": "Pesan ini masuk ke grup keluarga jam tujuh pagi. Dalam sejam, semua orang panik.",
+      "on_screen_text": "Pesan berantai pagi ini",
+      "emphasis": [
+        "panik"
+      ],
+      "visual": {
+        "type": "stage",
+        "backdrop": {
+          "kind": "chat",
+          "title": "Keluarga Besar",
+          "info": "23 anggota"
+        },
+        "elements": [
+          {
+            "at": "Pesan",
+            "kind": "bubble",
+            "sender": "Om Hendra",
+            "forwarded": true,
+            "date": "07.02",
+            "text": "PENTING!! Minum air es habis makan bikin kanker. Sebarkan ke semua keluarga!!"
+          },
+          {
+            "at": "keluarga",
+            "kind": "bubble",
+            "sender": "Om Budi",
+            "date": "07.18",
+            "text": "Wah iya, temanku juga pernah bilang gitu"
+          },
+          {
+            "at": "sejam",
+            "kind": "bubble",
+            "sender": "Bu Sari",
+            "date": "07.25",
+            "text": "Astaga, aku tiap hari minum es"
+          },
+          {
+            "at": "panik",
+            "kind": "bubble",
+            "sender": "Tante Rina",
+            "date": "07.31",
+            "text": "Ya ampun serem banget, makasih infonya Om"
+          }
+        ]
+      }
+    },
+    {
+      "id": "s2",
+      "template": "explain",
+      "narration": "Pakde ikut meneruskan, sepupu tanya beneran nggak, dan kamu hampir ikut menyebarkan ke grup kantor.",
+      "on_screen_text": "Semua ikut meneruskan",
+      "emphasis": [
+        "meneruskan"
+      ],
+      "visual": {
+        "type": "stage",
+        "backdrop": {
+          "kind": "chat",
+          "title": "Keluarga Besar",
+          "info": "23 anggota"
+        },
+        "elements": [
+          {
+            "at": "Pakde",
+            "kind": "bubble",
+            "sender": "Pakde Joko",
+            "forwarded": true,
+            "date": "07.40",
+            "text": "PENTING!! Minum air es habis makan bikin kanker. Sebarkan!!"
+          },
+          {
+            "at": "sepupu",
+            "kind": "bubble",
+            "sender": "Dina",
+            "date": "07.42",
+            "text": "Ini beneran nggak sih?"
+          },
+          {
+            "at": "hampir",
+            "kind": "bubble",
+            "me": true,
+            "date": "07.45",
+            "text": "Aku terusin ke grup kantor ya"
+          }
+        ]
+      }
+    },
+    {
+      "id": "s3",
+      "template": "explain",
+      "narration": "Pesan seperti ini cepat menyebar karena bikin takut, terasa penting, dan minta disebar.",
+      "on_screen_text": "Tiga ciri pesan berantai",
+      "emphasis": [
+        "takut",
+        "penting",
+        "disebar"
+      ],
+      "visual": {
+        "type": "stage",
+        "background": "spotlight",
+        "elements": [
+          {
+            "at": "Pesan",
+            "kind": "kinetic",
+            "steps": [
+              {
+                "text": "Bikin takut",
+                "at": "takut"
+              },
+              {
+                "text": "Terasa penting",
+                "at": "penting"
+              },
+              {
+                "text": "Minta disebar",
+                "at": "disebar",
+                "accent": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "s4",
+      "template": "explain",
+      "narration": "Faktanya, klaim ini sudah dicek dan salah. Minuman dingin akan mengikuti suhu tubuh, jadi nggak bikin kanker.",
+      "on_screen_text": "Faktanya: salah",
+      "emphasis": [
+        "salah"
+      ],
+      "visual": {
+        "type": "stage",
+        "backdrop": {
+          "kind": "chat",
+          "title": "Keluarga Besar",
+          "info": "23 anggota"
+        },
+        "elements": [
+          {
+            "at": "Faktanya",
+            "kind": "bubble",
+            "sender": "Om Hendra",
+            "forwarded": true,
+            "date": "07.02",
+            "text": "PENTING!! Minum air es habis makan bikin kanker. Sebarkan ke semua keluarga!!"
+          },
+          {
+            "at": "salah",
+            "kind": "stamp",
+            "text": "HOAKS",
+            "tone": "down",
+            "target": 1
+          },
+          {
+            "at": "suhu",
+            "kind": "bubble",
+            "me": true,
+            "date": "08.10",
+            "text": "Om, ini sudah dicek media, hasilnya hoaks ya"
+          },
+          {
+            "at": "kanker.",
+            "kind": "bubble",
+            "sender": "Om Hendra",
+            "date": "08.12",
+            "text": "Waduh, maaf ya semuanya. Om hapus deh"
+          }
+        ]
+      }
+    },
+    {
+      "id": "s5",
+      "template": "cta",
+      "narration": "Grup keluargamu sering dapat pesan begini? Tulis di komentar.",
+      "on_screen_text": "Grupmu sering dapat ini?",
+      "cta_type": "comment",
+      "visual": {
+        "type": "icon",
+        "name": "message-circle"
+      }
+    }
+  ],
+  "post": {
+    "caption": "Sebelum meneruskan, cek dulu sumbernya 📱",
+    "hashtags": [
+      "#cekfakta",
+      "#hoaks",
+      "#edukasi"
+    ]
+  }
+}

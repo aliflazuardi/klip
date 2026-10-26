@@ -77,10 +77,16 @@ def _lint_stage(spec: Spec, s: Scene, tokens: list[str], err, warn) -> None:
         pos = max([k, *(j for j in found if j is not None)]) + 1
     wps = words_per_second(scene_voice(spec, s), spec.speech_rate)
     lo, hi = config.get("stage.lint_min_gap_s"), config.get("stage.lint_max_gap_s")
+    own = {i for i in idx if i is not None}
+    norms = [norm(t) for t in tokens]
+    if q := s.quiz:                            # a quiz's options, countdown and reveal change the picture too
+        for w in [*q.options, q.countdown_at or "", q.reveal_at or ""]:
+            if w.split() and norm(w.split()[0]) in norms:
+                idx.append(norms.index(norm(w.split()[0])))
     marks = [-1] + sorted({i for i in idx if i is not None}) + [len(tokens)]
     for a, b in zip(marks, marks[1:]):
         gap = (b - max(a, 0)) / wps
-        if a >= 0 and b < len(tokens) and gap < lo:
+        if a in own and b in own and gap < lo:
             warn(s.id, f"stage elements at {tokens[a]!r} and {tokens[b]!r} are ~{gap:.1f}s apart; "
                        f"they'll land almost together (keep ≥ {lo}s)")
         elif gap > hi:
@@ -136,6 +142,26 @@ def _lint_stage(spec: Spec, s: Scene, tokens: list[str], err, warn) -> None:
         warn(s.id, "a phone backdrop reads best with notif elements (the app's notifications) on it")
     if any(e.kind == "notif" for e in els) and not (b and b.kind == "phone"):
         warn(s.id, 'notif cards sit best on a phone backdrop: "backdrop": {"kind": "phone", "title": "…"}')
+    if b and b.kind == "chat" and not any(e.kind == "bubble" for e in els):
+        warn(s.id, "a chat backdrop reads best with bubble elements (the messages) on it")
+    if any(e.kind == "bubble" for e in els) and not (b and b.kind == "chat"):
+        warn(s.id, 'bubbles sit on a chat backdrop: "backdrop": {"kind": "chat", "title": "…"}')
+    words_max, per_page = (int(config.get(f"stage.chat.{k}")) for k in ("words_max", "max_per_page"))
+    for e in els:
+        if e.kind == "bubble" and len(e.text.split()) > words_max:
+            warn(s.id, f"bubble {e.text[:30]!r}… has {len(e.text.split())} words; keep chats ≤ {words_max} so "
+                       f"they read in time")
+    from klip.stage import pages
+    for page in pages(els):
+        kinds = [els[i].kind for i in page]
+        if "bubble" not in kinds:
+            continue
+        if kinds.count("bubble") > per_page:
+            warn(s.id, f"{kinds.count('bubble')} bubbles on one chat page; older ones scroll away: start a new "
+                       f"page (\"clear\": true) after ~{per_page}")
+        if other := sorted({k for k in kinds if k not in ("bubble", "stamp", "highlight")}):
+            warn(s.id, f"a chat page holds bubbles, stamps and highlights; {', '.join(other)} breaks the chat "
+                       f"layout: put it on its own page (\"clear\": true)")
     bg = s.visual.background
     if bg and bg not in (config.get("stage.backgrounds") or {}):
         from klip.paths import ROOT
@@ -168,18 +194,28 @@ def _lint_mascot(spec: Spec, s: Scene, tokens: list[str], err, warn) -> None:
         elif p.pose not in (have := mascot.poses(style, p.who)):
             err(s.id, f"{p.who} has no pose {p.pose!r} ({', '.join(have)})")
     _check_anchors(s.id, tokens, [p.at for p in m.poses if p.at], "mascot pose", err)
+    if isinstance(m.focus, str) and m.focus not in cast:
+        err(s.id, f"mascot focus: {m.focus!r} isn't in this video's cast ({', '.join(cast)})")
+    if m.focus and len([e for e in s.visual.elements if e.kind != "highlight"]) > 2:
+        warn(s.id, "mascot focus leaves only a strip above the star for props: keep it to 0-2 small ones")
     if s.visual.type != "stage" and s.template != "cta":
         warn(s.id, "mascots only show on stage scenes (and say a folded cta's closing line)")
 
 
-def _lint_mascots(spec: Spec, err) -> None:
-    """`mascots` names must be in the style's cast."""
-    if not isinstance(spec.mascots, list):
-        return
+def _lint_mascots(spec: Spec, err, warn) -> None:
+    """`mascots` names must be in the style's cast; a big cast wants a pick (mascot.crowd)."""
     from klip import mascot
     try:
-        cast = mascot.names(config.style(spec.style))
+        style = config.style(spec.style)
     except KeyError:
+        return
+    cast = mascot.names(style)
+    crowd = mascot.settings(style).get("crowd")
+    shown = mascot.names(mascot.with_cast(style, spec))
+    if crowd and len(shown) > int(crowd):
+        warn("spec", f"{len(shown)} mascots on stage ({', '.join(shown)}): pick at most {crowd} with \"mascots\" "
+                     f"(the brand guide says who fits the topic)")
+    if not isinstance(spec.mascots, list):
         return
     for name in spec.mascots:
         if name not in cast:
@@ -195,14 +231,93 @@ def _lint_code(spec: Spec, s: Scene, err, warn) -> None:
         (err if level == "error" else warn)(s.id, msg)
 
 
-def _lint_code_look(spec: Spec, err) -> None:
+def _lint_quiz(spec: Spec, i: int, tokens: list[str], err, warn) -> None:
+    """A quiz: its cue words, short options, an answer that comes late (an open loop) and comes at all."""
+    s, q = spec.scenes[i], spec.scenes[i].quiz
+    for what, word in (("countdown_at", q.countdown_at), ("reveal_at", q.reveal_at)):
+        if word and not _contains(tokens, word.split()[0]):
+            err(s.id, f"quiz {what} {word!r} is not a word in the narration")
+    if q.countdown_at and q.reveal_at and _contains(tokens, q.countdown_at.split()[0]) \
+            and _contains(tokens, q.reveal_at.split()[0]):
+        norms = [norm(t) for t in tokens]
+        if norms.index(norm(q.reveal_at.split()[0])) < norms.index(norm(q.countdown_at.split()[0])):
+            err(s.id, "quiz reveal_at comes before countdown_at: count down first, then reveal")
+    limit = int(config.get("quiz.option_words"))
+    for o in q.options:
+        if len(o.split()) > limit:
+            warn(s.id, f"quiz option {o!r} has {len(o.split())} words; keep options ≤ {limit} so they read at a glance")
+    if not s.on_screen_text:
+        warn(s.id, "a quiz shows its question as the on_screen_text; add one (≤ 6 words)")
+    if s.visual.type == "code" and s.visual.code:
+        from klip.paths import ROOT
+        f = ROOT / s.visual.code.file
+        text = f.read_text(encoding="utf-8") if f.is_file() else ""
+        if not all(f'"{o}"' in text for o in q.options):
+            warn(s.id, "a code scene draws its own quiz: start from examples/code-scenes/starters/quiz.html and "
+                       "put the same options, answer, countdownAt and revealAt in its CFG")
+    if s.visual.backdrop and s.visual.backdrop.kind == "chat":
+        warn(s.id, "a quiz on a chat set covers the bubbles: ask in the chat, quiz in its own scene")
+    same = [j for j, o in enumerate(spec.scenes) if o.quiz and o.quiz.options == q.options]
+    answered = [j for j in same if spec.scenes[j].quiz.reveal_at]
+    if q.reveal_at and i == 0:
+        warn(s.id, "the quiz is answered in the hook: ask here and reveal it in a later scene (the same "
+                   "options + reveal_at), so viewers stay for the answer")
+    elif not answered and i == same[0]:
+        warn(s.id, "this quiz is never answered: give it reveal_at here, or repeat its options with reveal_at "
+                   "in a later scene")
+
+
+def _lint_code_mascots(spec: Spec, warn) -> None:
+    """Mascots show on stage scenes on their own, but a code scene has to place them (k.cast / k.spotlight).
+    With a cast, the hook and the last scene before the cta (where the answer lands) should show them."""
+    from klip import codescene, mascot
+    cast = mascot.names(mascot.video_style(spec))
+    if not cast or not any(s.visual.type == "code" for s in spec.scenes):
+        return
+    try:
+        world = codescene.world_run(spec) if spec.world else []
+        world_has = bool(world) and codescene.scene_uses_mascots(codescene.world_scene(spec))
+    except codescene.CodeSceneError:                 # reported by the world's own checks
+        world, world_has = [], False
+    shows = {s.id for s in spec.scenes if s.visual.type == "stage" and not (s.mascot and s.mascot.hide)}
+    shows |= {s.id for s in spec.scenes if s.visual.type == "code" and codescene.scene_uses_mascots(s)}
+    if world_has:
+        shows |= {s.id for s in world}
+    body = [s for s in spec.scenes if s.template != "cta"]
+    key = [s for s in {id(x): x for x in (body[:1] + body[-1:])}.values() if s.visual.type == "code"]
+    for s in key:
+        if s.id not in shows:
+            what = "the hook" if s is body[0] else "the answer's scene (last before the cta)"
+            warn(s.id, f"{what} is a code scene without the mascots ({', '.join(cast)}): they only appear on "
+                       f"their own on stage scenes; call k.cast() or k.spotlight({cast[0]!r}, {{pose: \"kaget\"}})")
+
+
+def _lint_code_look(spec: Spec, err, warn=None) -> None:
     if not any(s.visual.type == "code" for s in spec.scenes):
         return
     from klip import codescene
     try:
-        codescene.look(spec, config.style(spec.style))
+        lk = codescene.look(spec, config.style(spec.style))
     except (codescene.CodeSceneError, KeyError) as e:
         err("look_bible", str(e).strip('"'))
+        return
+    bg = lk["palette"]["bg"]
+    if warn and codescene.luminance(bg) < float(config.get("code.min_bg_luma")):
+        warn("look_bible", f"bg {bg} is darker than video black: the video flattens it and glows fading into it "
+                           f"band; lift it a little (the cinematic preset uses #16120F)")
+
+
+def _lint_world(spec: Spec, err, warn) -> None:
+    if not spec.world:
+        return
+    from klip import codescene
+    try:
+        ws = codescene.world_scene(spec)
+    except codescene.CodeSceneError as e:
+        err("world", str(e))
+        return
+    for level, msg in codescene.lint_scene(ws, spec):
+        (err if level == "error" else warn)("world", msg)
 
 
 def _lint_look(spec: Spec, err) -> None:
@@ -236,9 +351,11 @@ def lint(spec: Spec) -> list[Issue]:
     err = lambda where, msg: issues.append(Issue("error", where, msg))      # noqa: E731
     warn = lambda where, msg: issues.append(Issue("warning", where, msg))   # noqa: E731
     _lint_look(spec, err)
-    _lint_code_look(spec, err)
+    _lint_code_look(spec, err, warn)
+    _lint_code_mascots(spec, warn)
+    _lint_world(spec, err, warn)
     _lint_sets(spec, warn)
-    _lint_mascots(spec, err)
+    _lint_mascots(spec, err, warn)
     if config.get("post.lowercase_hashtags", True):
         import re
         caps = sorted({t for t in re.findall(r"#\w+", spec.post.caption + " " + " ".join(spec.post.hashtags))
@@ -262,7 +379,14 @@ def lint(spec: Spec) -> list[Issue]:
 
     if spec.scenes[0].template != "hook":
         warn(spec.scenes[0].id, "the first scene should use the 'hook' template")
-    hooks = [("hook", spec.scenes[0].narration, spec.scenes[0].on_screen_text)] + \
+    first = spec.scenes[0]
+    hook_text = first.narration
+    if first.quiz:                             # the options and the countdown aren't the hook: the question is
+        toks = first.narration.split()
+        cut = [i for i, t in enumerate(toks) for w in [*first.quiz.options, first.quiz.countdown_at or ""]
+               if w.split() and norm(t) == norm(w.split()[0])]
+        hook_text = " ".join(toks[:min(cut)]) if cut else hook_text
+    hooks = [("hook", hook_text, first.on_screen_text)] + \
         [(f"hook_variants[{i}]", v.narration, v.on_screen_text) for i, v in enumerate(spec.hook_variants)]
     for where, narration, on_screen in hooks:
         if len(narration.split()) > 14:
@@ -303,6 +427,8 @@ def lint(spec: Spec) -> list[Issue]:
             _lint_code(spec, s, err, warn)
         if s.mascot:
             _lint_mascot(spec, s, tokens, err, warn)
+        if s.quiz:
+            _lint_quiz(spec, i, tokens, err, warn)
         if s.visual.type in ("stock_video", "stock_photo") and s.visual.max_shots != 1:
             from klip.pipeline import words_per_second
             shots_n = len(s.visual.beats or s.visual.queries) + 1

@@ -16,7 +16,8 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 from klip import config
-from klip import codescene, mascot, motion
+from klip import beats as beats_mod
+from klip import codescene, ffmpeg, mascot, motion, shots, transitions
 from klip import stage as stage_mod
 from klip.captions import CaptionWord, emphasis_mask, norm, paginate, tokenize
 from klip.paths import RENDERER_DIR, ROOT, TEMPLATES_DIR
@@ -71,6 +72,20 @@ def _headline(text: str | None, emphasis: list[str]) -> list[dict]:
         return []
     toks = tokenize(text)
     return [{"text": tok, "emph": e} for tok, e in zip(toks, emphasis_mask(toks, emphasis))]
+
+
+def title_slams(title: list[dict], words: list[dict], scene_id: str) -> None:
+    """Mark a title's keywords (emphasis, or ALL-CAPS in a mixed-case title) with `slam`: the time (s) the
+    narration says that word, else None (the keyword then lands with the rest). In place."""
+    from klip.captions import norm
+    caps_title = all(h["text"].upper() == h["text"] for h in title)
+    said = [(norm(w["text"]), w["startMs"] / 1000) for w in words if w.get("sceneId") == scene_id]
+    for h in title:
+        key = h["emph"] or (not caps_title and len(norm(h["text"])) > 1 and h["text"].upper() == h["text"]
+                            and any(c.isalpha() for c in h["text"]))
+        n = norm(h["text"])
+        h["slam"] = next((t for w, t in said if n and (w == n or (len(n) > 3 and w.startswith(n)))), None) if key else None
+        h["key"] = bool(key)
 
 
 def _list_numbers(spec: Spec) -> dict[str, tuple[int, int]]:
@@ -138,6 +153,39 @@ def _template_ctx(scene: Scene, t: dict, words: list[dict], numbers: dict, style
     return {}
 
 
+def _quiz_ctx(scene: Scene, t: dict, words: list[dict], style: dict, box: tuple[float, float]) -> dict:
+    """A quiz panel in `box` (top, bottom px): each option's entry (on its word, else staggered), the
+    countdown ring and the reveal (s), and the geometry of the stack."""
+    q, c = scene.quiz, config.get("quiz")
+    start, end = t["start_ms"] / 1000, (t["start_ms"] + t["duration_ms"]) / 1000
+    mine = [w for w in words if start - 0.01 <= w["startMs"] / 1000 < end]
+    found = shots.anchor_times(mine, q.options)
+    reveal = next(iter(shots.anchor_times(mine, [q.reveal_at])), None) if q.reveal_at else None
+    reveal = round(reveal / 1000, 3) if reveal is not None else None
+    t_ring = next(iter(shots.anchor_times(mine, [q.countdown_at])), None) if q.countdown_at else None
+    ring = None
+    if t_ring is not None:
+        t0 = t_ring / 1000
+        stop = min(x for x in (reveal, end - 0.1) if x is not None)
+        if stop - t0 > 0.4:
+            ring = {"t": round(t0, 3), "dur": round(min(float(c["countdown_s"]), stop - t0), 3)}
+    latest = min(x for x in (ring and ring["t"], reveal, end - 0.3) if x is not None)
+    opts = []
+    for k, (text, ms) in enumerate(zip(q.options, found)):
+        at = ms / 1000 if ms is not None else start + float(c["first_s"]) + k * float(c["stagger_s"])
+        opts.append({"letter": "ABCD"[k], "text": text, "t": round(min(max(at, start + 0.05), latest), 3),
+                     "right": k == q.answer - 1})
+    top, bottom = box                          # the ring (if any) stands right of the options
+    n, gap = len(opts), float(c["option_gap"])
+    oh = max(float(c["option_min_h"]), min(float(c["option_h"]), (bottom - top - gap * (n - 1)) / n))
+    stack = max(n * oh + gap * (n - 1), float(c["ring_px"]) if ring else 0)
+    y0 = top + max(0.0, (bottom - top - stack) / 2)
+    return {"options": opts, "ring": ring, "reveal": reveal, "top": round(y0, 1),
+            "oh": round(oh, 1), "gap": gap, "font": round(min(float(c["font_px"]), oh * 0.4), 1),
+            "letter": c["letter"] or style["accent_color"], "right": c["right"] or style["fact_color"],
+            "wrong": c["wrong"] or style["myth_color"], "check": icon_svg("check"), "x": icon_svg("x")}
+
+
 def _shots_ctx(scene_id: str, t: dict, media: dict) -> list[dict]:
     """B-roll shots for a scene (seconds). Older assets.json without `shots` → one shot."""
     if not media.get("kind"):
@@ -170,10 +218,30 @@ def _stage_ctx(scene: Scene, t: dict, words: list[dict], media: dict, style: dic
     times = stage_mod.entry_times(els, words, t["start_ms"], t["duration_ms"], warnings, scene.id)
     cap_top = caption_style(style, True)["top"]
     bottom = cap_top - float(config.get("stage.caption_gap_px"))
+    k, cx, xr = None, None, stage_mod.SAFE_X
     if mascot.shown(scene, style):            # the props end above the mascots
-        bottom = min(bottom, mascot.top(style, cap_top, mascot.scale(scene)) - float(mascot.settings(style)["clear_px"]))
+        clear = float(mascot.settings(style)["clear_px"])
+        k = mascot.scale(scene, style)
+        if scene.mascot and scene.mascot.focus:
+            fc = mascot.settings(style)["focus"]
+            if any(e.kind in mascot.BIG for e in els):
+                # a spotlit star with pictures to show stands left of centre; they get the right column
+                k = float(fc["side"]["height"]) / float(mascot.settings(style)["height"])
+                cx, xr = float(fc["side"]["cx"]), tuple(fc["side"]["props_x"])
+            else:                             # labels only: centred, shrunk to leave them a strip
+                k = mascot.focus_scale(style, cap_top, stage_title_bottom(scene) + 24)
+                bottom = min(bottom, mascot.top(style, cap_top, k) - clear)
+        else:
+            bottom = min(bottom, mascot.top(style, cap_top, k) - clear)
     area = (stage_title_bottom(scene) + 24, bottom)
-    boxes = stage_mod.layout(scene.id, els, rows, area)
+    quiz_box = None
+    if scene.quiz:                            # the options take the bottom of the props area...
+        qc, n = config.get("quiz"), len(scene.quiz.options)
+        need = n * float(qc["option_min_h"]) + (n - 1) * float(qc["option_gap"])
+        split = area[0] + (area[1] - area[0]) * float(qc["stage_props_share"])
+        split = max(area[0], min(split, area[1] - need - 16))     # ...and never get too small to read
+        quiz_box, area = (split + 16, area[1]), (area[0], split)
+    boxes = stage_mod.layout(scene.id, els, rows, area, xr)
     exits: dict[int, float] = {}
     pgs = stage_mod.pages(els)
     exit_s = config.get("stage.exit_s")
@@ -203,6 +271,9 @@ def _stage_ctx(scene: Scene, t: dict, words: list[dict], media: dict, style: dic
             el.update(fs=round(b["w"] * 0.07, 1), outlet=e.outlet, date=e.date)
         elif e.kind == "notif":
             el.update(fs=round(b["w"] * 0.045, 1), outlet=e.outlet, date=e.date, stat=e.stat)
+        elif e.kind == "bubble":
+            el.update(sender=None if e.me else e.sender, color=stage_mod.sender_color(e.sender), me=e.me,
+                      forwarded=e.forwarded, date=e.date)
         elif e.kind in COMPONENTS:
             end = exits.get(i) or (t["start_ms"] + t["duration_ms"]) / 1000
             st_times = stage_mod.step_times(e, times[i], end, words)
@@ -235,6 +306,12 @@ def _stage_ctx(scene: Scene, t: dict, words: list[dict], media: dict, style: dic
         if e.label and e.kind in ("cutout", "photo", "icon", "logo", "screenshot"):
             el["label_font"] = c["label_px"]["s" if b["size"] == "s" else "m"]
         out.append(el)
+    chat = []                                  # chat pages scroll up as their bubbles come
+    for n, page in enumerate(pgs):
+        if stage_mod.is_chat_page(els, page):
+            scroll = stage_mod.chat_scroll([el for el in out if el["page"] == n], area[1], float(c["chat"]["typing_s"]))
+            if scroll:
+                chat.append({"page": n, "scroll": scroll})
     image, backdrop = None, None
     if v.backdrop:
         backdrop = _backdrop_ctx(scene, media, warnings)
@@ -254,9 +331,12 @@ def _stage_ctx(scene: Scene, t: dict, words: list[dict], media: dict, style: dic
             if el["kind"] == "stamp" and els[el["i"]].tone == "neutral":
                 el["color"] = c["stamp"]["neutral_dark"]
     title_style = (backdrop or {}).get("title") or config.get("stage.title.style")
+    title = _headline(scene.on_screen_text, scene.emphasis)
+    title_slams(title, words, scene.id)
     return {"bg": bg, "builtin": stage_mod.is_builtin(bg), "image": image, "backdrop": backdrop, "elements": out,
-            "tone": tone, "area": area, "title_style": title_style,
-            "title": _headline(scene.on_screen_text, scene.emphasis), "list_no": list_no,
+            "tone": tone, "area": area, "title_style": title_style, "chat": chat, "quiz_box": quiz_box,
+            "title_top": stage_title_top(scene), "mask": area[0] if v.backdrop and v.backdrop.kind == "chat" else None, "mascot_scale": k, "mascot_cx": cx,
+            "title": title, "list_no": list_no,
             "hook": scene.template == "hook", "continues": False, "next_same": False, "bg_from": 0.0, "bg_to": 0.0}
 
 
@@ -267,7 +347,7 @@ def _backdrop_ctx(scene: Scene, media: dict, warnings: list[str]) -> dict | None
     b = v.backdrop
     d = stage_mod.backdrop_settings(v)
     out = {"kind": b.kind, "dim": float(d.get("dim") or 0), "tint": b.tint, "title": d.get("title"),
-           "header": b.title, "cfg": d}
+           "header": b.title, "info": b.info, "cfg": d}
     if b.kind in ("photo", "screenshot"):
         row = media.get("backdrop")
         if not row:
@@ -282,9 +362,18 @@ def _backdrop_ctx(scene: Scene, media: dict, warnings: list[str]) -> dict | None
     return out
 
 
+def stage_title_top(scene: Scene) -> float:
+    """Top edge (px) of a stage scene's title: its backdrop's title_top (a chat's header sits above it),
+    else stage.title.top."""
+    if scene.visual.type == "stage" and scene.visual.backdrop:
+        if (top := stage_mod.backdrop_settings(scene.visual).get("title_top")) is not None:
+            return float(top)
+    return float(config.get("stage.title.top"))
+
+
 def stage_title_bottom(scene: Scene) -> float:
     """Bottom edge (px) of a stage scene's title, estimating how many lines the text wraps to."""
-    t = config.get("stage.title")
+    t = {**config.get("stage.title"), "top": stage_title_top(scene)}
     font = t["hook_font_size"] if scene.template == "hook" else t["font_size"]
     text = (scene.on_screen_text or "") + (" 1/3 " if scene.template == "list_item" else "")
     if not text.strip():
@@ -352,6 +441,12 @@ def _scene_ctx(spec: Spec, scene: Scene, idx: int, t: dict, style: dict, warning
         c2 = c1
 
     headline = _headline(scene.on_screen_text, scene.emphasis)
+    stage = _stage_ctx(scene, t, words, media, style, warnings, numbers.get(scene.id)) if v.type == "stage" else None
+    quiz = None
+    if scene.quiz and v.type != "code":       # a code scene draws its own (starter quiz.html)
+        box = stage["quiz_box"] if stage else (float(config.get("quiz.top_px")),
+                                               caption_style(style, True)["top"] - float(config.get("stage.caption_gap_px")))
+        quiz = _quiz_ctx(scene, t, words, style, box)
 
     return {
         "id": scene.id, "idx": idx, "template": template, "hidden": False,
@@ -361,8 +456,7 @@ def _scene_ctx(spec: Spec, scene: Scene, idx: int, t: dict, style: dict, warning
         "media": {"kind": media["kind"], "src": media["file"].replace("\\", "/")} if media.get("kind") else None,
         "shots": _shots_ctx(scene.id, t, media),
         "t": _template_ctx(scene, t, words, numbers, style) if template == scene.template else {},
-        "stage": _stage_ctx(scene, t, words, media, style, warnings, numbers.get(scene.id))
-                 if v.type == "stage" else None,
+        "stage": stage, "quiz": quiz,
         "code": _code_ctx(spec, scene, t, words, look, style) if v.type == "code" else None,
     }
 
@@ -378,13 +472,65 @@ def _code_ctx(spec: Spec, scene: Scene, t: dict, words: list[dict], look: dict, 
     return ctx
 
 
-def code_ctx(look: dict | None, scenes: list[dict], style: dict) -> dict | None:
+def music_beats(spec: Spec, total_s: float, warnings: list[str]) -> dict:
+    """The music track's beats over the video (k.beats), or none when there's no music or no steady pulse."""
+    from klip.stages.post import pick_track
+    none = {"bpm": None, "period": None, "beats": []}
+    try:
+        track = pick_track(spec)
+    except FileNotFoundError:
+        return none                           # post reports a missing track
+    if not track or not spec.music.beats:
+        return none
+    try:
+        out = beats_mod.for_video(track, total_s)
+    except ffmpeg.FFmpegError as e:
+        warnings.append(f"music beats: couldn't read {track.name}: {str(e).splitlines()[0]}")
+        return none
+    if not out["beats"]:
+        log.info("music: no beat in %s (it only swells); k.beats is empty", track.name)
+    elif out["confidence"] < float(beats_mod.cfg("warn_confidence")):
+        warnings.append(f"music beats: {track.name} has no clear beat (confidence {out['confidence']}, "
+                        f"{out['bpm']} BPM); watch that pulses land, or set music.beats: false")
+    else:
+        log.info("music: %s BPM in %s (confidence %s)", out["bpm"], track.name, out["confidence"])
+    return out
+
+
+def _world_ctx(spec: Spec, scenes: list[dict], by_scene: dict, look: dict, style: dict) -> dict | None:
+    """The world layer (spec.world): one code section spanning its run of scenes, which turn transparent
+    over it. Its k.words cover the whole run; k.scenes = [{id, start, end}] in world seconds."""
+    if not spec.world:
+        return None
+    try:
+        run, ws = codescene.world_run(spec), codescene.world_scene(spec)
+    except codescene.CodeSceneError as e:
+        raise ComposeError(str(e)) from None
+    ids = [s.id for s in run]
+    covered = [s for s in scenes if s["id"] in ids]
+    start, end = covered[0]["start"], covered[-1]["start"] + covered[-1]["dur"]
+    words = [w for i in ids for w in by_scene.get(i, [])]
+    try:
+        ctx = codescene.scene_ctx(ws, {"start_ms": start * 1000, "duration_ms": (end - start) * 1000}, words, look,
+                                  caption_style(style, True)["top"])
+    except codescene.CodeSceneError as e:
+        raise ComposeError(str(e)) from None
+    ctx.update(texture="none", texture_css=codescene.texture_css("none", 0), sfx=[])
+    ctx["meta"].update(texture="none", hook=False, text="",
+                       scenes=[{"id": s["id"], "start": round(s["start"] - start, 3), "end": round(s["start"] + s["dur"] - start, 3)}
+                               for s in covered])
+    for s in covered:
+        s["on_world"] = True
+    return ctx
+
+
+def code_ctx(look: dict | None, scenes: list[dict], style: dict, world: dict | None = None) -> dict | None:
     """Head context for code scenes: look-bible CSS vars, @font-face rows, caption font, three.js."""
     if not look:
         return None
     return {"vars": codescene.css_vars(look), "faces": codescene.font_faces(), "kit": codescene.cfg("kit"),
             "caption_font": look["families"].get("caption"),
-            "three": any("three" in s["code"]["libs"] for s in scenes if s.get("code")),
+            "three": any("three" in c["libs"] for c in [*(s["code"] for s in scenes if s.get("code")), *([world] if world else [])]),
             "cast": codescene.cast_ctx(style) if any((s.get("code") or {}).get("meta", {}).get("mascots")
                                                       for s in scenes) else None}
 
@@ -415,6 +561,14 @@ def build_context(spec: Spec, timeline: dict, words: list[dict],
     for s in scenes:
         if s.get("code"):                     # the outro may have stretched the scene before the cta
             s["code"]["meta"]["dur"] = s["dur"]
+    world = None
+    if look:
+        music = music_beats(spec, _s(timeline["total_ms"]), warnings)
+        world = _world_ctx(spec, scenes, by_scene, look, style)
+        for s in scenes + ([{"code": world, "start": world["meta"]["start"], "dur": world["meta"]["dur"]}] if world else []):
+            if s.get("code"):
+                s["code"]["meta"]["beats"] = beats_mod.in_scene(music, s["start"], s["dur"])
+                s["code"]["meta"]["bpm"], s["code"]["meta"]["period"] = music["bpm"], music["period"]
     if outro and outro["mode"] != "card" and (prev := scenes[-2].get("code")) and prev["meta"].get("mascots"):
         cta = spec.scenes[-1]                 # the cta's speaker says the closing line over that scene
         if who := mascot.speaker(spec, cta, style):
@@ -471,6 +625,7 @@ def build_context(spec: Spec, timeline: dict, words: list[dict],
     for s in scenes:
         if s.get("code"):
             s["code"]["meta"]["layout"] = codescene.layout(style, s, brand, caption_style(style, True)["top"])
+    transitions.plan(spec, scenes, style)
     stage_bgs = sorted({s["stage"]["bg"] for s in scenes if s.get("stage") and s["stage"]["builtin"]})
     ctx = {
         "total": total, "style": style, "scenes": scenes, "pages": page_ctx, "brand": brand, "mascots": mascots,
@@ -478,8 +633,8 @@ def build_context(spec: Spec, timeline: dict, words: list[dict],
         "stage": {"cfg": config.get("stage"),
                   "bgs": [{"key": b, "css": stage_mod.background_css(b), "grain": stage_mod.grain_css(b)}
                           for b in stage_bgs]} if any(s.get("stage") for s in scenes) else None,
-        "code": code_ctx(look, scenes, style), "code_look": look,
-        "font_files": FONT_FILES, "slug": spec.slug, "cut_zoom": config.get("cuts.cut_zoom", 1.12),
+        "code": code_ctx(look, scenes, style, world), "code_look": look, "world": world,
+        "font_files": FONT_FILES, "slug": spec.slug, "fx": config.get("fx"), "quiz": config.get("quiz"), "cut_zoom": config.get("cuts.cut_zoom", 1.12),
         "sfx": sfx_events(scenes, page_ctx, end_card=bool(brand["end_card"]), nudge=brand["save_nudge"],
                           outro=brand["outro"])
                if spec.sfx else [],
@@ -644,9 +799,14 @@ def sfx_events(scenes: list[dict], pages: list[dict], end_card: bool = False,
         if s["idx"] == 0 and s["template"] == "hook":
             add("hook_start", 0.0)
         if s["idx"] > 0 and not (s.get("stage") and s["stage"]["continues"]):
-            add("scene_cut", s["start"] - WHOOSH_PEAK_S)
+            if (tr := s.get("tr_in")) and tr.get("sfx"):          # the transition's own sound
+                out.append({"t": round(max(s["start"] - (WHOOSH_PEAK_S if tr["sfx"] in ("whoosh", "swish") else 0), 0), 3),
+                            "moment": "transition", "sfx": tr["sfx"]})
+            else:
+                add("scene_cut", s["start"] - WHOOSH_PEAK_S)
         for e in (s.get("stage") or {}).get("elements", []):
-            add({"number": "stage_number", "highlight": "stage_highlight", "stamp": "stage_stamp"}.get(e["kind"], "stage_pop"), e["start"])
+            add({"number": "stage_number", "highlight": "stage_highlight", "stamp": "stage_stamp",
+                 "bubble": "stage_bubble"}.get(e["kind"], "stage_pop"), e["start"])
             comp = e.get("comp")
             for st in (comp or {}).get("steps", []):
                 if comp["kind"] == "reel":
@@ -658,7 +818,14 @@ def sfx_events(scenes: list[dict], pages: list[dict], end_card: bool = False,
             out.append({"t": cue["t"], "moment": "code_cue", "sfx": cue["sfx"]})
         if s["template"] == "list_item":
             add("list_badge", s["start"] + 0.05)
-        elif s["template"] == "myth_fact":
+        if q := s.get("quiz"):
+            for o in q["options"]:
+                add("quiz_option", o["t"])
+            if q["ring"]:
+                add("quiz_countdown", q["ring"]["t"] + q["ring"]["dur"] - RISER_LEN_S)
+            if q["reveal"] is not None:
+                add("quiz_reveal", q["reveal"])
+        if s["template"] == "myth_fact":
             add("myth_riser", s["t"]["reveal"] - RISER_LEN_S)
             add("fact_reveal", s["t"]["reveal"])
         elif s["template"] == "stat":
@@ -727,6 +894,9 @@ def run(spec: Spec, project_dir: Path) -> dict:
             shutil.copyfile(f["src"], out / "fonts" / f["file"])
         if ctx["code"]["three"]:
             (out / "three.min.js").write_text(codescene.three_script(), encoding="utf-8")
+    for a in (ctx["world"] or {}).get("assets", []):
+        (out / a["src"]).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(a["path"], out / a["src"])
     for s in ctx["scenes"]:
         for a in (s.get("code") or {}).get("assets", []):
             (out / a["src"]).parent.mkdir(parents=True, exist_ok=True)

@@ -13,6 +13,29 @@ gsap.set("#sc-{{ s.id }} .st-cam", { x: 0, y: 0 });
 tl.to("#sc-{{ s.id }} .st-cam", { x: {{ k.x }}, y: {{ k.y }}, duration: {{ k.dur }}, ease: "power2.inOut" }, {{ k.t }});
 {% endfor %}
 {% endif %}
+// depth: the set follows the camera at a fraction of its moves (parallax), the bokeh in front faster
+{% set dp = st.depth %}
+{% if dp.bg %}
+tl.fromTo("#sc-{{ s.id }} .stage-pan", { scale: 1 }, { scale: {{ (1 + (c.zoom - 1) * dp.bg) | round(4) }}, duration: {{ s.dur }}, ease: "none", immediateRender: false }, {{ s.start }});
+{% endif %}
+{% if dp.fg %}
+tl.fromTo("#sc-{{ s.id }} .st-fg", { scale: 1 }, { scale: {{ (1 + (c.zoom - 1) * dp.fgf) | round(4) }}, duration: {{ s.dur }}, ease: "none", immediateRender: false }, {{ s.start }});
+{% for b in dp.fg %}
+tl.fromTo("#sc-{{ s.id }} .st-fg i:nth-child({{ loop.index }})", { x: 0 }, { x: {{ b.dx }}, duration: {{ s.dur }}, ease: "none", immediateRender: false }, {{ s.start }});
+{% endfor %}
+{% endif %}
+{% if st.camera %}
+gsap.set("#sc-{{ s.id }} .stage-bg", { x: 0, y: 0 });
+{% for k in st.camera %}
+{% if dp.bg %}tl.to("#sc-{{ s.id }} .stage-bg", { x: {{ (k.x * dp.bg) | round(1) }}, y: {{ (k.y * dp.bg) | round(1) }}, duration: {{ k.dur }}, ease: "power2.inOut" }, {{ k.t }});{% endif %}
+{% if dp.fg %}tl.to("#sc-{{ s.id }} .st-fg", { x: {{ (k.x * dp.fgf) | round(1) }}, y: {{ (k.y * dp.fgf) | round(1) }}, duration: {{ k.dur }}, ease: "power2.inOut" }, {{ k.t }});{% endif %}
+{% endfor %}
+{% endif %}
+{% if dp.dof %}
+// depth of field: the photo set goes soft once the props are on
+{% if st.continues %}tl.set("#sc-{{ s.id }} .stage-pan", { filter: "blur({{ dp.dof.px }}px)" }, {{ s.start }});
+{% else %}tl.fromTo("#sc-{{ s.id }} .stage-pan", { filter: "blur(0px)" }, { filter: "blur({{ dp.dof.px }}px)", duration: 0.5, ease: "power2.inOut", immediateRender: false }, {{ dp.dof.t }});{% endif %}
+{% endif %}
 {% if st.title or st.list_no %}
 gsap.set("#sc-{{ s.id }} .st-title", { rotation: {{ 0 if st.title_style == "plain" else c.title.tilt_deg }} });
 {% if s.idx == 0 %}
@@ -20,7 +43,37 @@ tl.fromTo("#sc-{{ s.id }} .st-title", { scale: {{ style.headline.hook_punch }} }
 {% else %}
 tl.fromTo("#sc-{{ s.id }} .st-title", { y: -60, opacity: 0 }, { y: 0, opacity: 1, duration: 0.3, ease: "power3.out" }, {{ s.start }});
 {% endif %}
+{% set ty = c.motion.title %}
+// kinetic title: words in one by one; keywords slam in (pulse on the hook) when the voice says them
+(function () {
+  const ws = document.querySelectorAll("#sc-{{ s.id }} .st-title .hw"), row = document.querySelector("#sc-{{ s.id }} .st-title-row");
+{% set ns = namespace(k=0) %}
+{% for h in st.title %}
+{% set late = h.slam is not none and h.slam > s.start + 0.3 and h.slam < s.start + s.dur - 0.4 %}
+{% if s.idx == 0 %}
+{% if h.key and late %}
+  tl.fromTo(ws[{{ loop.index0 }}], { scale: {{ ty.pulse_scale }} }, { scale: 1, duration: 0.32, ease: "back.out(3)", immediateRender: false }, {{ h.slam }});
+{% if ty.shine %}  klipFx.shine(tl, ws[{{ loop.index0 }}], {{ h.slam }});{% endif %}
+  klipFx.shake(tl, row, {{ h.slam }}, { px: {{ ty.shake_px }}, times: 2 });
 {% endif %}
+{% elif h.key and late %}
+  tl.fromTo(ws[{{ loop.index0 }}], { scale: {{ ty.slam_scale }}, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.2, ease: "power4.in" }, {{ (h.slam - 0.2) | round(3) }});
+{% if ty.shine %}  klipFx.shine(tl, ws[{{ loop.index0 }}], {{ h.slam }});{% endif %}
+  klipFx.shake(tl, row, {{ h.slam }}, { px: {{ ty.shake_px }}, times: 2 });
+{% else %}
+  tl.fromTo(ws[{{ loop.index0 }}], { y: 36, opacity: 0, filter: "blur(8px)" }, { y: 0, opacity: 1, filter: "blur(0px)", duration: 0.28, ease: "power3.out" }, {{ (s.start + 0.08 + ns.k * ty.stagger_s) | round(3) }});
+{% if h.key and ty.shine %}  klipFx.shine(tl, ws[{{ loop.index0 }}], {{ (s.start + 0.45 + ns.k * ty.stagger_s) | round(3) }});{% endif %}
+{% set ns.k = ns.k + 1 %}
+{% endif %}
+{% endfor %}
+})();
+{% endif %}
+{% for ch in st.chat %}
+// the chat scrolls up when the next bubble wouldn't fit
+{% for k in ch.scroll %}
+tl.to("#sc-{{ s.id }} .st-p{{ ch.page }}", { y: {{ k.y }}, duration: 0.3, ease: "power2.out" }, {{ k.t }});
+{% endfor %}
+{% endfor %}
 {% for e in st.elements %}
 {% set sel = "#" ~ e.id %}
 gsap.set("{{ sel }}", { rotation: {{ e.rot }} });
@@ -36,6 +89,15 @@ tl.fromTo("{{ sel }}", { y: 320, scale: 0.82, rotation: {{ e.rot + 16 }}, opacit
 {% elif e.enter == "notify" %}
 // phone notification: slides down from the top of the screen and settles
 tl.fromTo("{{ sel }}", { y: -220, scale: 0.94, opacity: 0 }, { y: 0, scale: 1, opacity: 1, duration: 0.42, ease: "back.out(1.3)" }, {{ e.start }});
+{% elif e.enter == "bubble" %}
+// chat bubble: typing dots first (theirs), then it pops up from its tail
+{% set ty = stage.cfg.chat.typing_s %}
+{% if not e.me and e.start - ty > s.start %}
+tl.fromTo("{{ sel }} .cb-typing", { opacity: 0, scale: 0.6, transformOrigin: "0% 0%" }, { opacity: 1, scale: 1, duration: 0.14, ease: "back.out(2)" }, {{ (e.start - ty) | round(3) }});
+tl.fromTo("{{ sel }} .cb-typing i", { y: 0 }, { y: -9, duration: 0.15, yoyo: true, repeat: 1, stagger: 0.08, ease: "sine.inOut", immediateRender: false }, {{ (e.start - ty + 0.08) | round(3) }});
+tl.to("{{ sel }} .cb-typing", { opacity: 0, duration: 0.06 }, {{ (e.start - 0.04) | round(3) }});
+{% endif %}
+tl.fromTo("{{ sel }} > .st-in", { scale: 0.4, opacity: 0, transformOrigin: "{{ '100% 0%' if e.me else '0% 0%' }}" }, { scale: 1, opacity: 1, duration: 0.26, ease: "back.out(1.9)" }, {{ e.start }});
 {% elif e.comp is defined %}
 {% include "scenes/components.js.j2" %}
 {% elif e.kind == "icon" %}
@@ -75,20 +137,56 @@ tl.fromTo("{{ sel }} .un-grid i", { scale: 0 }, { scale: 1, duration: 0.18, stag
 {% elif e.kind == "stamp" %}
 tl.fromTo("{{ sel }}", { scale: 2.4, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.18, ease: "power3.in" }, {{ e.start }});
 tl.fromTo("#sc-{{ s.id }} .st-props", { y: 0 }, { y: 7, duration: 0.05, yoyo: true, repeat: 3, ease: "sine.inOut", immediateRender: false }, {{ (e.start + 0.18) | round(3) }});
+{% if fx.stamp %}
+(function () {
+  const el = document.querySelector("{{ sel }}"), x = el.offsetWidth / 2, y = el.offsetHeight / 2;
+  const col = getComputedStyle(el.querySelector(".st-stamp-in") || el).color;      // the stamp's ink
+  klipFx.shock(tl, el, x, y, {{ (e.start + 0.18) | round(3) }}, { color: col, behind: true });
+  klipFx.sparks(tl, el, x, y, {{ (e.start + 0.18) | round(3) }}, { color: col, behind: true });
+})();
+{% endif %}
 {% elif e.kind == "highlight" %}
 tl.fromTo("{{ sel }} .st-hl", { clipPath: "inset(0% 100% 0% 0%)" }, { clipPath: "inset(0% 0% 0% 0%)", duration: 0.35, ease: "power2.inOut" }, {{ e.start }});
 {% endif %}
 {% if e.label_font %}
 tl.fromTo("{{ sel }} .st-subrow .st-tag", { scale: 1.6, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.2, ease: "power4.out" }, {{ (e.start + 0.18) | round(3) }});
 {% endif %}
+{% set fl = c.motion.feel %}
+{% set entry = {"slide": [0.46, 0.3], "drop": [0.36, 0.36], "toss": [0.5, 0.26], "notify": [0.42, 0.24]}.get(e.enter) %}
+{% if e.kind == "stamp" %}{% set entry = [0.18, 0.18] %}{% endif %}
+{% if entry %}
+{% if fl.entry_blur_px %}
+tl.fromTo("{{ sel }}", { filter: "blur({{ fl.entry_blur_px }}px)" }, { filter: "blur(0px)", duration: {{ (entry[0] * 0.75) | round(3) }}, ease: "power2.in", immediateRender: false }, {{ e.start }});
+{% endif %}
+{% if fl.jelly_deg and e.kind != "stamp" %}
+tl.fromTo("{{ sel }} > .st-in", { skewX: {{ fl.jelly_deg if e.i % 2 else -fl.jelly_deg }} }, { skewX: 0, duration: 0.7, ease: "elastic.out(1, 0.3)", immediateRender: false }, {{ (e.start + entry[1]) | round(3) }});
+{% endif %}
+{% if fl.dust and (e.enter == "drop" or e.kind == "stamp") %}
+(function () {
+  const host = document.querySelector("{{ sel }}");
+  for (let i = 0; i < {{ fl.dust }}; i++) {
+    const d = document.createElement("i"); d.className = "st-dust"; host.appendChild(d);
+    const a = Math.PI * (0.08 + 0.84 * i / {{ fl.dust - 1 }}), r = 110 + 70 * Math.abs(Math.sin(i * 2.3 + {{ e.i }}));
+    tl.fromTo(d, { x: 0, y: 0, scale: 0.35, opacity: 0.85 }, { x: -Math.cos(a) * r * 1.6, y: -Math.sin(a) * r * 0.45,
+               scale: 1.25, opacity: 0, duration: 0.55, ease: "power2.out", immediateRender: false }, {{ (e.start + entry[1]) | round(3) }});
+  }
+})();
+{% endif %}
+{% endif %}
 {% if e.float %}
 tl.fromTo("{{ sel }} > .st-in", { y: 0, rotation: 0 }, { y: {{ e.float.y }}, rotation: {{ e.float.rot }}, duration: {{ e.float.half }}, yoyo: true, repeat: {{ e.float.repeat }}, ease: "sine.inOut", immediateRender: false }, {{ e.float.t }});
 {% endif %}
 {% if e.exit is not none %}
 {% if e.exit_to %}
+{% if c.motion.feel.anticipate_px and e.exit - 0.1 > e.start + 0.5 %}
+tl.to("{{ sel }}", { x: {{ -c.motion.feel.anticipate_px if e.exit_to.x > 0 else c.motion.feel.anticipate_px }}, duration: 0.1, ease: "power2.out" }, {{ (e.exit - 0.1) | round(3) }});
+{% endif %}
 tl.to("{{ sel }}", { x: {{ e.exit_to.x }}, rotation: {{ e.rot + e.exit_to.rot }}, opacity: 0, duration: {{ c.exit_s }}, ease: "power3.in" }, {{ e.exit }});
 {% else %}
-tl.to("{{ sel }}", { opacity: 0, scale: 0.85, y: 40, duration: {{ c.exit_s }}, ease: "power2.in" }, {{ e.exit }});
+tl.to("{{ sel }}", { opacity: 0, scale: 0.85, y: "+=40", duration: {{ c.exit_s }}, ease: "power2.in" }, {{ e.exit }});
 {% endif %}
 {% endif %}
 {% endfor %}
+{% if s.quiz %}
+{% include "scenes/quiz.js.j2" %}
+{% endif %}

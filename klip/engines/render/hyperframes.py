@@ -43,12 +43,24 @@ def find_node() -> str:
     raise RenderError(f"Node >= {MIN_NODE_MAJOR} not found. Install it (e.g. `nvm install 22`) or set KLIP_NODE.")
 
 
+def resolve_workers(workers: str) -> str:
+    """'cores' = one Chrome per CPU core but one (capped by render.max_workers); else as given."""
+    if workers != "cores":
+        return workers
+    return str(max(1, min(int(config.get("render.max_workers")), (os.cpu_count() or 2) - 1)))
+
+
 class HyperFramesRenderer:
     name = "hyperframes"
 
     def __init__(self, quality: str | None = None, workers: str | None = None):
         self.quality = quality or config.get("render.quality", "looks")
-        self.workers = str(workers or config.get("render.workers", "auto"))
+        self.workers = resolve_workers(str(workers or config.get("render.workers", "auto")))
+
+    @property
+    def settings(self) -> dict:
+        """What decides the raw video besides the composition (a change re-renders)."""
+        return {"quality": self.quality, "crf": config.get("render.crf")}
 
     @property
     def cli(self) -> Path:
@@ -69,8 +81,13 @@ class HyperFramesRenderer:
             raise RenderError(f"hyperframes {command} failed ({proc.returncode}):\n{tail}")
 
     def render(self, composition_dir: Path, out_path: Path, fps: int = 30) -> Path:
-        self._run("render", [str(composition_dir.resolve()), "-o", str(out_path.resolve()), "--fps", str(fps),
-                             "--quality", self.quality, "--workers", self.workers, "--quiet", "--strict"], out_path)
+        args = [str(composition_dir.resolve()), "-o", str(out_path.resolve()), "--fps", str(fps),
+                "--quality", self.quality, "--workers", self.workers, "--quiet", "--strict"]
+        if (crf := config.get("render.crf")) is not None:
+            args += ["--crf", str(crf)]           # encode once at the final quality; post copies this stream
+        if not config.get("render.fast_capture"):
+            args.append("--experimental-fast-capture=false")
+        self._run("render", args, out_path)
         return out_path
 
     def still(self, composition_dir: Path, out_png: Path, at: float = 0.0) -> Path:

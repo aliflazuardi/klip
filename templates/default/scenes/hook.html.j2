@@ -1,2 +1,2 @@
-    {% if s.icon %}<div class="iconwrap" style="width:220px;height:220px;top:300px;margin-left:-110px;">{{ s.icon | safe }}</div>{% endif %}
-    <div class="safe headline" style="top: {{ 580 if s.icon else 480 }}px; font-size: 128px;">{% include "scenes/_headline.html.j2" %}</div>
+    {% if s.icon and not s.quiz %}<div class="iconwrap" style="width:220px;height:220px;top:300px;margin-left:-110px;">{{ s.icon | safe }}</div>{% endif %}
+    <div class="safe headline" style="top: {{ 250 if s.quiz else (580 if s.icon else 480) }}px; font-size: {{ 100 if s.quiz else 128 }}px;">{% include "scenes/_headline.html.j2" %}</div>

@@ -47,6 +47,10 @@ voices:
   base_words_per_second:
     male: 2.176
     female: 1.713
+  # ...per engine where it differs (the engine that records the final voice). Gemini barely follows the
+  # rate: measured over 17 renders (2026-10-20..23) female 2.38-2.55 w/s at +8%, male 2.2-2.65 at +8-18%.
+  base_words_per_second_by_engine:
+    gemini: {male: 2.25, female: 2.3}
 
 # ElevenLabs engine (voices.engine: elevenlabs). Voice settings: lower stability = livelier.
 elevenlabs:
@@ -211,6 +215,10 @@ stage:
     board:      {dim: 0.30, tone: dark, title: box, shade: 0.6, base: "#0B0D10", ink: "#C9CED6", up: "#22C55E",
                  down: "#EF4444", stripe: "#1A1D23", cols: 3, font_px: 30, row_px: 60, header_top: 236}
     phone:      {dim: 0, tone: dark, title: plain, shade: 0, base: "#0E1013", bar: "#9AA0A6", header_top: 236}
+    # a group chat: dark messenger wallpaper (base + a faint doodle of dots), the group's name in the header
+    # (title_top: the scene title moves below the header; bokeh: false = no foreground bokeh over the chat)
+    chat:       {dim: 0, tone: dark, title: plain, shade: 0, base: "#0B141A", doodle: "rgba(255,255,255,.035)",
+                 bar: "#8696A0", header_top: 240, title_top: 350, bokeh: false}
     size: [1200, 2040]              # px a photo/screenshot set is prepared at (the frame plus the pan)
     tint_opacity: 0.5               # strength of a `tint` colour wash (multiplied over the set)
     query_suffix: background        # photo sets search "<query> background" first, then the plain query
@@ -219,6 +227,7 @@ stage:
   variety_scenes: 5
   variety_min_sets: 2
   zoom: 1.04                        # the stage camera slowly pushes in to this scale per scene
+  outro_drift: 0.1                  # ...and on by this much more under the closing outro badge
   # Motion of the props once they're on stage. float: an idle sway (px up/down by prop group:
   # media = photos/cut-outs/people/logos, icon = icons/stacks, tag = labels/numbers, data =
   # charts/bars/units/news/screenshots; 0 = still) over a period picked per prop from
@@ -236,6 +245,30 @@ stage:
     count_up: true
     count_s: 0.7
     exit: sweep
+    # Feel: entry_blur_px = motion blur on the fast entries (slide, drop, toss, notify, stamp), clearing
+    # as they land; jelly_deg = a decaying skew after a landing (secondary motion; 0 = off); dust = specks
+    # puffed out under a dropped prop or a stamp (0 = off); anticipate_px = props lean back this far
+    # before they sweep off.
+    feel: {entry_blur_px: 16, jelly_deg: 5, dust: 8, anticipate_px: 26}
+    # Kinetic title: its words come in one by one (stagger_s apart, with a blur); keywords (emphasis,
+    # or ALL-CAPS in a mixed-case title) slam in from slam_scale when the narration says them, with a
+    # light sweep (shine) and a shake of shake_px. On the hook every word is up at frame 0, so its
+    # keywords pulse from pulse_scale instead.
+    title: {stagger_s: 0.06, slam_scale: 2.2, pulse_scale: 1.35, shine: true, shake_px: 6}
+  # Depth: the set behind the props follows the stage camera's moves and push-in at bg_follow of their
+  # size (0 = a flat backdrop, 1 = glued to the props), a foreground layer of soft bokeh at fg_follow
+  # (faster: it's nearer), fg = how many bokeh by the set's tone (0 = none), drifting fg_drift_px over
+  # a scene. dof_px: a photo backdrop blurs this much once the first prop is on (depth of field).
+  # rim: an accent glow around cut-outs on dark sets (opacity; 0 = off). ground: a soft contact shadow
+  # under cut-outs and coin stacks (opacity by tone; it stays put while the prop floats).
+  depth:
+    bg_follow: 0.35
+    fg_follow: 1.6
+    fg: {dark: 12, light: 0}
+    fg_drift_px: 60
+    dof_px: 6
+    rim: 0.35
+    ground: {light: 0.22, dark: 0.4}
   # Layout: the stage area sits between the title and the stage captions (caption.stage.top).
   # A composition is a list of [x, y, size]: x as a share of the safe width (x 60–960), y as a
   # share of the free area under the title, so a two-line title pushes the props down.
@@ -266,7 +299,7 @@ stage:
   caption_gap_px: 50                # the stage area ends this far above the captions (room for the
                                     # camera push-in and hanging label tags)
   layout_gap_px: 16                 # props on one page keep at least this apart (overlaps are pushed
-                                    # apart, then shrunk); stamps may overlap what they judge
+                                    # apart, then shrunk); a stamp may overlap the props it judges, never a label or number
   lead_s: 0.06                      # an element lands this long before its word
   min_gap_s: 0.25                   # entries closer than this are pushed apart
   exit_s: 0.25                      # props sweep off this long before a cleared stage / stage→stage cut
@@ -345,6 +378,23 @@ stage:
            grow: 1.3}                                                      # height = size box height × grow
   news: {bg: "#FFFFFF", text: "#15151C", muted: "#6B7280", aspect: 0.36}
   notif: {bg: "#FFFFFF", text: "#15151C", muted: "#6B7280", app: "#1FA45B", aspect: 0.36}   # phone notification card
+  # Chat bubbles (kind=bubble on a chat backdrop): they stack down the chat in narration order and the
+  # chat scrolls up when the next one wouldn't fit, like a real one. font_px/max_w/pad/gap in px; a
+  # sender's bubble shows typing dots for typing_s before it lands; names take colours from `names`
+  # (by sender, stable). words_max / max_per_page: validate warns above these.
+  chat:
+    font_px: 46
+    max_w: 860
+    pad: 30
+    gap: 18
+    radius: 26
+    typing_s: 0.45
+    them: {bg: "#202C33", text: "#E9EDEF", muted: "#8696A0"}
+    me: {bg: "#005C4B", text: "#E9EDEF", muted: "#9FC6BC", ticks: "#53BDEB"}
+    names: ["#F59E0B", "#34D399", "#F472B6", "#60A5FA", "#A78BFA", "#FB7185"]
+    forwarded: Diteruskan
+    words_max: 22
+    max_per_page: 6
   logo: {bg: "#FFFFFF", pad: 0.12, max_px: 800}                  # pad = share of the sign's width
   screenshot: {max_px: 1400, bar: "#E7E7EC", bar_px: 46}
   cutout:
@@ -377,6 +427,32 @@ stage:
     min_share: 0.6                  # validate warns when real pictures are fewer than this share of a
                                     # stage scene's object props (pictures + icons/stacks)
 
+# ── Quiz ("tebak dulu" on a hook/explain scene) ──────────────────────────────
+# The panel of options under the question (the scene's on_screen_text). On card scenes (stock, photo,
+# solid, icon) it fills the frame from top_px to the captions; on stage scenes it takes the bottom of
+# the props area and the props keep stage_props_share of it (a hero picture above the options).
+# countdown_s: how long the ring runs from countdown_at (cut short by the reveal or the scene's end).
+# Options without their word in the narration pop in stagger_s apart from first_s into the scene.
+# Colours: null = the style's (option letter = accent_color, right = fact_color, wrong = myth_color).
+# option_words: validate warns above this.
+quiz:
+  top_px: 560
+  stage_props_share: 0.38
+  option_h: 132
+  option_min_h: 100                 # on a crowded stage (mascots) the props give way before options go below this
+  option_gap: 22
+  font_px: 50
+  ring_px: 150
+  countdown_s: 3
+  first_s: 0.35
+  stagger_s: 0.22
+  option_bg: "#FFFFFF"
+  option_text: "#15151C"
+  letter: null
+  right: null
+  wrong: null
+  option_words: 4
+
 # ── Code scenes (visual.type "code", director mode) ─────────────────────────
 # A scene whose look and motion are a file Claude writes against the scene kit `k`
 # (docs/CODE-SCENES.md). The look bible (spec look_bible ← style look_bible ← code.look below) keeps
@@ -400,12 +476,31 @@ code:
     texture_strength: null
     line: 6
     motion: snappy
+  # A look's bg darker than this luminance (0-1) is below video black (16/255): H.264 flattens it and
+  # gradients fading into it band, so validate warns.
+  min_bg_luma: 0.063
   # Default strength (0-1) per texture, and what each eases set holds (GSAP ease names).
-  textures: {none: 0, paper: 0.55, watercolor: 0.6, halftone: 0.35, grain: 0.5, hud: 0.6, riso: 0.5}
+  textures: {none: 0, paper: 0.55, watercolor: 0.6, halftone: 0.35, grain: 0.5, hud: 0.6, riso: 0.5, film: 0.3}
   eases:
     snappy: {in: "power3.in", out: "power3.out", inOut: "power3.inOut", pop: "back.out(2.2)"}
     smooth: {in: "sine.in", out: "sine.out", inOut: "sine.inOut", pop: "power2.out"}
     bouncy: {in: "back.in(1.6)", out: "back.out(1.8)", inOut: "back.inOut(1.4)", pop: "elastic.out(1, 0.5)"}
+    cinematic: {in: "expo.in", out: "expo.out", inOut: "expo.inOut", pop: "power4.out"}
+  # Named looks a look bible can start from ("preset": "cinematic"): applied over the style's
+  # look_bible, under the spec's own fields. A preset leaves the accent to the style unless it sets one.
+  looks:
+    # dark motion-graphics look (the "Opus made this" showreels): warm near-black, hairline strokes,
+    # one glowing accent, film grain + vignette, slow expo eases. Pair with k.glow / k.bloom / k.flare.
+    cinematic:
+      palette: {bg: "#16120F", paper: "#1F1A16", ink: "#F2ECE4", muted: "#7A6F66", line: "#4A4039"}
+      fonts: {display: jakarta, body: jakarta, mono: mono}
+      texture: film
+      line: 1.5
+      motion: cinematic
+      notes: >-
+        Near-black ground, one light source in the accent and everything else dim. Hairline strokes
+        (k.look.line), lots of empty space, small mono readouts. Light does the work: glow on what
+        matters (k.glow / k.bloom), a flare where things meet (k.flare). Slow camera drift, long eases.
   # The standard kit (k.headline, k.scrim, k.cast, k.chip, k.camera, k.type, k.count…): defaults so a
   # new scene starts legible and on-brand. headline.top is pushed below the series pill when it shows.
   kit:
@@ -416,10 +511,40 @@ code:
     chip: {size: 52}
     camera_zoom: 1.08                 # k.camera: scale reached at the scene's end
     count_s: 1.2                      # k.count: default count-up length
+    # k.glow / k.bloom: strength = how much light is added back, threshold = brightness (0-1) below
+    # which nothing glows, radius = the tight glow's blur (px; each further level is 3x wider),
+    # levels = downscale per glow layer (bigger = cheaper and softer)
+    glow: {strength: 1.0, threshold: 0.35, radius: 10, levels: [3, 8]}
+    # k.flare: core radius (px), brightness, ray count, ray rotation (deg), anamorphic streak half-length (px)
+    flare: {size: 60, strength: 1.0, rays: 4, rot: 45, streak: 420}
+    pulse_decay_s: 0.22               # k.pulse: how fast a beat's 1 falls back toward 0 (exp time constant)
+    # k.trail: streak length (s of the path behind the point), points along it, width at the head (px),
+    # opacity at the head, whether to draw a dot on the head
+    trail: {length: 0.35, samples: 18, width: 6, opacity: 0.9, head: true}
+    # k.motionBlur: draws per frame (cost) and shutter (share of a frame the blur spans; 0.5 = film's 180°)
+    motion_blur: {samples: 4, shutter: 0.5}
     type_cps: 24                      # k.type: typewriter characters per second
     # mascot acting (rig.walk/enter/exit/jump/hop/turn/point): walking speed, step length in time,
     # body bob and foot lift per step, jump height, turn time, how long a point holds its pose
     act: {walk_px_s: 380, step_s: 0.26, bob_px: 10, foot_px: 14, lean_deg: 4, jump_px: 110, turn_s: 0.16, point_hold_s: 1.4}
+    # k.spotlight: a mascot as the star of a code scene (a cold open over a world): this tall, feet
+    # gap px above the captions, a glow and a slowly turning sunburst behind it (opacities, turn over the scene)
+    spotlight: {height: 720, gap: 10, glow_opacity: 0.4, rays_opacity: 0.14, rays_turn_deg: 20}
+    # k.land: falls from_px with this motion blur, lands with a squash, a jelly skew and dust specks
+    land: {from_px: 160, blur_px: 16, jelly_deg: 5, dust: 8}
+    # k.reveal: stagger per letter / per word, the slam's start scale and its shake
+    reveal: {letter_stagger_s: 0.03, word_stagger_s: 0.07, slam_scale: 2.2, shake_px: 8}
+  # Beat tracking of the music track for k.beats / k.pulse (klip/beats.py). The track is decoded to
+  # mono at sample_rate, split at split_hz into low (kick, bass) and high bands, hop = samples per
+  # onset frame. Tempo is searched in bpm_min..bpm_max with a soft preference for bpm_prior; each beat
+  # snaps to an onset within snap_s of the grid when that onset is over onset_floor x a loud hit (the
+  # 95th percentile). max_track_s: only the first this many seconds are read. A track where under
+  # min_attacks of the hops rise by attack_rise (log energy) or more has no beats (a pad that only
+  # swells). warn_confidence: below this tempo confidence (z-score of the autocorrelation; clear beats
+  # ≈2.5-3.5) compose warns that the beat may be off; spec music.beats: false turns beats off.
+  beats: {sample_rate: 8000, hop: 128, split_hz: 180, bpm_min: 70, bpm_max: 180, bpm_prior: 115,
+          snap_s: 0.06, onset_floor: 0.3, attack_rise: 0.3, min_attacks: 0.04, max_track_s: 600,
+          warn_confidence: 2.0}
   safe_top: 230                     # k.safe: below the TikTok top bar / branding strip
   safe_gap: 40                      # px kept clear above the captions
   # klip preview: stills per code scene (its start, each k.at cue, the middle, the end), at most
@@ -481,6 +606,7 @@ sfx:
   # Gain applied to each file (files are peak-normalized to -1 dBFS; the voice sits ~-20 LUFS).
   gain_db:
     whoosh: -20
+    swish: -22                # soft, low air push (no hiss): cuts, transitions, camera moves
     pop: -20
     ding: -19
     riser: -24
@@ -488,7 +614,7 @@ sfx:
   # Which effect plays at which moment; null turns a moment off.
   events:
     hook_start: hit           # frame 0 impact (pattern interrupt)
-    scene_cut: whoosh         # every scene change
+    scene_cut: swish          # every scene change (whoosh was a bright hiss on every cut)
     list_badge: pop           # "1/3" badge appears
     myth_riser: riser         # builds tension, ends on the fact reveal
     fact_reveal: hit
@@ -502,6 +628,38 @@ sfx:
     stage_number: ding        # a stage number lands
     stage_highlight: null     # a yellow highlight box draws in
     stage_stamp: hit          # a stamp thumps down
+    stage_bubble: pop         # a chat bubble lands
+    quiz_option: pop          # a quiz option pops in
+    quiz_countdown: riser     # builds under the countdown ring, ending as it runs out
+    quiz_reveal: ding         # the right answer lights up
+  # Camera moves (post stage): the rendered video is read small (size, fps); where most of the picture
+  # changes at once (share of pixels in the crop band, y as shares of the height, that change by more
+  # than pixel_diff /255) for at least min_s, a camera is moving: the effect plays lead_s before that
+  # onset, louder for bigger moves (up to boost_db at full coverage). Only in these visual types (stock
+  # footage moves all the time); never within clear_s of a scene cut or of the same effect already cued.
+  motion:
+    sfx: swish                # null = off
+    visual_types: [code]
+    size: [90, 160]
+    fps: 15
+    crop: [0.08, 0.66]        # above the captions and mascots, below the top bar
+    pixel_diff: 6
+    threshold: 0.11
+    min_s: 0.35
+    smooth_s: 0.2
+    lead_s: 0.1
+    clear_s: 0.7
+    boost_db: 4
+
+# ── FX kit ──────────────────────────────────────────────────────────────────
+# One-shot effects drawn in the video (klipFx in templates/default/index.html.j2; code scenes: k.fx).
+# sparks: n streaks of len px flying out; shock: a ring growing to size px; shake: px of jitter.
+# stamp: a stage stamp lands with a shock ring and sparks.
+fx:
+  sparks: {n: 10, len: 46}
+  shock: {size: 380, width: 8}
+  shake: {px: 8}
+  stamp: true
 
 # ── Final mix loudness ───────────────────────────────────────────────────────
 loudness:
@@ -513,8 +671,18 @@ loudness:
 render:
   fps: 30
   quality: looks                    # draft | looks | delivery
-  workers: auto                     # parallel Chrome workers (~256 MB RAM each)
-  crf: 19                           # final H.264 encode quality (lower = better/larger)
+  # parallel Chrome workers (~256 MB RAM each): cores = one per CPU core but one, up to max_workers
+  # (on an 8-core Mac: 7 workers, ~20% faster than HyperFrames' own `auto`, which picked 3); or a number
+  workers: cores
+  max_workers: 8
+  # H.264 quality (lower = better/larger). HyperFrames encodes at this and post copies that video
+  # stream into final.mp4 (one encode, not two: post went from ~33 s to ~5 s on a 47 s video).
+  crf: 19
+  reencode: false                   # true = post encodes the video again (x264 at crf, preset below)
+  preset: veryfast                  # x264 preset for that re-encode
+  # HyperFrames' drawElementImage capture: off, since mascot outlines (drop-shadow) and textures
+  # (mix-blend-mode) make it fall back to one-worker screenshots, slower than plain multi-worker capture
+  fast_capture: false
 
 # ── QA thresholds ────────────────────────────────────────────────────────────
 qa:
@@ -524,6 +692,30 @@ qa:
   max_true_peak_db: -1.0
   min_scene_voice_db: -45           # mean volume per scene's voice segment
   max_still_s: 1.0                  # black or frozen video longer than this fails
+  # Motion report (informational, never fails): the picture's change per frame (sfx.motion's reader,
+  # smoothed over smooth_s). dead = under dead_level for dead_s or more (the eye has nothing to follow);
+  # busy = over busy_level for busy_s or more (tiring). Shown after the QA checks and in qa.json.
+  motion: {smooth_s: 0.5, dead_level: 0.006, dead_s: 1.8, busy_level: 0.4, busy_s: 3.0}
+  # Pace targets (klip measure; informational in QA): ranges [low, high] per metric. cuts_per_min /
+  # avg_shot_s count hard cuts (scene-change score over cut_threshold); motion_mean is the average
+  # share of the picture changing per frame; dead_share / busy_share the share of the video under
+  # qa.motion's dead / over its busy level. `klip measure <refs…> --save` writes the median of your
+  # reference videos ± spread to targets_file, which overrides these.
+  pace:
+    cut_threshold: 0.12
+    merge_s: 0.5                    # changes closer than this count once (a blended transition)
+    beat_level: 0.05                # beats_per_min: the motion curve rising over this = a visual beat
+    spread: 0.25
+    targets_file: projects/pace-targets.yaml
+    # Defaults until you save your own (measured 2026-10-23: lively stage videos ran 28-37 beats/min,
+    # the quiet early cinematic ones 6-15; stage videos cut rarely, they change within a scene).
+    targets:
+      beats_per_min: [20, 45]
+      cuts_per_min: [4, 30]
+      avg_shot_s: null
+      motion_mean: [0.04, 0.2]
+      dead_share: [0, 0.12]
+      busy_share: [0, 0.08]
 
 # ── Performance report (klip report) ─────────────────────────────────────────
 # You copy numbers from TikTok/Instagram/YouTube analytics into stats_file (one row per posted
@@ -559,6 +751,17 @@ llm:
     temperature: 0.7
     timeout_s: 300
 
+# ── klip ideas ───────────────────────────────────────────────────────────────
+# Trending searches → video ideas → a batch file. geo = Google Trends country (its daily trending
+# searches RSS, no key), cached cache_minutes; max_trends read; count = ideas asked for;
+# brand_guide_chars = how much of brands/<style>/skill/SKILL.md the LLM reads.
+ideas:
+  geo: ID
+  cache_minutes: 60
+  max_trends: 25
+  count: 8
+  brand_guide_chars: 12000
+
 # ── Visual styles ────────────────────────────────────────────────────────────
 # A spec picks one with "style": "<name>". Other styles inherit everything from
 # `default` and only list what they change (see `bold` below). Brand packs in
@@ -570,12 +773,35 @@ styles:
     accent_color: "#FFD43B"         # active caption word, highlights
     emphasis_color: "#5EEAD4"       # spec `emphasis` words
     stroke_color: "#0B0B12"
-    transition: punch               # punch (zoom-in jump cut) | fade
+    transition: punch               # stock shots: punch (zoom-in jump cut) | fade
+    # Cuts between scenes (klip/transitions.py): the outgoing scene moves out over its last out_s, the
+    # next moves in over its first in_s. Picked per cut from pool (never the same twice in a row); the
+    # cut out of the hook gets `hook`. whip = a fast slide with sideways motion blur, zoom = a dive
+    # through the frame, wipe = a brand-colour circle sweeps across, flash = a white flash + shake,
+    # none = a plain cut. Stage scenes on one set and scenes inside a world keep their own moves.
+    # A scene's "transition" picks the cut into it.
+    transitions:
+      pool: [whip, zoom, wipe]
+      hook: zoom
+      out_s: 0.18
+      in_s: 0.26
+      whip_px: 150                  # how far a whip travels; the blur sells the speed
+      whip_scale: 1.3               # ...while it grows this much, so no edge of the frame shows
+                                    # (keep whip_px under 540 * (whip_scale - 1))
+      whip_blur: 90                 # sideways blur at the seam (px)
+      zoom_out: 2.2                 # scale the outgoing scene dives to
+      zoom_in: 1.6                  # scale the next scene starts from
+      zoom_blur: 22
+      wipe_color: null              # null = accent_color
+      flash_opacity: 0.85
+      sfx: {whip: swish, zoom: swish, wipe: swish, flash: hit}   # replaces the cut's own sound
     media_dim: 0.28                 # darkening over b-roll (0–1) for readability
     shade_color: "#000000"          # tint of that darkening and of the myth/fact and compare cards
     myth_color: "#F43F5E"
     fact_color: "#22C55E"
     look_bible: {}                  # code scenes: this style's look bible (palette, fonts, texture…; see code.look)
+    looks: {}                       # this style's take on code.looks presets ({cinematic: {palette: …}}), merged over the
+                                    # preset (a brand keeps its colours on the preset's feel); new names add looks
     # Branding strip at the top of the safe zone: progress bar (left) + watermark (right).
     # Kept above y 250, where headlines/cards start, and below TikTok's top tabs.
     progress_bar:
@@ -650,6 +876,8 @@ styles:
       # with a voice speaks the scenes narrated in that voice; a scene whose spec names it as the
       # speaker is narrated in its voice. A spec picks who appears with "mascots".
       cast: []
+      crowd: 2                      # validate warns when a video shows more mascots than this (a
+                                    # brand with a bigger cast picks per video with "mascots")
       height: 240                   # px
       gap_px: 6                     # above the stage captions
       inset_px: 10                  # from the safe zone's left/right edge
@@ -684,6 +912,31 @@ styles:
       bob_s: 1.4                    # half a bob
       enter_s: 0.35
       outro_lift_px: 80             # rise this far when an outro overlay badge slides up under them
+      # Spotlight (scene mascot.focus): the star slides to the centre at this height (feet stay on
+      # the captions), the others step out, and a glow + slowly turning sunburst sits behind it.
+      focus:
+        height: 760                 # px; the props get the strip between the title and its head...
+        min_strip_px: 230           # ...at least this tall: the star shrinks to make room...
+        min_height: 560             # ...but not below this
+        # With pictures to show (cutout/photo/chart/…) the star stands left of centre at this height
+        # and the props get the right column (x range); labels alone keep the centred layout.
+        side: {height: 680, cx: 330, props_x: [600, 960]}
+        move_s: 0.55
+        glow_opacity: 0.4           # accent_color glow behind the star
+        rays_opacity: 0.14          # accent sunburst; 0 = off
+        rays_turn_deg: 20           # sunburst rotation over the scene
+      # Body language while speaking (null = off): a lean on a sentence's first word or a long word,
+      # a nod on an emphasised word (a hop when spotlit), never closer than gap_s; listeners nod
+      # along on every other beat. Entrances land with a squash.
+      lively:
+        gap_s: 0.9
+        long_s: 0.5                 # a word held this long gets a gesture
+        lean_deg: 4
+        nod: 0.06                   # squash (scaleY 1 - nod) of a nod
+        hop_px: 34
+        listener_nod: true
+        focus_boost: 1.6            # a spotlit star gestures this much more often and bigger
+        enter_squash: 0.8           # scaleY at landing; 1 = none
     # "Simpan dulu biar nggak lupa" pill on list videos, shown when list item `at_item` starts
     # (first run of list_item scenes only). A spec can override with "save_nudge": true/false.
     save_nudge:
@@ -697,6 +950,15 @@ styles:
       top: 476                      # y; sits between the list number badge and the headline
       font_size: 38
       bg_opacity: 0.78              # shade_color behind the text
+    # Seamless loop (post stage): over the last seam_s of the video, after the last word, the picture
+    # turns into the video's first frame, so TikTok's auto-replay has no jump. The music already fades
+    # out at the end and in at the start. Costs one video re-encode (render.crf / render.preset).
+    # transition: an ffmpeg xfade name (fade, zoomin, smoothup, hblur, …). A spec's "loop" overrides enabled.
+    loop:
+      enabled: false
+      seam_s: 0.45
+      transition: zoomin
+      after_voice_s: 0.1            # the seam never starts sooner than this after the last word
     # Designed cover.png (post stage): series pill, title (last line = keyword), subtitle,
     # logo + wordmark, over a darkened still of the hook's b-roll (else the first palette gradient).
     # Profile grids crop 9:16 covers
@@ -727,6 +989,38 @@ styles:
       media_dim: 0.62               # shade_color over the b-roll still (heavier than in the video)
       glow_opacity: 0.2             # accent_color glow rising from the bottom edge; 0 = off
       still_at_s: 0.6               # where in the hook's first clip the background still is taken
+      # Keyword look: box = stroke_color text on a slightly tilted accent block (reads at grid
+      # size, like a marker label); color = accent-coloured text, no block.
+      keyword_style: box
+      keyword_tilt_deg: -2.5
+      keyword_pad_em: [0.06, 0.22]  # block padding (vertical, horizontal), in keyword ems
+      rays_opacity: 0.07            # accent sunburst behind the subject / title; 0 = off
+      # Hero layout (the default whenever there's a subject): a short title up top, one big subject
+      # below — a cut-out photo and/or a mascot pulling a face — an arrow from the keyword down
+      # to it, and an optional badge sticker. Thumbnail guides agree on: one subject, an
+      # expressive face, 3-5 words, high contrast, readable at grid size.
+      hero:
+        pill_top: 270
+        text_top: 360               # title + keyword stack from here (top-aligned)
+        title_size: 104
+        title_min_size: 72
+        keyword_size: 132
+        keyword_min_size: 76
+        zone: [860, 1540]           # y band the subject is fitted into
+        max_w: 820                  # subject box width (photo + mascot side by side when both)
+        tilt_deg: 3                 # the photo sticker leans this way (alternates by slug)
+        lift_still: true            # no stage cut-out: lift the subject out of the hook's b-roll still
+        boxy_fill: 0.85             # a lift filling more of its box than this, or with 2+ sides running
+        boxy_edge: 0.55             # straight along it (this share opaque), is a slab, not a subject...
+        card_aspect: 0.8            # ...so the still is shown as a photo card (this width/height) instead
+        bg_blur_px: 14              # blur the background still when a subject sits on it
+        mascot_pose: kaget          # default cover pose (falls back to netral); spec cover.mascot overrides
+        mascot_mouth_open: true     # surprised, mid-shout look
+        mascot_share: 0.5           # mascot height as a share of the zone when a photo is also there
+        arrow: true                 # hand-drawn arrow from the keyword to the subject
+        badge_size: 50
+        subtitle_size: 44           # subtitle sits as a dark tag at the bottom of the zone
+        footer_y: 1625
     caption:
       # TikTok safe zone (approximate; tune after a test upload): x 60–960, y 220–1450.
       top: 1180

@@ -125,7 +125,20 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; 
 .st-cam { transform-origin: 50% 42%; }
 .st-el { position: absolute; }
 .st-in { position: absolute; inset: 0; }
+.st-dust { position: absolute; left: calc(50% - 17px); bottom: -18px; width: 34px; height: 34px; border-radius: 50%;
+           background: rgba(255,255,255,.4); pointer-events: none; opacity: 0; filter: blur(2px); }
+.tone-light .st-dust { background: rgba(21,21,28,.28); }
 .st-cutout img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(var(--st-shadow)); }
+{% set dp = sc.depth %}
+{% if dp.rim %}.scene.stage.tone-dark .st-cutout img { filter: drop-shadow(0 0 22px {{ style.accent_color | rgba(dp.rim) }}) drop-shadow(var(--st-shadow)); }{% endif %}
+/* depth: a contact shadow that stays on the floor while the prop floats; soft bokeh in front of the props */
+.st-ground { position: absolute; left: 12%; right: 12%; bottom: -16px; height: 34px; border-radius: 50%; z-index: -1;
+             background: radial-gradient(closest-side, #000, rgba(0,0,0,0)); }
+.scene.stage.tone-light .st-ground { opacity: {{ dp.ground.light }}; }
+.scene.stage.tone-dark .st-ground { opacity: {{ dp.ground.dark }}; }
+.st-fg { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
+.st-fg i { position: absolute; border-radius: 50%; background: {{ style.accent_color }}; }
+.st-fg i.warm { background: #FFF4E6; }
 .st-card { width: 100%; height: 100%; padding: 14px 14px 54px; background: #fff; border-radius: 6px; box-shadow: var(--st-shadow); }
 .st-card img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .st-disc { width: 100%; height: 100%; border-radius: 50%; background: {{ sc.icon.bg }}; display: flex; align-items: center; justify-content: center; box-shadow: var(--st-shadow); }
@@ -191,6 +204,47 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; 
              letter-spacing: .02em; }
 .bd-header span { display: inline-block; padding: .2em .8em; border-radius: 999px; background: rgba(0,0,0,.85); }
 .bd-phone .bd-header span { padding: 0; background: none; }
+{% set ch = sc.chat %}
+.bd-chat { position: absolute; left: 70px; right: 70px; display: flex; align-items: center; gap: 18px; color: {{ ch.them.text }}; }
+.bd-chat i { width: 54px; height: 54px; border-radius: 50%; background: {{ ch.them.bg }}; color: {{ ch.them.muted }}; flex: none;
+             display: flex; align-items: center; justify-content: center; font-style: normal; font-size: 28px; font-weight: 800; }
+.bd-chat div { display: flex; flex-direction: column; line-height: 1.15; }
+.bd-chat b { font-size: 30px; font-weight: 700; }
+.bd-chat span { font-size: 22px; color: {{ sc.backdrop.chat.bar }}; }
+.cb { position: relative; width: 100%; height: 100%; padding: {{ ch.pad }}px; border-radius: {{ ch.radius }}px; font-size: {{ ch.font_px }}px;
+      line-height: 1.32; box-shadow: 0 6px 18px rgba(0,0,0,.28); }
+.cb.them { background: {{ ch.them.bg }}; color: {{ ch.them.text }}; border-top-left-radius: 6px; }
+.cb.me { background: {{ ch.me.bg }}; color: {{ ch.me.text }}; border-top-right-radius: 6px; }
+.cb-name { font-size: .78em; font-weight: 800; line-height: 1.35; }
+.cb-fwd { display: flex; align-items: center; gap: .3em; font-size: .72em; font-style: italic; line-height: 1.4; color: {{ ch.them.muted }}; }
+.cb.me .cb-fwd { color: {{ ch.me.muted }}; }
+.cb-text { font-weight: 600; overflow-wrap: anywhere; }
+.cb-meta { float: right; margin: .55em 0 -.3em .8em; font-size: .55em; font-weight: 600; line-height: 1; color: {{ ch.them.muted }};
+           display: inline-flex; align-items: center; gap: .3em; }
+.cb.me .cb-meta { color: {{ ch.me.muted }}; }
+.cb.me .cb-meta svg { color: {{ ch.me.ticks }}; }
+.cb-typing { position: absolute; left: 0; top: 0; display: flex; gap: 10px; padding: 26px 30px; border-radius: {{ ch.radius }}px;
+             border-top-left-radius: 6px; background: {{ ch.them.bg }}; opacity: 0; }
+.cb-typing i { width: 14px; height: 14px; border-radius: 50%; background: {{ ch.them.muted }}; }
+.qz { position: absolute; left: 60px; width: 900px; z-index: 40; display: flex; align-items: center; gap: 24px; }
+.qz-opts { flex: 1; min-width: 0; }
+.qz-ring { position: relative; flex: none; display: flex; justify-content: center; }
+.qz-ring svg { transform: rotate(-90deg); }
+.qz-track { fill: rgba(0,0,0,.45); stroke: rgba(255,255,255,.25); stroke-width: 8; }
+.qz-arc { fill: none; stroke: var(--qz-letter); stroke-width: 8; stroke-linecap: round; }
+.qz-n, .qz-q { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: {{ (quiz.ring_px * 0.48) | round }}px;
+               font-weight: 800; color: #FFFFFF; font-variant-numeric: tabular-nums; }
+.qz-q { opacity: 0; color: var(--qz-letter); }
+.qz-opt { position: relative; display: flex; align-items: center; gap: .55em; padding: 0 .7em 0 .45em; border-radius: 26px;
+          background: {{ quiz.option_bg }}; color: {{ quiz.option_text }}; font-weight: 800; line-height: 1.1;
+          box-shadow: 0 10px 26px rgba(0,0,0,.32); }
+.qz-l { flex: none; width: 1.55em; height: 1.55em; border-radius: 50%; background: var(--qz-letter); color: #FFFFFF;
+        display: flex; align-items: center; justify-content: center; font-style: normal; font-size: .9em; }
+.qz-t { flex: 1; background-image: linear-gradient(var(--qz-wrong), var(--qz-wrong)); background-repeat: no-repeat;
+        background-position: 0 55%; background-size: 0% 6px; }
+.qz-mark { flex: none; width: 1.2em; height: 1.2em; opacity: 0; font-style: normal; }
+.qz-mark svg { width: 100%; height: 100%; stroke-width: 3.2; }
+.qz-opt:not(.right) .qz-mark { color: var(--qz-wrong); }
 .lg-card { width: 100%; height: 100%; padding: {{ (sc.logo.pad * 100) | round(1) }}%; border-radius: 18px; background: {{ sc.logo.bg }};
            box-shadow: var(--st-shadow); display: flex; align-items: center; justify-content: center; }
 .lg-card img { max-width: 100%; max-height: 100%; object-fit: contain; }
@@ -280,6 +334,7 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; 
 .st-title-row { position: absolute; left: 60px; width: 900px; top: {{ sc.title.top }}px; display: flex; justify-content: center; z-index: 50; }
 .st-title { max-width: 900px; padding: 12px 30px 16px; border-radius: 8px; background: {{ sc.title.bg }}; color: {{ sc.title.color }};
             font-weight: 800; line-height: 1.1; letter-spacing: -0.01em; text-align: center; box-shadow: 0 14px 30px rgba(0,0,0,.35); }
+.st-title .hw { display: inline-block; transform-origin: 50% 60%; }
 .st-title .hw.emph { background: linear-gradient(transparent 56%, {{ sc.highlight.color }} 56%, {{ sc.highlight.color }} 92%, transparent 92%); }
 .st-title-row.plain { justify-content: flex-start; }
 .st-title-row.box { justify-content: flex-start; }
@@ -297,6 +352,7 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; 
 /* Code scenes (visual.type "code"): the scene file's markup over the look's bg, the texture on top */
 .scene.code { background: var(--k-bg); color: var(--k-ink); font-family: var(--k-body); }
 .k-world { position: absolute; inset: 0; }
+.scene.code.on-world { background: transparent; }     /* the world layer shows through */
 .k-tex { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
 .k-tex-hud i { position: absolute; width: 70px; height: 70px; border: 0 solid rgba(255,255,255,.55); }
 .k-tex-hud i:nth-child(1) { left: 40px; top: 160px; border-left-width: 3px; border-top-width: 3px; }
@@ -311,19 +367,32 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; 
 .k-ms-flip.mirror { transform: scaleX(-1); }
 .k-ms-flip.mirror .nomirror { transform: scaleX(-1); transform-box: fill-box; transform-origin: 50% 50%; }
 .k-ms-pose svg { display: block; width: 100%; height: 100%; }
-.k-ms .eye { transform-box: fill-box; transform-origin: 50% 50%; }
 .k-ms .mouth-open { opacity: 0; }
 .k-error { position: absolute; left: 40px; right: 40px; top: 300px; padding: 24px; z-index: 99; background: #D7263D; color: #fff;
            font: 700 34px/1.3 monospace; white-space: pre-wrap; }
+{% if world %}{{ world.css }}{% endif %}
 {% for s in scenes if s.code %}
 {{ s.code.css }}
 {% endfor %}
 {% if code.caption_font %}.cap { font-family: "{{ code.caption_font }}", system-ui, sans-serif; }{% endif %}
 {% endif %}
 
+/* Scene transitions (style.transitions): overlays above the scenes, under the mascots and captions */
+.tr-over { position: absolute; inset: 0; z-index: 6; pointer-events: none; opacity: 0; }
+#tr-wipe { background: {{ (style.transitions or {}).get("wipe_color") or style.accent_color }}; clip-path: circle(0% at 50% 50%); opacity: 1; }
+#tr-flash { background: #FFFFFF; }
+
 /* Mascots (style.mascot): stacked pose SVGs; one shows at a time */
 .ms { position: absolute; z-index: 9; opacity: 0; }
-.ms-body, .ms-flip, .ms-pose { position: absolute; inset: 0; }
+.ms-body, .ms-act, .ms-flip, .ms-pose { position: absolute; inset: 0; }
+.ms-act { transform-origin: 50% 100%; }
+/* spotlight behind a focus scene's star */
+.ms-spot { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; z-index: 8; opacity: 0; overflow: hidden; pointer-events: none; }
+.ms-spot .glow { position: absolute; width: 1000px; height: 1000px; border-radius: 50%;
+                 background: radial-gradient(closest-side, {{ style.accent_color | rgba(((style.mascot or {}).get("focus") or {}).get("glow_opacity", 0)) }}, {{ style.accent_color | rgba(0) }}); }
+.ms-spot .rays { position: absolute; width: 2880px; height: 2880px;
+                 background: repeating-conic-gradient(from 0deg, {{ style.accent_color | rgba(((style.mascot or {}).get("focus") or {}).get("rays_opacity", 0)) }} 0deg 7deg, {{ style.accent_color | rgba(0) }} 7deg 18deg);
+                 -webkit-mask-image: radial-gradient(closest-side, #000 15%, transparent 70%); mask-image: radial-gradient(closest-side, #000 15%, transparent 70%); }
 {% set mo = (style.mascot or {}).get("outline") %}
 .ms-body { transform-origin: 50% 100%; filter: {% if mo %}url(#ms-outline) {% endif %}drop-shadow(0 10px 10px rgba(0,0,0,.18)); }
 .ms-ground { position: absolute; left: 14%; right: 14%; bottom: -10px; height: 26px; border-radius: 50%;
@@ -332,7 +401,6 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; 
 .ms-flip.mirror .nomirror { transform: scaleX(-1); transform-box: fill-box; transform-origin: 50% 50%; }
 .ms-pose { opacity: 0; }
 .ms-pose svg { display: block; }
-.ms .eye { transform-box: fill-box; transform-origin: 50% 50%; }
 
 /* Captions */
 .cap { position: absolute; left: 60px; width: 900px; top: {{ style.caption.top }}px; height: {{ style.caption.height }}px;
@@ -407,8 +475,13 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; 
   <img id="{{ m.id }}" class="media clip" src="{{ m.src }}" alt="" data-start="{{ m.start }}" data-duration="{{ m.dur }}" data-track-index="2" />
   {% endif %}
 {% endfor %}{% endfor %}
+{% if world %}
+  <section id="sc-world" class="scene clip code world" data-start="{{ world.meta.start }}" data-duration="{{ world.meta.dur }}" data-track-index="1">
+    <div class="k-world">{{ world.markup }}</div>
+  </section>
+{% endif %}
 {% for s in scenes if not s.hidden %}
-  <section id="sc-{{ s.id }}" class="scene clip{{ ' has-media' if s.media }}{{ (' stage tone-' ~ s.stage.tone) if s.stage }}{{ ' code' if s.code }}" data-start="{{ s.start }}" data-duration="{{ s.dur }}" data-track-index="0"
+  <section id="sc-{{ s.id }}" class="scene clip{{ ' has-media' if s.media }}{{ (' stage tone-' ~ s.stage.tone) if s.stage }}{{ ' code' if s.code }}{{ ' on-world' if s.get('on_world') }}" data-start="{{ s.start }}" data-duration="{{ s.dur }}" data-track-index="0"
            style="--c1: {{ s.c1 }}; --c2: {{ s.c2 }};">
     {% if s.stage %}
     {% include "scenes/stage.html.j2" %}
@@ -420,6 +493,7 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; 
     <div class="content">
     {% include "scenes/" ~ s.template ~ ".html.j2" %}
     </div>
+    {% if s.quiz %}{% include "scenes/quiz.html.j2" %}{% endif %}
     {% endif %}
   </section>
 {% endfor %}
@@ -452,19 +526,30 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; 
     </div>
   </div>
 {% endif %}
+{% set trs = scenes | selectattr("tr_in") | list %}
+{% if trs %}
+<svg width="0" height="0" style="position: absolute;" aria-hidden="true"><filter id="tr-whip" x="-20%" y="0" width="140%" height="100%">
+  <feGaussianBlur id="tr-whip-b" in="SourceGraphic" stdDeviation="0 0" /></filter></svg>
+<div id="tr-wipe" class="tr-over"></div>
+<div id="tr-flash" class="tr-over"></div>
+{% endif %}
 {% if mascots and (style.mascot or {}).get("outline") %}{% set mo = style.mascot.outline %}
 <svg width="0" height="0" style="position: absolute;" aria-hidden="true"><filter id="ms-outline" x="-10%" y="-10%" width="120%" height="120%">
   <feMorphology in="SourceAlpha" operator="dilate" radius="{{ mo.px }}" result="d" /><feFlood flood-color="{{ mo.color }}" />
   <feComposite in2="d" operator="in" result="o" /><feMerge><feMergeNode in="o" /><feMergeNode in="SourceGraphic" /></feMerge>
 </filter></svg>
 {% endif %}
+{% for m in mascots or [] if m.focus %}
+  {% set f0 = m.focus[0] %}
+  <div id="{{ m.id }}-spot" class="ms-spot"><div class="rays" style="left: {{ f0.cx - 1440 }}px; top: {{ f0.cy - 1440 }}px;"></div><div class="glow" style="left: {{ f0.cx - 500 }}px; top: {{ f0.cy - 500 }}px;"></div></div>
+{% endfor %}
 {% for m in mascots or [] %}
   <div id="{{ m.id }}" class="ms clip" data-start="0" data-duration="{{ total }}" data-track-index="8"
        style="left: {{ m.x }}px; top: {{ m.y }}px; width: {{ m.w }}px; height: {{ m.h }}px; transform-origin: {{ m.origin }};">
     {% if (style.mascot or {}).get("ground") %}<div class="ms-ground"></div>{% endif %}
-    <div class="ms-body"><div class="ms-flip{{ ' mirror' if m.mirror }}">
+    <div class="ms-body"><div class="ms-act"><div class="ms-flip{{ ' mirror' if m.mirror }}">
       {% for p in m.poses %}<div class="ms-pose" data-p="{{ p.name }}">{{ p.svg | safe }}</div>{% endfor %}
-    </div></div>
+    </div></div></div>
   </div>
 {% endfor %}
 {% for p in pages %}
@@ -475,6 +560,46 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; 
 </div>
 <script>
 const tl = gsap.timeline({ paused: true });
+// ---- FX kit: one-shot effects on a timeline T, drawn in `parent` at (x, y) px (klip.yaml fx)
+const KLIP_FX = {{ fx | tojson }};
+const klipFx = {
+  el(parent, css, behind = false) {          // behind: under the parent's own content
+    const d = document.createElement("div");
+    Object.assign(d.style, { position: "absolute", pointerEvents: "none", ...css });
+    if (behind) parent.insertBefore(d, parent.firstChild); else parent.appendChild(d);
+    return d;
+  },
+  sparks(T, parent, x, y, at, o = {}) {
+    const n = o.n || KLIP_FX.sparks.n, len = o.len || KLIP_FX.sparks.len, col = o.color || "var(--accent)";
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + (o.rot ?? 0.3), r = len * (1.7 + 0.7 * Math.abs(Math.sin(i * 1.7)));
+      const d = klipFx.el(parent, { left: x + "px", top: y - 3 + "px", width: len + "px", height: "6px", borderRadius: "3px",
+                                    background: col, transformOrigin: "0 50%", opacity: 0 }, o.behind);
+      gsap.set(d, { rotation: a * 180 / Math.PI });
+      T.fromTo(d, { x: 0, y: 0, scaleX: 0.2, opacity: 1 }, { x: Math.cos(a) * r, y: Math.sin(a) * r, scaleX: 1, opacity: 0,
+               duration: 0.45, ease: "power3.out", immediateRender: false }, at);
+    }
+  },
+  shock(T, parent, x, y, at, o = {}) {
+    const s = o.size || KLIP_FX.shock.size;
+    const d = klipFx.el(parent, { left: x - s / 2 + "px", top: y - s / 2 + "px", width: s + "px", height: s + "px", borderRadius: "50%",
+                                  border: (o.width || KLIP_FX.shock.width) + "px solid " + (o.color || "var(--accent)"), opacity: 0 }, o.behind);
+    T.fromTo(d, { scale: 0.15, opacity: 0.95 }, { scale: 1, opacity: 0, duration: 0.5, ease: "power2.out", immediateRender: false }, at);
+  },
+  shine(T, el, at, o = {}) {
+    if (getComputedStyle(el).position === "static") el.style.position = "relative";
+    el.style.overflow = "hidden";
+    const d = klipFx.el(el, { left: 0, top: 0, width: "70%", height: "100%", opacity: 0,
+      background: "linear-gradient(100deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.8) 50%, rgba(255,255,255,0) 100%)" });
+    const dur = o.dur || 0.45;
+    T.fromTo(d, { xPercent: -150, opacity: 1 }, { xPercent: 230, duration: dur, ease: "power2.inOut", immediateRender: false }, at);
+    T.set(d, { opacity: 0 }, at + dur);
+  },
+  shake(T, el, at, o = {}) {
+    const px = o.px || KLIP_FX.shake.px;
+    T.fromTo(el, { x: 0 }, { x: px, duration: 0.04, yoyo: true, repeat: (o.times || 3) * 2 - 1, ease: "sine.inOut", immediateRender: false }, at);
+  },
+};
 {% if stage %}
 // count a number up in an element's text (motion components): c = {prefix, value, decimals, suffix}
 const klipFmt = (v, c) => {
@@ -489,6 +614,12 @@ function klipCount(sel, from, c, at, dur) {
 {% endif %}
 {% if code %}
 {% include "scenes/code_kit.js.j2" %}
+{% endif %}
+{% if world %}
+// ---- world (one layer under scenes {{ world.meta.scenes | map(attribute="id") | join(", ") }})
+klipScene({{ world.meta | tojson }}, function (k) {
+{{ world.js }}
+});
 {% endif %}
 {% for s in scenes if not s.hidden %}
 // ---- scene {{ s.id }} ({{ s.template }}{{ ', stage' if s.stage }}{{ ', code' if s.code }})
@@ -516,7 +647,54 @@ tl.fromTo("#sc-{{ s.id }} .b1", { x: 0, y: 0 }, { x: 180, y: 140, duration: {{ s
 tl.fromTo("#sc-{{ s.id }} .b2", { x: 0, y: 0 }, { x: -160, y: -120, duration: {{ s.dur }}, ease: "none" }, {{ s.start }});
 {% include "scenes/" ~ s.template ~ ".js.j2" %}
 {% endif %}
+{% if s.quiz %}
+{% include "scenes/quiz.js.j2" %}
+{% endif %}
 {% endfor %}
+{% if trs %}
+// ---- scene transitions (klip/transitions.py): the outgoing half, then the incoming half
+{% set T = style.transitions %}
+{% for s in scenes if not s.hidden %}
+{% for r, way in [(s.tr_out, "out"), (s.tr_in, "in")] if r %}
+{% set at = r.at %}{% set d = r.d %}{% set sel = r.sel %}
+{% if r.kind == "whip" %}
+tl.set("{{ sel }}", { filter: "url(#tr-whip)" }, {{ at }});
+{% if way == "out" %}
+tl.fromTo("{{ sel }}", { x: 0, scale: 1 }, { x: {{ -r.dir * T.whip_px }}, scale: {{ T.whip_scale }}, duration: {{ d }}, ease: "power3.in", immediateRender: false }, {{ at }});
+tl.fromTo("#tr-whip-b", { attr: { stdDeviation: "0 0" } }, { attr: { stdDeviation: "{{ T.whip_blur }} 0" }, duration: {{ d }}, ease: "power2.in", immediateRender: false }, {{ at }});
+{% else %}
+tl.fromTo("{{ sel }}", { x: {{ r.dir * T.whip_px }}, scale: {{ T.whip_scale }} }, { x: 0, scale: 1, duration: {{ d }}, ease: "power3.out", immediateRender: false }, {{ at }});
+tl.fromTo("#tr-whip-b", { attr: { stdDeviation: "{{ T.whip_blur }} 0" } }, { attr: { stdDeviation: "0 0" }, duration: {{ d }}, ease: "power2.out", immediateRender: false }, {{ at }});
+tl.set("{{ sel }}", { filter: "none" }, {{ (at + d) | round(3) }});
+{% endif %}
+{% elif r.kind == "zoom" %}
+{% if way == "out" %}
+tl.fromTo("{{ sel }}", { scale: 1, filter: "blur(0px)" }, { scale: {{ T.zoom_out }}, filter: "blur({{ T.zoom_blur }}px)", transformOrigin: "540px 860px", duration: {{ d }}, ease: "power3.in", immediateRender: false }, {{ at }});
+tl.fromTo("#tr-flash", { opacity: 0 }, { opacity: 0.35, duration: {{ d }}, ease: "power2.in", immediateRender: false }, {{ at }});
+{% else %}
+tl.fromTo("{{ sel }}", { scale: {{ T.zoom_in }}, filter: "blur({{ T.zoom_blur }}px)" }, { scale: 1, filter: "blur(0px)", transformOrigin: "540px 860px", duration: {{ d }}, ease: "power3.out", immediateRender: false }, {{ at }});
+tl.fromTo("#tr-flash", { opacity: 0.35 }, { opacity: 0, duration: {{ d }}, ease: "power2.out", immediateRender: false }, {{ at }});
+tl.set("{{ sel }}", { filter: "none" }, {{ (at + d) | round(3) }});
+{% endif %}
+{% elif r.kind == "wipe" %}
+{% set x0 = 15 if r.dir > 0 else 85 %}{% set x1 = 100 - x0 %}
+{% if way == "out" %}
+tl.fromTo("#tr-wipe", { clipPath: "circle(0% at {{ x0 }}% 45%)" }, { clipPath: "circle(130% at {{ x0 }}% 45%)", duration: {{ d }}, ease: "power3.in", immediateRender: false }, {{ at }});
+{% else %}
+tl.fromTo("#tr-wipe", { clipPath: "circle(130% at {{ x1 }}% 45%)" }, { clipPath: "circle(0% at {{ x1 }}% 45%)", duration: {{ d }}, ease: "power3.out", immediateRender: false }, {{ at }});
+tl.fromTo("{{ sel }}", { scale: 1.08 }, { scale: 1, duration: {{ (d + 0.2) | round(3) }}, ease: "power2.out", immediateRender: false }, {{ at }});
+{% endif %}
+{% elif r.kind == "flash" %}
+{% if way == "out" %}
+tl.fromTo("#tr-flash", { opacity: 0 }, { opacity: {{ T.flash_opacity }}, duration: {{ d }}, ease: "power3.in", immediateRender: false }, {{ at }});
+{% else %}
+tl.fromTo("#tr-flash", { opacity: {{ T.flash_opacity }} }, { opacity: 0, duration: {{ d }}, ease: "power2.out", immediateRender: false }, {{ at }});
+tl.fromTo("{{ sel }}", { x: -18 }, { x: 0, duration: {{ d }}, ease: "elastic.out(1, 0.3)", immediateRender: false }, {{ at }});
+{% endif %}
+{% endif %}
+{% endfor %}
+{% endfor %}
+{% endif %}
 // ---- branding: progress fills linearly over the whole video; the pill punches in with its scene
 {% if brand.progress %}
 tl.fromTo("#progress .fill", { scaleX: 0 }, { scaleX: 1, duration: {{ total }}, ease: "none" }, 0);
@@ -532,7 +710,9 @@ tl.to("#nudge .nudge-in", { opacity: 0, y: -12, duration: 0.25, ease: "power1.in
 {% endif %}
 {% if brand.outro %}
 {% set o = brand.outro %}
-{% if o.lift %}tl.to("#sc-{{ o.lift }} .st-props", { y: -{{ o.lift_px }}, scale: {{ o.shrink }}, duration: 0.45, ease: "power2.inOut" }, {{ o.start }});{% endif %}
+{% if o.lift %}tl.to("#sc-{{ o.lift }} .st-props", { y: -{{ o.lift_px }}, scale: {{ o.shrink }}, duration: 0.45, ease: "power2.inOut" }, {{ o.start }});
+// the camera keeps drifting in under the closing badge, so the last seconds aren't a still
+{% if stage %}tl.fromTo("#sc-{{ o.lift }} .st-cam", { scale: {{ stage.cfg.zoom }} }, { scale: {{ stage.cfg.zoom + stage.cfg.outro_drift }}, duration: {{ (total - o.start) | round(3) }}, ease: "none", immediateRender: false }, {{ o.start }});{% endif %}{% endif %}
 tl.fromTo("#outro .outro-in", { y: 140, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: "back.out(1.6)" }, {{ o.start }});
 {% if o.logo %}tl.fromTo("#outro .outro-logo", { scale: 0, rotation: -40 }, { scale: 1, rotation: 0, duration: 0.45, ease: "back.out(2.2)" }, {{ (o.start + 0.1) | round(3) }});{% endif %}
 {% if o.chip %}
@@ -563,14 +743,36 @@ tl.set("#{{ w.id }}", { className: "{{ w.cls }}" }, {{ w.off }});
 {% for m in mascots %}
 {% set ms = "#" ~ m.id %}
 gsap.set("{{ ms }} .ms-pose[data-p='netral']", { opacity: 1 });
-gsap.set("{{ ms }}", { scale: {{ m.scale0 }}, transformOrigin: "{{ m.origin }}" });
+gsap.set("{{ ms }}", { scale: {{ m.scale0 }}, x: {{ m.dx0 }}, transformOrigin: "{{ m.origin }}" });
 {% for z in m.scales %}
-tl.to("{{ ms }}", { scale: {{ z.s }}, duration: 0.45, ease: "power3.inOut" }, {{ z.t }});
+{% if z.snap %}tl.set("{{ ms }}", { scale: {{ z.s }}, x: {{ z.dx }} }, {{ z.t }});
+{% else %}tl.to("{{ ms }}", { scale: {{ z.s }}, x: {{ z.dx }}, duration: {{ (mc.focus or {}).get("move_s", 0.45) }}, ease: "back.inOut(1.2)" }, {{ z.t }});{% endif %}
 {% endfor %}
 {% for sp in m.spans %}
 tl.fromTo("{{ ms }}", { opacity: 0, y: 70 }, { opacity: 1, y: 0, duration: {{ mc.enter_s }}, ease: "back.out(1.6)", immediateRender: false }, {{ sp.start }});
+{% if mc.lively and mc.lively.enter_squash < 1 %}
+tl.fromTo("{{ ms }} .ms-act", { scaleY: {{ mc.lively.enter_squash }}, scaleX: {{ 2 - mc.lively.enter_squash }} }, { scaleY: 1, scaleX: 1, duration: 0.5, ease: "elastic.out(1, 0.45)", immediateRender: false }, {{ (sp.start + mc.enter_s * 0.6) | round(3) }});
+{% endif %}
 {% if sp.end < total - 0.05 %}tl.to("{{ ms }}", { opacity: 0, y: 70, duration: 0.25, ease: "power2.in" }, {{ (sp.end - 0.25) | round(3) }});{% endif %}
 {% endfor %}
+{% for f in m.focus %}
+tl.fromTo("{{ ms }}-spot", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power2.out", immediateRender: false }, {{ f.start }});
+tl.fromTo("{{ ms }}-spot .rays", { rotation: 0 }, { rotation: {{ mc.focus.rays_turn_deg }}, duration: {{ (f.end - f.start) | round(3) }}, ease: "none", immediateRender: false }, {{ f.start }});
+tl.set("{{ ms }}-spot .rays", { left: {{ f.cx - 1440 }}, top: {{ f.cy - 1440 }} }, {{ f.start }}); tl.set("{{ ms }}-spot .glow", { left: {{ f.cx - 500 }}, top: {{ f.cy - 500 }} }, {{ f.start }});
+tl.to("{{ ms }}-spot", { opacity: 0, duration: 0.3, ease: "power2.in" }, {{ (f.end - 0.3) | round(3) }});
+{% endfor %}
+{% if mc.lively %}{% set lv = mc.lively %}
+{% for g in m.gestures %}
+{% if g.k == "nod" %}
+tl.fromTo("{{ ms }} .ms-act", { scaleY: 1, scaleX: 1 }, { scaleY: {{ 1 - lv.nod * g.a }}, scaleX: {{ 1 + lv.nod * 0.6 * g.a }}, duration: 0.12, yoyo: true, repeat: 1, ease: "power1.inOut", immediateRender: false }, {{ g.t }});
+{% elif g.k == "hop" %}
+tl.fromTo("{{ ms }} .ms-act", { y: 0 }, { y: -{{ lv.hop_px * g.a }}, duration: 0.16, yoyo: true, repeat: 1, ease: "power2.out", immediateRender: false }, {{ g.t }});
+tl.fromTo("{{ ms }} .ms-act", { scaleY: 1, scaleX: 1 }, { scaleY: {{ 1 - lv.nod * 1.5 }}, scaleX: {{ 1 + lv.nod }}, duration: 0.09, yoyo: true, repeat: 1, ease: "power1.inOut", immediateRender: false }, {{ (g.t + 0.32) | round(3) }});
+{% else %}
+tl.fromTo("{{ ms }} .ms-act", { rotation: 0 }, { rotation: {{ (-lv.lean_deg if g.k == "lean_l" else lv.lean_deg) * g.a }}, duration: 0.3, yoyo: true, repeat: 1, ease: "sine.inOut", immediateRender: false }, {{ g.t }});
+{% endif %}
+{% endfor %}
+{% endif %}
 {% for sg in m.segments[1:] %}
 tl.set("{{ ms }} .ms-pose", { opacity: 0 }, {{ sg.t }});
 tl.set("{{ ms }} .ms-pose[data-p='{{ sg.pose }}']", { opacity: 1 }, {{ sg.t }});
@@ -581,7 +783,8 @@ tl.set("{{ ms }} .mouth", { opacity: 0 }, {{ a }}); tl.set("{{ ms }} .mouth-open
 tl.set("{{ ms }} .mouth", { opacity: 1 }, {{ b }}); tl.set("{{ ms }} .mouth-open", { opacity: 0 }, {{ b }});
 {% endfor %}
 {% for t in m.blinks %}
-tl.fromTo("{{ ms }} .eye", { scaleY: 1 }, { scaleY: 0.1, duration: 0.07, yoyo: true, repeat: 1, ease: "none", immediateRender: false }, {{ t }});
+// GSAP sets an SVG element's origin itself (from its bbox); a CSS transform-box on it shifts the eyes
+tl.fromTo("{{ ms }} .eye", { scaleY: 1 }, { scaleY: 0.1, transformOrigin: "50% 50%", duration: 0.07, yoyo: true, repeat: 1, ease: "none", immediateRender: false }, {{ t }});
 {% endfor %}
 {% if brand.outro and brand.outro.lift is not none %}
 tl.to("{{ ms }}", { y: -{{ mc.outro_lift_px }}, duration: 0.45, ease: "power2.inOut" }, {{ brand.outro.start }});

@@ -113,7 +113,8 @@ uv run klip mcp-config --install     # adds "klip" to Claude Desktop's config (b
 ```
 
 Restart Claude Desktop and ask the same thing in a chat. Tools: `get_spec_schema`,
-`list_voices`, `list_templates`, `list_styles`, `validate_spec`, `render_spec`, `job_status`,
+`list_voices`, `list_templates`, `list_styles`, `get_brand_guide`, `validate_spec`, `preview_spec`
+(contact-sheet stills to check before rendering), `photo_brief`, `render_spec`, `job_status`,
 `list_jobs`. `uv run klip mcp-config` without `--install` just prints the entry.
 
 ### With the CLI only
@@ -123,6 +124,7 @@ uv run klip render examples/menguap.json --voice male           # render a ready
 uv run klip new "Cara menyimpan cabai biar awet" --voice female  # LLM writes specs/<slug>.json, you review
 uv run klip render specs/cara-menyimpan-cabai.json
 uv run klip batch examples/batch.yaml                           # many videos in one go
+uv run klip ideas --style default                               # today's trends → ideas → a batch file
 ```
 
 `klip new` uses the Claude CLI by default, or any OpenAI-compatible endpoint (Ollama, LM Studio,
@@ -159,6 +161,9 @@ all gitignored, so you can pull updates from this repo without conflicts.
 
 - [Usage reference](docs/USAGE.md): templates, spec cheat sheet, hooks and A/B tests, delivery,
   cuts, sound effects, music, stock media, batch, QA, performance report.
+- [Video styles](docs/VIDEO-STYLES.md): stock, stage, chat, quiz, motion graphic, cinematic 3D,
+  one world, mixed:
+  what each looks like, what it needs from you, which topics it suits.
 - [Brand packs](docs/BRANDS.md): your own style, logo and Claude skill.
 - [Contributing](CONTRIBUTING.md): dev setup, tests, conventions, pull requests.
 - [Maintaining](docs/MAINTAINING.md): versioning, releases, GitHub settings.

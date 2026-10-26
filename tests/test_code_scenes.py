@@ -123,7 +123,7 @@ def test_compose_inlines_scoped_scene_with_kit(repo):
     env.filters["rgba"] = compose.rgba
     html = env.get_template("index.html.j2").render(**ctx)
     assert 'class="scene clip code"' in html and "function klipScene" in html
-    assert html.count('klipScene({"dur"') == 2 and 'k.at("matahari")' in html
+    assert html.count('klipScene({"beats": []') == 2 and 'k.at("matahari")' in html
     assert "--k-bg: #F3EDE2;" in html and 'font-family: "Fraunces"' in html
     assert 'class="k-tex k-tex-grain"' in html and "three.min.js" not in html
 
@@ -156,8 +156,22 @@ def test_mascot_names_and_poses_are_checked_against_the_cast(repo, monkeypatch):
                                            'k.mascot("budi"); n.pose("joget", 1);</script>')
     spec = _spec({"id": "s1", "template": "hook", "narration": "a b c", "visual": code("specs/m.html")})
     msgs = [i.message for i in lint(spec) if i.where == "s1"]
-    assert any("k.mascot('budi')" in m for m in msgs) and any("pose 'joget'" in m for m in msgs)
-    assert not any("k.mascot('napa')" in m or "pose 'kaget'" in m for m in msgs)
+    assert any("mascot 'budi'" in m for m in msgs) and any("pose 'joget'" in m for m in msgs)
+    assert not any("mascot 'napa'" in m or "pose 'kaget'" in m for m in msgs)
+
+
+def test_spotlight_names_and_poses_are_checked_too(repo, monkeypatch):
+    from klip import codescene, mascot
+    style = {"mascot": {"cast": [{"name": "napa", "dir": "x", "voice": "female"}]}}
+    monkeypatch.setattr(mascot, "video_style", lambda spec: style)
+    monkeypatch.setattr(mascot, "_poses", lambda d: {"netral": "<svg/>", "kaget": "<svg/>"})
+    (repo / "specs" / "s.html").write_text('<script>k.spotlight("napa", {pose: "kaget"}); '
+                                           'k.spotlight("budi", { pose: "joget" });</script>')
+    spec = _spec({"id": "s1", "template": "hook", "narration": "a b c", "visual": code("specs/s.html")})
+    msgs = [i.message for i in lint(spec) if i.where == "s1"]
+    assert any("mascot 'budi'" in m for m in msgs) and any("pose 'joget'" in m for m in msgs)
+    assert not any("mascot 'napa'" in m or "pose 'kaget'" in m for m in msgs)
+    assert codescene.uses_mascots('k.spotlight("napa")')
 
 
 def test_kit_layout_puts_the_headline_under_the_series_pill_and_mascots_on_their_spots(monkeypatch):
@@ -218,10 +232,40 @@ def test_kit_and_scenes_avoid_template_literal_selectors(repo):
 def test_the_starter_gallery_uses_every_starter_and_lints_clean():
     from klip.paths import ROOT
     from klip.spec import load_spec
-    spec = load_spec(ROOT / "examples" / "code-gallery.json")
-    used = {Path(s.visual.code.file).name for s in spec.scenes}
+    specs = [load_spec(ROOT / "examples" / f) for f in ("code-gallery.json", "code-gallery-3d.json")]   # 2D and 3D
+    used = {Path(s.visual.code.file).name for spec in specs for s in spec.scenes}
     assert used == {p.name for p in (ROOT / "examples" / "code-scenes" / "starters").glob("*.html")}
-    assert not [str(i) for i in lint(spec) if i.level == "error"]
+    for spec in specs:
+        assert not [str(i) for i in lint(spec) if i.level == "error"]
+
+
+def test_cinematic_preset_sits_between_the_style_and_the_spec(repo):
+    from klip import config
+    style = {**config.style("default"), "look_bible": {"texture": "paper", "line": 6}}
+    spec = _spec({"id": "s1", "template": "hook", "narration": "a"},
+                 look_bible={"preset": "cinematic", "palette": {"accent": "#FF8A3D"}, "line": 2})
+    lk = codescene.look(spec, style)
+    preset = config.get("code.looks.cinematic")
+    assert lk["palette"]["bg"] == preset["palette"]["bg"] and lk["tone"] == "dark"
+    assert lk["texture"] == "film" and lk["texture_strength"] == config.get("code.textures.film")
+    assert lk["ease"]["inOut"] == "expo.inOut" and lk["line"] == 2 and lk["palette"]["accent"] == "#FF8A3D"
+    assert "preset" not in lk
+    branded = codescene.look(_spec({"id": "s1", "template": "hook", "narration": "a"}),
+                             {**style, "look_bible": {"preset": "cinematic"}})
+    assert branded["palette"]["accent"] == style["accent_color"] and branded["texture"] == "film"
+    bad = _spec({"id": "s1", "template": "hook", "narration": "a"}, look_bible={"preset": "noir"})
+    with pytest.raises(codescene.CodeSceneError, match="unknown look 'noir'"):
+        codescene.look(bad, style)
+
+
+def test_film_texture_keeps_its_vignette_still_while_the_grain_jumps(repo):
+    css = str(codescene.texture_css("film", 0.3))
+    assert "radial-gradient" in css and "opacity: 0.3" in css
+    from klip.paths import ROOT
+    kit = (ROOT / "templates" / "default" / "scenes" / "code_kit.js.j2").read_text()
+    assert '"film" ? "0px 0px, "' in kit
+    for helper in ("k.glow = function", "k.bloom = function", "k.flare = function"):
+        assert helper in kit
 
 
 def test_paper_ink_contrasts_with_paper(repo):
@@ -233,3 +277,79 @@ def test_paper_ink_contrasts_with_paper(repo):
     light = _spec({"id": "s1", "template": "hook", "narration": "a"})
     lk = codescene.look(light, style)
     assert lk["palette"]["paper-ink"] == lk["palette"]["ink"]
+
+
+def test_world_runs_under_consecutive_code_scenes(repo):
+    world = {"file": "specs/s1.html"}
+    a = {"id": "a", "template": "hook", "narration": "matahari terbit", "visual": code()}
+    b = {"id": "b", "template": "explain", "narration": "lalu terbenam", "visual": code()}
+    c = {"id": "c", "template": "cta", "narration": "ikuti kami"}
+    spec = _spec(a, b, c, world=world)
+    assert [s.id for s in codescene.world_run(spec)] == ["a", "b"]
+    assert codescene.world_scene(spec).narration == "matahari terbit lalu terbenam"
+    ws = words(("matahari", 100), ("terbit", 600), scene="a") + words(("lalu", 2100), ("terbenam", 2500), scene="b") \
+        + words(("ikuti", 4100), ("kami", 4400), scene="c")
+    ctx, _ = compose.build_context(spec, _timeline(("a", 2000), ("b", 2000), ("c", 1000)), ws, {"scenes": {}})
+    w = ctx["world"]["meta"]
+    assert w["start"] == 0 and w["dur"] == 4.0 and w["texture"] == "none"
+    assert w["scenes"] == [{"id": "a", "start": 0, "end": 2.0}, {"id": "b", "start": 2.0, "end": 4.0}]
+    assert [x["text"] for x in w["words"]] == ["matahari", "terbit", "lalu", "terbenam"] and w["words"][2]["t"] == 2.1
+    assert [bool(s.get("on_world")) for s in ctx["scenes"]] == [True, True, False]
+
+    gap = _spec(a, c, b, world=world)
+    with pytest.raises(codescene.CodeSceneError, match="consecutive"):
+        codescene.world_run(gap)
+    with pytest.raises(codescene.CodeSceneError, match="must be code scenes"):
+        codescene.world_run(_spec(a, b, c, world={**world, "scenes": ["b", "c"]}))
+    (repo / "specs" / "w.html").write_text("<script>k.tl.set({}, {}, k.at('terbenam')); k.at('bulan');</script>")
+    world_issues = [i for i in lint(_spec(a, b, world={"file": "specs/w.html"})) if i.where == "world"]
+    assert [i.message for i in world_issues if i.level == "error"] == ["specs/w.html: k.at('bulan') is not in the narration"]
+
+
+def test_dark_bg_below_video_black_warns(repo):
+    s = {"id": "s1", "template": "hook", "narration": "matahari terbit", "visual": code()}
+    issues = lint(_spec(s, look_bible={"palette": {"bg": "#0A0A0A"}}))
+    assert any("darker than video black" in i.message for i in issues if i.level == "warning")
+    assert not any("video black" in i.message for i in lint(_spec(s, look_bible={"preset": "cinematic"})))
+
+
+def test_kit_has_motion_helpers():
+    from klip.paths import TEMPLATES_DIR
+    kit = (TEMPLATES_DIR / "default" / "scenes" / "code_kit.js.j2").read_text()
+    assert "k.trail = function" in kit and "k.motionBlur = function" in kit and "sceneAt(t)" in kit
+
+
+def test_a_style_can_recolour_a_preset_and_add_its_own_looks(repo):
+    from klip import config
+    style = {**config.style("default"), "look_bible": {"texture": "paper"},
+             "looks": {"cinematic": {"palette": {"bg": "#12213B", "ink": "#F6F1E7"}},
+                       "kertas": {"palette": {"bg": "#F6F1E7"}, "texture": "riso"}}}
+    sc = {"id": "s1", "template": "hook", "narration": "a"}
+    lk = codescene.look(_spec(sc, look_bible={"preset": "cinematic"}), style)
+    assert lk["palette"]["bg"] == "#12213B" and lk["palette"]["ink"] == "#F6F1E7"     # the style's colours...
+    assert lk["texture"] == "film" and lk["ease"]["inOut"] == "expo.inOut"             # ...on the preset's feel
+    own = codescene.look(_spec(sc, look_bible={"preset": "cinematic", "palette": {"bg": "#202020"}}), style)
+    assert own["palette"]["bg"] == "#202020"                                         # the spec still wins
+    assert codescene.look(_spec(sc, look_bible={"preset": "kertas"}), style)["texture"] == "riso"
+    plain = codescene.look(_spec(sc, look_bible={"preset": "cinematic"}), config.style("default"))
+    assert plain["palette"]["bg"] == config.get("code.looks.cinematic.palette.bg")
+
+
+def test_lint_wants_the_mascots_in_code_hooks_and_answers(repo):
+    (repo / "specs" / "cast.html").write_text(SCENE.replace("k.frame(", 'k.cast(); k.frame('))
+    narr = "matahari terbit pagi ini"
+    scenes = [{"id": "s1", "template": "hook", "narration": narr, "visual": code(assets=["specs/farm.png"])},
+              {"id": "s2", "template": "explain", "narration": narr, "visual": code(assets=["specs/farm.png"])},
+              {"id": "s3", "template": "cta", "cta_type": "follow", "narration": "follow ya", "visual": {"type": "solid"}}]
+    spec = Spec.model_validate({"slug": "t", "style": "example", "scenes": scenes})
+    msgs = [(i.where, i.message) for i in lint(spec) if "without the mascots" in i.message]
+    assert [w for w, _ in msgs] == ["s1", "s2"] and "the hook" in msgs[0][1] and "bulat" in msgs[0][1]
+    scenes[0]["visual"] = code("specs/cast.html", assets=["specs/farm.png"])
+    scenes[1]["visual"] = code("specs/cast.html", assets=["specs/farm.png"])
+    spec = Spec.model_validate({"slug": "t", "style": "example", "scenes": scenes})
+    assert not any("without the mascots" in i.message for i in lint(spec))
+    scenes[0]["visual"] = scenes[1]["visual"] = code(assets=["specs/farm.png"])     # no mascots again
+    off = Spec.model_validate({"slug": "t", "style": "example", "mascots": False, "scenes": scenes})
+    assert not any("without the mascots" in i.message for i in lint(off))
+    plain = Spec.model_validate({"slug": "t", "scenes": scenes})
+    assert not any("without the mascots" in i.message for i in lint(plain))

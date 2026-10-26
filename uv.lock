@@ -739,12 +739,13 @@ wheels = [
 
 [[package]]
 name = "klip"
-version = "0.4.0"
+version = "0.5.0"
 source = { editable = "." }
 dependencies = [
     { name = "edge-tts" },
     { name = "jinja2" },
     { name = "mcp" },
+    { name = "numpy" },
     { name = "pillow" },
     { name = "pydantic" },
     { name = "pyyaml" },
@@ -768,6 +769,7 @@ requires-dist = [
     { name = "faster-whisper", marker = "extra == 'align'", specifier = ">=1.1" },
     { name = "jinja2", specifier = ">=3.1" },
     { name = "mcp", specifier = ">=2.3" },
+    { name = "numpy", specifier = ">=1.26" },
     { name = "pillow", specifier = ">=10.4" },
     { name = "pydantic", specifier = ">=2.8" },
     { name = "pyyaml", specifier = ">=6.0" },

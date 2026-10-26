@@ -255,6 +255,8 @@ def box_size(e: StageElement, size: str, media: dict | None) -> tuple[float, flo
         return min(bw, h / a), min(bw, h / a) * a
     if e.kind == "news":
         return bw, bw * float(cfg("news.aspect"))
+    if e.kind == "bubble":
+        return bubble_size(e)
     if e.kind == "notif":                       # a phone notification spans the screen's width
         w = float(cfg("components.width")["l"])
         return w, w * float(cfg("notif.aspect")) * (1.0 if e.stat else 0.62)    # no amount: a short card
@@ -294,25 +296,27 @@ def box_size(e: StageElement, size: str, media: dict | None) -> tuple[float, flo
     return bw, bh                                   # bar
 
 
-def fit(x: float, y: float, w: float, h: float, top: float, bottom: float) -> tuple[float, float, float, float]:
+def fit(x: float, y: float, w: float, h: float, top: float, bottom: float,
+        xr: tuple[float, float] = SAFE_X) -> tuple[float, float, float, float]:
     """Shrink a box to fit the stage area, then shift it inside."""
-    s = min(1.0, (SAFE_X[1] - SAFE_X[0]) / w, (bottom - top) / h)
+    s = min(1.0, (xr[1] - xr[0]) / w, (bottom - top) / h)
     w, h = w * s, h * s
-    x = min(max(x, SAFE_X[0] + w / 2), SAFE_X[1] - w / 2)
+    x = min(max(x, xr[0] + w / 2), xr[1] - w / 2)
     y = min(max(y, top + h / 2), bottom - h / 2)
     return x, y, w, h
 
 
-def separate(boxes: dict[int, dict], below: dict[int, float], top: float, bottom: float) -> None:
+def separate(boxes: dict[int, dict], below: dict[int, float], top: float, bottom: float,
+             xr: tuple[float, float] = SAFE_X, free: frozenset[frozenset[int]] = frozenset()) -> None:
     """Push overlapping boxes apart (in place) along the axis that overlaps least, keeping them in the
     stage area; if some still overlap after that, shrink the bigger box of each such pair and try again.
-    `below`: extra px a box needs under it (its hanging label tag)."""
+    `below`: extra px a box needs under it (its hanging label tag). `free`: pairs of boxes allowed to overlap."""
     from itertools import combinations
     gap, keys = float(cfg("layout_gap_px")), sorted(boxes)
 
     def clamp(b: dict) -> None:
         w, h = b["w"], b["h"] + below.get(b["_i"], 0)
-        b["x"] = min(max(b["x"], SAFE_X[0] + w / 2), SAFE_X[1] - w / 2)
+        b["x"] = min(max(b["x"], xr[0] + w / 2), xr[1] - w / 2)
         b["y"] = min(max(b["y"], top + b["h"] / 2), bottom - h + b["h"] / 2)
 
     def overlap(a: dict, b: dict) -> tuple[float, float]:
@@ -327,6 +331,8 @@ def separate(boxes: dict[int, dict], below: dict[int, float], top: float, bottom
             moved = False
             for i, j in combinations(keys, 2):
                 a, b = boxes[i], boxes[j]
+                if frozenset((i, j)) in free:
+                    continue
                 ox, oy = overlap(a, b)
                 if ox <= 0 or oy <= 0:
                     continue
@@ -339,7 +345,8 @@ def separate(boxes: dict[int, dict], below: dict[int, float], top: float, bottom
                 clamp(b)
             if not moved:
                 break
-        clashes = [(i, j) for i, j in combinations(keys, 2) if min(overlap(boxes[i], boxes[j])) > 0]
+        clashes = [(i, j) for i, j in combinations(keys, 2) if min(overlap(boxes[i], boxes[j])) > 0
+                   and frozenset((i, j)) not in free]
         if not clashes:
             break
         # shrink the bigger box of each clashing pair (a photo gives way before a tag's text does)
@@ -352,29 +359,120 @@ def separate(boxes: dict[int, dict], below: dict[int, float], top: float, bottom
 
 
 def layout(scene_id: str, elements: list[StageElement], media: dict[int, dict],
-           area: tuple[float, float]) -> dict[int, dict]:
-    """Box (x, y = centre; w, h; rot; size; slot) per element, highlights boxing their target."""
+           area: tuple[float, float], xr: tuple[float, float] = SAFE_X) -> dict[int, dict]:
+    """Box (x, y = centre; w, h; rot; size; slot) per element, highlights boxing their target.
+    `xr`: the area's x range (a spotlit mascot can take the left of the frame)."""
     top, bottom = area
     out: dict[int, dict] = {}
     for page in pages(elements):
+        if is_chat_page(elements, page):
+            out.update(chat_stack(scene_id, elements, page, top, xr))
+            continue
         for i, (px, py, size, slot) in assign_places(elements, page).items():
             e = elements[i]
             size = e.size or size
             w, h = box_size(e, size, media.get(i))
-            cx, cy = SAFE_X[0] + px * (SAFE_X[1] - SAFE_X[0]), top + py * (bottom - top)
-            x, y, w, h = fit(cx, cy, w, h, top, bottom)
+            cx, cy = xr[0] + px * (xr[1] - xr[0]), top + py * (bottom - top)
+            x, y, w, h = fit(cx, cy, w, h, top, bottom, xr)
             out[i] = {"x": x, "y": y, "w": w, "h": h, "rot": tilt(scene_id, i, e.kind), "size": size, "slot": slot}
-        # stamps slap over what they judge; everything else gets its own space
-        solid = [i for i in page if i in out and elements[i].kind != "stamp"]
+        # a stamp slaps over the props it judges, but never over text (a label or number stays readable);
+        # everything else gets its own space
+        solid = [i for i in page if i in out]
+        free = frozenset(frozenset((i, j)) for i in solid for j in solid if i < j
+                         and "stamp" in (elements[i].kind, elements[j].kind)
+                         and not {elements[i].kind, elements[j].kind} & {"label", "number", "stamp"})
         below = {i: float(cfg("label_px")["s" if out[i]["size"] == "s" else "m"]) * 0.9
                  for i in solid if elements[i].label}
-        separate({i: out[i] for i in solid}, below, top, bottom)
+        separate({i: out[i] for i in solid}, below, top, bottom, xr, free)
         for i in page:
             e = elements[i]
             if e.kind == "highlight" and (tb := out.get(e.target - 1)):
                 pad = float(cfg("highlight.pad"))
                 out[i] = {**tb, "w": tb["w"] + 2 * pad, "h": tb["h"] + 2 * pad, "size": tb["size"], "slot": tb["slot"]}
     return {i: {k: round(v, 1) if isinstance(v, float) else v for k, v in b.items()} for i, b in out.items()}
+
+
+# ---- chat
+
+CHAT_KEEP = ("bubble", "stamp", "highlight")
+
+
+def is_chat_page(elements: list[StageElement], page: list[int]) -> bool:
+    """A page of chat bubbles (with stamps / highlights judging them): it stacks like a chat."""
+    kinds = [elements[i].kind for i in page]
+    return "bubble" in kinds and all(k in CHAT_KEEP for k in kinds)
+
+
+def bubble_size(e: StageElement) -> tuple[float, float]:
+    """(w, h) of a chat bubble: as wide as its text (up to max_w), as tall as its lines plus the
+    sender's name, the 'forwarded' line and the time."""
+    c = cfg("chat")
+    fs, pad, max_w = float(c["font_px"]), float(c["pad"]), float(c["max_w"])
+    per_line = (max_w - 2 * pad) / (0.52 * fs)                    # characters that fit a line
+    n = len(e.text)
+    lines = max(1, -(-n // int(per_line)))
+    head = (fs * 0.78 * 1.35 if e.sender and not e.me else 0) + (fs * 0.72 * 1.4 if e.forwarded else 0)
+    meta = fs * 2.6                                                # the time (and ticks) on the last line
+    text_w = min(n * 0.52 * fs + (meta if lines == 1 else 0), max_w - 2 * pad)
+    name_w = max(len(e.sender or "") * 0.78 * 0.55 * fs, (len(str(c["forwarded"])) + 3) * 0.72 * 0.55 * fs
+                 if e.forwarded else 0)
+    w = min(max_w, max(text_w, name_w, fs * 4) + 2 * pad)
+    h = 2 * pad + head + lines * fs * 1.32 + (fs * 0.62 if lines > 1 or e.date else 0)
+    return w, h
+
+
+def chat_stack(scene_id: str, elements: list[StageElement], page: list[int], top: float,
+               xr: tuple[float, float]) -> dict[int, dict]:
+    """Boxes for a chat page: bubbles down from `top` in order (theirs left, mine right), a stamp over
+    the bubble it judges (`target`, else the last one before it), highlights around theirs. Boxes may
+    run past the area's bottom: compose scrolls the chat up as they come (chat_scroll)."""
+    gap = float(cfg("chat.gap"))
+    out: dict[int, dict] = {}
+    y, last = top, None
+    for i in page:
+        e = elements[i]
+        if e.kind != "bubble":
+            continue
+        w, h = bubble_size(e)
+        x = xr[1] - w / 2 if e.me else xr[0] + w / 2
+        out[i] = {"x": x, "y": y + h / 2, "w": w, "h": h, "rot": 0.0, "size": "l", "slot": "m" + ("r" if e.me else "l")}
+        y += h + gap
+    for i in page:
+        e = elements[i]
+        if e.kind == "bubble":
+            last = i
+            continue
+        on = out.get(e.target - 1) if e.target else None
+        if e.kind == "stamp" and (on := on or out.get(last)):
+            w, h = box_size(e, "m", None)          # on the bubble's lower corner: its text stays readable
+            x = on["x"] - on["w"] / 2 + w / 2 - 20 if on["slot"].endswith("r") else on["x"] + on["w"] / 2 - w / 2 + 20
+            out[i] = {"x": max(xr[0] + w / 2, min(x, xr[1] - w / 2)), "y": on["y"] + on["h"] * 0.15, "w": w, "h": h,
+                      "rot": tilt(scene_id, i, "stamp"), "size": "m", "slot": on["slot"]}
+        elif e.kind == "highlight" and on:
+            pad = float(cfg("highlight.pad"))
+            out[i] = {**on, "w": on["w"] + 2 * pad, "h": on["h"] + 2 * pad}
+    return out
+
+
+def chat_scroll(els: list[dict], bottom: float, typing_s: float) -> list[dict]:
+    """How a chat page scrolls (els: its template context dicts with y/h, start, kind, me): when a bubble
+    (with its typing dots, typing_s before it) wouldn't fit above `bottom`, the whole chat moves up so it
+    does. [{t, y}], y ≤ 0 and cumulative. What scrolls above the area fades under a mask (compose)."""
+    out, shift = [], 0.0
+    for e in sorted((e for e in els if e["kind"] == "bubble"), key=lambda e: e["start"]):
+        need = e["y"] + e["h"] / 2 - bottom
+        if need > shift + 0.5:
+            shift = need
+            out.append({"t": round(max(e["start"] - (0 if e.get("me") else typing_s), 0), 3), "y": round(-shift, 1)})
+    return out
+
+
+def sender_color(name: str | None) -> str | None:
+    """A stable colour per chat sender."""
+    if not name:
+        return None
+    names = cfg("chat.names")
+    return names[int(hashlib.sha256(name.encode()).hexdigest()[:6], 16) % len(names)]
 
 
 # ---- real-data elements
@@ -510,7 +608,8 @@ def _camera(st: dict, end: float, m: dict) -> list[dict]:
     is a separate linear tween on the same layer."""
     top, bottom = st["area"]
     cx, cy, follow = 540.0, (top + bottom) / 2, float(m["camera_follow"])
-    els = sorted((e for e in st["elements"] if e["kind"] not in ("highlight", "stamp")), key=lambda e: e["start"])
+    els = sorted((e for e in st["elements"] if e["kind"] not in ("highlight", "stamp", "bubble")),
+                 key=lambda e: e["start"])           # a chat scrolls on its own; the camera stays put
     moves = []
     for k, e in enumerate(els):
         t = e["start"]
@@ -537,10 +636,32 @@ def add_motion(scene: dict) -> None:
             e["enter"] = "slide" if e["col"] in ("l", "r") and r < 0.5 else "drop"
         elif e["kind"] == "notif":                    # slides down like a phone notification
             e["enter"] = "notify"
+        elif e["kind"] == "bubble":                   # pops up from its tail, after typing dots
+            e["enter"] = "bubble"
         elif e["kind"] in ("photo", "person", "logo", "screenshot", "news"):
             e["enter"] = "slide" if e["col"] in ("l", "r") and r < 0.4 else "toss"
         else:
             e["enter"] = None
         side = {"l": -1, "r": 1}.get(e["col"], -1 if r < 0.5 else 1)
-        e["exit_to"] = {"x": side * 1100, "rot": side * 18} if m["exit"] == "sweep" else None
+        e["exit_to"] = {"x": side * 1100, "rot": side * 18} if m["exit"] == "sweep" and e["kind"] != "bubble" else None
     st["camera"] = _camera(st, scene["end"], m) if m["camera_follow"] else []
+    st["depth"] = _depth(st, scene)
+
+
+def _depth(st: dict, scene: dict) -> dict:
+    """Depth for a stage scene (klip.yaml stage.depth): foreground bokeh, the backdrop's depth of field."""
+    d = cfg("depth")
+    bd = st.get("backdrop") or {}
+    n = int((d["fg"] or {}).get(st["tone"], 0)) if (bd.get("cfg") or {}).get("bokeh", True) else 0
+    fg = []
+    for i in range(n):
+        h = [_h(scene["id"], "fg", i, k) for k in range(5)]
+        r = 20 + 70 * h[2]
+        fg.append({"x": round(-80 + 1240 * h[0], 1), "y": round(220 + 1250 * h[1], 1), "r": round(r, 1),
+                   "o": round(0.05 + 0.12 * h[3], 3), "blur": round(r * 0.3, 1), "warm": h[4] < 0.5,
+                   "dx": round((h[4] - 0.5) * 2 * float(d["fg_drift_px"]), 1)})
+    els = [e for e in st["elements"] if e["kind"] not in ("highlight",)]
+    first = min((e["start"] for e in els), default=None)
+    dof = {"t": round(first, 3), "px": float(d["dof_px"])} if (first is not None and d["dof_px"]
+                                                                  and bd.get("kind") == "photo") else None
+    return {"bg": float(d["bg_follow"]), "fgf": float(d["fg_follow"]), "fg": fg, "dof": dof}

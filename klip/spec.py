@@ -16,7 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 TemplateName = Literal["hook", "explain", "list_item", "myth_fact", "stat", "compare", "cta"]
 VisualType = Literal["stock_video", "stock_photo", "ai_image", "icon", "solid", "local", "stage", "code"]
 StageKind = Literal["cutout", "photo", "icon", "label", "number", "bar", "stack", "highlight", "stamp",
-                    "chart", "unit", "person", "news", "logo", "screenshot", "notif",
+                    "chart", "unit", "person", "news", "logo", "screenshot", "notif", "bubble",
                     "kinetic", "split", "flow", "meter", "cycle", "timeline", "funnel", "reel"]
 # Motion components: animated diagrams whose `steps` play out on their own narration words.
 COMPONENTS = ("kinetic", "split", "flow", "meter", "cycle", "timeline", "funnel", "reel")
@@ -86,7 +86,7 @@ _STAGE_NEEDS = {"cutout": (("query", "path", "who"),), "photo": (("query", "path
                 "label": (("text",),), "number": (("text",),), "bar": (("bars",),), "stack": (("name",),),
                 "highlight": (("target",),), "stamp": (("text",),), "chart": (("points", "csv", "ticker"),),
                 "unit": (("total",),), "person": (("who", "path", "query"),), "news": (("text",),),
-                "logo": (("who", "path"),), "screenshot": (("url",),), "notif": (("text",),), "kinetic": (("steps",),),
+                "logo": (("who", "path"),), "screenshot": (("url",),), "notif": (("text",),), "bubble": (("text",),), "kinetic": (("steps",),),
                 "split": (("steps",),), "flow": (("steps",), ("text",)), "meter": (("steps",), ("max",)),
                 "cycle": (("steps",),), "timeline": (("steps",),), "funnel": (("steps",),), "reel": (("steps",),)}
 # steps each component takes (min, max) and whether every step needs a `value`
@@ -111,7 +111,9 @@ class StageElement(_Strict):
                                         "a headline card (outlet, date, text); logo = an organisation's logo "
                                         "(`who`) on a sign; screenshot = a web page (`url`) in a browser window; notif = "
                                         "a phone notification card (`outlet` = the app, `text` = the line, "
-                                        "`stat` = a big amount, `date` = the corner note). "
+                                        "`stat` = a big amount, `date` = the corner note); bubble = a chat message on a chat "
+                                        "backdrop (`sender`, `text`, `me`, `forwarded`, `date` = the time), "
+                                        "stacking down the chat and scrolling it like a real one. "
                                         "Motion components (animated diagrams; their `steps` play on their own "
                                         "words): kinetic = big kinetic type, one phrase per step; split = a whole "
                                         "that breaks into shares (step values); flow = amounts flowing from a "
@@ -160,7 +162,11 @@ class StageElement(_Strict):
     outlet: str | None = Field(None, description="news: the outlet, e.g. 'Katadata'; notif: the app name "
                                                  "('m-banking', 'Shopee').")
     date: str | None = Field(None, description="news: the date as shown, e.g. 'Jumat, 16 Okt 2026'; notif: the "
-                                               "corner note ('bulan ke-12', '09.41').")
+                                               "corner note ('bulan ke-12', '09.41'); bubble: the time ('19.02').")
+    sender: str | None = Field(None, description="bubble: who sent it, as the chat shows the name ('Om Hendra', "
+                                                 "'Tante Rina'); never a real person's name or number.")
+    me: bool = Field(False, description="bubble: sent by the phone's owner (right side, the sent colour).")
+    forwarded: bool = Field(False, description="bubble: marked 'Diteruskan' (a forwarded chain message).")
     url: str | None = Field(None, description="screenshot: the page to capture (http/https).")
     wayback: str | None = Field(None, description="screenshot: capture the Wayback Machine copy from this date "
                                                   "(YYYY or YYYYMMDD), for pages as they looked back then.")
@@ -203,6 +209,10 @@ class StageElement(_Strict):
             raise ValueError(f"`brief` / `own` are for {'/'.join(MEDIA)} elements")
         if self.label and self.kind not in LABELLED:
             raise ValueError(f"`label` is for {'/'.join(LABELLED)} elements (use kind=label for a lone tag)")
+        if (self.sender or self.me or self.forwarded) and self.kind != "bubble":
+            raise ValueError("`sender` / `me` / `forwarded` are for bubble elements")
+        if self.kind == "bubble" and self.me and self.sender:
+            raise ValueError("a `me` bubble has no `sender` (it's the phone's owner)")
         if self.ticker and not self.start:
             raise ValueError("a chart `ticker` needs `start` (YYYY-MM-DD)")
         if self.kind == "chart" and sum(map(bool, (self.points, self.csv, self.ticker))) > 1:
@@ -216,18 +226,20 @@ class StageElement(_Strict):
         return self
 
 
-BackdropKind = Literal["photo", "screenshot", "board", "phone"]
+BackdropKind = Literal["photo", "screenshot", "board", "phone", "chat"]
 
 
 class Backdrop(_Strict):
     """A themed set behind a stage scene's props, instead of a plain built-in `background`: a real
-    place (photo), a web page, a market board or a phone screen."""
+    place (photo), a web page, a market board, a phone screen or a group chat."""
     kind: BackdropKind = Field(description="photo = a full-screen photo of a place or surface (stock `query`, "
                                            "Wikipedia `who` for a painting/map, or your `path`), darkened so props "
                                            "read on it; screenshot = a web page (`url`, optional `wayback`) filling "
                                            "the frame; board = a dense market/departure board of `items` "
                                            "('BBCA -2,1%'), tinted; phone = a phone app screen with a `title` "
-                                           "header (pair it with notif elements).")
+                                           "header (pair it with notif elements); chat = a messenger "
+                                           "group chat with a `title` (the group's name) and `info` (pair it with "
+                                           "bubble elements).")
     query: str | None = Field(None, description="photo: English keywords for a place or surface, 2-4 words "
                                                 "('old apothecary shelves', 'vintage world map', 'trading floor').")
     who: str | None = Field(None, description="photo: a Wikipedia article whose lead image is the set (a painting, "
@@ -242,7 +254,9 @@ class Backdrop(_Strict):
                              description="board: 4-40 short cells ('BBCA -2,1%', 'GOTO +4,8%', 'CGK 09.40'); a "
                                          "'-' / '+' number colours the cell red / green. Repeated to fill.")
     title: str | None = Field(None, description="phone: the small header line ('autodebet · tgl 5 Jan'); "
-                                                "board: an optional header ('IDX · 15 Okt 2026').")
+                                                "board: an optional header ('IDX · 15 Okt 2026'); chat: the group's "
+                                                "name ('Keluarga Besar').")
+    info: str | None = Field(None, description="chat: the small line under the name ('23 anggota', 'online').")
     dim: float | None = Field(None, ge=0, le=0.9, description="How much the set is darkened (0-0.9); unset = "
                                                               "klip.yaml stage.backdrop.<kind>.dim.")
     blur: float | None = Field(None, ge=0, le=30, description="photo/screenshot: blur in px; unset = the kind's default.")
@@ -253,9 +267,11 @@ class Backdrop(_Strict):
 
     @model_validator(mode="after")
     def _kind_fields(self) -> Backdrop:
-        need = {"photo": ("query", "who", "path"), "screenshot": ("url",), "board": ("items",), "phone": ()}[self.kind]
+        need = {"photo": ("query", "who", "path"), "screenshot": ("url",), "board": ("items",), "phone": (), "chat": ("title",)}[self.kind]
         if need and not any(getattr(self, f) for f in need):
             raise ValueError(f"backdrop kind={self.kind!r} requires {' or '.join(need)}")
+        if self.info and self.kind != "chat":
+            raise ValueError("backdrop `info` is for chat backdrops")
         if self.kind == "board" and len(self.items) < 4:
             raise ValueError("a board backdrop needs at least 4 items")
         if self.url and not self.url.startswith(("http://", "https://")):
@@ -266,7 +282,7 @@ class Backdrop(_Strict):
 
 
 CodeLib = Literal["three"]
-Texture = Literal["none", "paper", "watercolor", "halftone", "grain", "hud", "riso"]
+Texture = Literal["none", "paper", "watercolor", "halftone", "grain", "hud", "riso", "film"]
 
 
 class CodeSfx(_Strict):
@@ -299,6 +315,18 @@ class CodeScene(_Strict):
                                            "the pop), on top of the automatic cut whoosh.")
 
 
+class World(_Strict):
+    """One code layer under a run of consecutive code scenes (see docs/CODE-SCENES.md, "One world"): a single
+    picture the camera travels through while the scenes change on top, instead of a cut per scene. Its
+    `k` spans the run: k.words / k.at cover every scene's narration, k.scenes says when each one plays."""
+    file: str = Field(pattern=r"\.html$", description="Repo-relative world file, e.g. 'specs/<slug>/world.html'.")
+    scenes: list[str] = Field(default_factory=list, description="Ids of the consecutive code scenes it runs under; "
+                                                                "empty = every code scene (they must be consecutive).")
+    assets: list[str] = Field(default_factory=list, max_length=20, description="As in a code scene.")
+    include: list[str] = Field(default_factory=list, max_length=8, description="As in a code scene.")
+    libs: list[CodeLib] = Field(default_factory=list, description="As in a code scene.")
+
+
 class Visual(_Strict):
     type: VisualType = "solid"
     query: str | None = Field(None, description="English keywords for stock search (the scene's first shot).")
@@ -319,7 +347,7 @@ class Visual(_Strict):
                                                      "stage.backgrounds), or a repo-relative image path. "
                                                      "Unset = stage.default_background.")
     backdrop: Backdrop | None = Field(None, description="type=stage: a themed set instead of `background` (a real "
-                                                        "place, a web page, a market board, a phone screen). Vary "
+                                                        "place, a web page, a market board, a phone screen, a group chat). Vary "
                                                         "sets across the video as the story moves.")
     elements: list[StageElement] = Field(default_factory=list, max_length=12,
                                          description="type=stage: props that build up on the background, each "
@@ -378,6 +406,9 @@ class LookFonts(_Strict):
 class LookBible(_Strict):
     """Art direction shared by every code scene so the video reads as one film. Unset fields come from
     the style's look_bible (brand pack), then klip.yaml code.look."""
+    preset: str | None = Field(None, description="A named look to start from (klip.yaml code.looks, e.g. "
+                                                 "'cinematic': dark, hairline, glowing accent, film grain). "
+                                                 "The fields below override it.")
     palette: dict[str, str] = Field(default_factory=dict, description="Named colours ('bg', 'ink', 'accent', "
                                                                       "'paper', 'sky', …) → CSS vars --k-<name> "
                                                                       "and k.look.palette. 'bg' fills the scene.")
@@ -385,10 +416,11 @@ class LookBible(_Strict):
     texture: Texture | None = Field(None, description="Overlay on every code scene: paper (fibres + vignette), "
                                                       "watercolor (wash blotches), halftone (dot screen), grain "
                                                       "(film grain), hud (scanlines + corner marks), riso (misprint "
-                                                      "grain), none.")
+                                                      "grain), film (grain + dark vignette, for dark looks), none.")
     texture_strength: float | None = Field(None, ge=0, le=1, description="0-1; unset = the texture's default.")
     line: float | None = Field(None, ge=0.5, le=24, description="Stroke width (px) for drawn art: k.look.line.")
-    motion: Literal["snappy", "smooth", "bouncy"] | None = Field(None, description="Default eases in k.look.ease.")
+    motion: Literal["snappy", "smooth", "bouncy", "cinematic"] | None = Field(None, description="Default eases in "
+                                                                                          "k.look.ease.")
     notes: str | None = Field(None, description="Art direction in prose for whoever writes the scenes (style, "
                                                 "characters, camera, motifs). Not rendered.")
 
@@ -431,6 +463,26 @@ class MascotPose(_Strict):
                                                                "= until the next pose or the scene's end.")
 
 
+class Quiz(_Strict):
+    """A "tebak dulu" quiz on a hook/explain scene: the scene's on_screen_text is the question, the
+    options pop in (on their words when the narration reads them), a countdown ring runs from
+    `countdown_at`, and at `reveal_at` the right option lights up and the others are struck out. Ask in
+    one scene and answer in a later one (the same options + `reveal_at`) to keep the loop open."""
+    options: list[str] = Field(min_length=2, max_length=4, description="2-4 short answers (≤ 4 words each), "
+                                                                      "shown as A, B, C, D.")
+    answer: int = Field(ge=1, description="Which option is right (1-based).")
+    countdown_at: str | None = Field(None, description="Narration word where the countdown ring starts "
+                                                       "('Tebak', 'tiga'); unset = no countdown.")
+    reveal_at: str | None = Field(None, description="Narration word where the answer lights up ('Jawabannya'); "
+                                                    "unset = this scene only asks.")
+
+    @model_validator(mode="after")
+    def _answer_in_range(self) -> Quiz:
+        if self.answer > len(self.options):
+            raise ValueError(f"quiz answer {self.answer} but only {len(self.options)} options")
+        return self
+
+
 class SceneMascot(_Strict):
     """The style's mascots (a brand pack's cast) in this scene."""
     speaker: str | None = Field(None, description="Who speaks this scene's narration (mouth moves with the words); "
@@ -443,6 +495,11 @@ class SceneMascot(_Strict):
     scale: float = Field(1.0, ge=0.5, le=2.2, description="Mascot size in this scene (2 = twice as tall, for "
                                                           "a scene about the mascots themselves); the props "
                                                           "area shrinks to make room.")
+    focus: bool | str | None = Field(None, description="Spotlight: this mascot (true = the scene's speaker) "
+                                                       "steps to the centre, big, under a spotlight, and the "
+                                                       "others leave for the scene. For a hook, a punchline or "
+                                                       "a reaction; the props area is only a strip above it "
+                                                       "(0-1 small props, or a label).")
 
 
 class Scene(_Strict):
@@ -457,6 +514,8 @@ class Scene(_Strict):
                                                       "`voice` (a dialogue: alternate male and female). Unset = "
                                                       "the voice of the scene's mascot speaker if one is set, "
                                                       "else the video's voice.")
+    transition: Literal["whip", "zoom", "wipe", "flash", "none"] | None = Field(
+        None, description="The cut into this scene; unset = picked from the style's transitions pool.")
     delivery: Delivery | None = Field(None, description="Voice style for this scene (rate/pitch preset in "
                                                         "klip.yaml prosody); unset = by template.")
     # Template-specific data
@@ -470,6 +529,8 @@ class Scene(_Strict):
     compare: Compare | None = None
     mascot: SceneMascot | None = Field(None, description="Mascots (only when the style has a mascot cast): who "
                                                          "speaks and pose changes.")
+    quiz: Quiz | None = Field(None, description="hook/explain: a 'tebak dulu' quiz (options, countdown, the "
+                                                "answer lighting up); on_screen_text is the question.")
     cta_type: CtaType | None = Field(None, description="cta: what the outro asks for; shows an action chip "
                                                        "(icon + label). 'comment' = on_screen_text is a "
                                                        "two-sided question shown as the headline.")
@@ -482,6 +543,8 @@ class Scene(_Strict):
             raise ValueError(f"template {self.template!r} requires: {', '.join(missing)}")
         if self.cta_type and self.template != "cta":
             raise ValueError("cta_type is only for the 'cta' template")
+        if self.quiz and self.template not in ("hook", "explain"):
+            raise ValueError("a quiz goes on a 'hook' or 'explain' scene")
         return self
 
 
@@ -497,6 +560,8 @@ class HookVariant(_Strict):
 class Music(_Strict):
     mood: str | None = Field("calm", description="Picks a track from assets/music/<mood>/; null = no music.")
     track: str | None = Field(None, description="Explicit track path (overrides mood).")
+    beats: bool = Field(True, description="Code scenes follow the track's beats (k.beats, k.pulse). Turn off for "
+                                          "a track without a steady beat (ambient, orchestral swells).")
 
 
 class Post(_Strict):
@@ -513,6 +578,19 @@ class Cover(_Strict):
     keyword: str | None = Field(None, description="The payoff word(s) shown big as the last line, e.g. 'Menguap?'.")
     subtitle: str | None = Field(None, description="One short sentence under the title, e.g. "
                                                    "'Ternyata bukan karena bosan'.")
+    layout: Literal["hero", "text"] | None = Field(
+        None, description="hero = short title on top, a big subject (cut-out photo and/or mascot) below; "
+                          "text = title only. Unset: hero whenever there is a subject.")
+    image: str | None = Field(None, description="Hero photo path (relative to the repo), cut out as a "
+                                                "sticker. Unset: <photos dir>/<slug>/cover.*, the hook's stage "
+                                                "cut-out, another scene's, else the subject lifted from the "
+                                                "hook's b-roll.")
+    mascot: str | None = Field(None, description="Mascot pose on the cover (e.g. 'kaget', 'bingung'), or "
+                                                 "'none'. Unset: klip.yaml cover.hero.mascot_pose.")
+    who: str | None = Field(None, description="Which cast member is on the cover. Unset: the hook's speaker.")
+    badge: str | None = Field(None, max_length=18,
+                              description="1-2 word sticker on the hero, e.g. 'MITOS?', '1 DETIK', "
+                                          "'350 TAHUN'. Teases, never answers.")
 
     @model_validator(mode="after")
     def _one_title_form(self) -> Cover:
@@ -547,11 +625,15 @@ class Spec(_Strict):
                                                  "stage.look_min_share). 'mixed' = pick per scene.")
     look_bible: LookBible | None = Field(None, description="Art direction for code scenes (palette, fonts, "
                                                            "texture, motion); unset = the style's.")
+    world: World | None = Field(None, description="One code layer the camera travels through under a run of "
+                                                  "consecutive code scenes (their own bg turns transparent).")
     mascots: bool | list[str] | None = Field(None, description="Which of the style's mascots appear: unset/true = "
                                                                "the whole cast, false = none, or a list of names "
                                                                "(e.g. ['napa']).")
     progress_bar: bool | None = Field(None, description="Thin progress bar at the top; unset = the style's setting. "
                                                         "Set false/true to A/B test it.")
+    loop: bool | None = Field(None, description="End on the first frame so the auto-replay is seamless; unset = "
+                                                "the style's loop.enabled.")
     save_nudge: bool | None = Field(None, description="'Simpan dulu' pill when the 2nd list_item starts; "
                                                       "unset = the style's save_nudge.enabled.")
     music: Music = Field(default_factory=Music)

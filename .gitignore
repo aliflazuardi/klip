@@ -38,6 +38,8 @@ assets/music/**/*.wav
 assets/music/**/*.m4a
 
 assets/broll/**/*
+# reference videos for `klip measure` (other people's work, never committed)
+assets/refs/
 !assets/broll/README.md
 
 .DS_Store

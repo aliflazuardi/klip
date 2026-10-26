@@ -12,6 +12,8 @@ import logging
 import re
 from pathlib import Path
 
+import numpy as np
+
 from klip import config, ffmpeg
 from klip.engines.render.base import RenderError
 from klip.paths import ROOT
@@ -96,11 +98,65 @@ def build_sfx(events: list[dict], total_s: float, out_wav: Path) -> bool:
     for i, (e, f) in enumerate(cues):
         args += ["-i", str(f)]
         chains.append(f"[{i}:a]aresample=48000,aformat=channel_layouts=stereo,"
-                      f"adelay={int(e['t'] * 1000)}:all=1,volume={gains.get(e['sfx'], -20)}dB[s{i}]")
+                      f"adelay={int(e['t'] * 1000)}:all=1,volume={gains.get(e['sfx'], -20) + e.get('db', 0):.1f}dB[s{i}]")
     graph = ";".join(chains) + ";" + "".join(f"[s{i}]" for i in range(len(cues))) + \
         f"amix=inputs={len(cues)}:normalize=0:dropout_transition=0,apad,atrim=0:{total_s:.3f}[out]"
     ffmpeg.run([*args, "-filter_complex", graph, "-map", "[out]", "-c:a", "pcm_s16le", str(out_wav)])
     return True
+
+
+def motion_curve(video: Path, m: dict) -> np.ndarray:
+    """Per frame (at m.fps): the share of pixels in the crop band that changed since the previous frame."""
+    w, h = m["size"]
+    proc = ffmpeg.run(["-i", str(video), "-vf", f"fps={m['fps']},scale={w}:{h},format=gray",
+                       "-f", "rawvideo", "-"], binary=True)
+    f = np.frombuffer(proc.stdout, np.uint8).reshape(-1, h, w).astype(np.int16)
+    f = f[:, int(h * m["crop"][0]):int(h * m["crop"][1]), :]
+    if len(f) < 2:
+        return np.zeros(0)
+    return np.concatenate([[0.0], (np.abs(np.diff(f, axis=0)) > m["pixel_diff"]).mean(axis=(1, 2))])
+
+
+def motion_onsets(cov: np.ndarray, fps: float, on: float, min_s: float, smooth_s: float) -> list[tuple[float, float]]:
+    """(time, peak coverage) where the smoothed curve rises over `on` and stays there for min_s."""
+    k = max(1, round(smooth_s * fps))
+    s = np.convolve(cov, np.ones(k) / k, mode="same") if len(cov) else cov
+    out, i = [], 0
+    while i < len(s):
+        if s[i] >= on:
+            j = i
+            while j < len(s) and s[j] >= on:
+                j += 1
+            if (j - i) / fps >= min_s:
+                out.append((i / fps, float(s[i:j].max())))
+            i = j
+        else:
+            i += 1
+    return out
+
+
+def motion_cues(spec: Spec, timeline: dict, video: Path, events: list[dict]) -> list[dict]:
+    """Effects on camera moves inside the scenes of sfx.motion.visual_types (see klip.yaml sfx.motion)."""
+    m = config.get("sfx.motion") or {}
+    if not m.get("sfx") or not spec.sfx:
+        return []
+    types = set(m["visual_types"])
+    by_id = {s.id: s for s in spec.scenes}
+    spans = [(sc["start_ms"] / 1000, (sc["start_ms"] + sc["duration_ms"]) / 1000) for sc in timeline["scenes"]
+             if (s := by_id.get(sc["id"])) and s.visual.type in types]
+    if not spans:
+        return []
+    cuts = [sc["start_ms"] / 1000 for sc in timeline["scenes"][1:]]
+    taken = [e["t"] for e in events if e["sfx"] == m["sfx"]] + cuts
+    out = []
+    for t, peak in motion_onsets(motion_curve(video, m), float(m["fps"]), m["threshold"], m["min_s"], m["smooth_s"]):
+        t = max(0.0, t - float(m["lead_s"]))
+        if not any(a <= t < b for a, b in spans) or any(abs(t - x) < float(m["clear_s"]) for x in taken):
+            continue
+        boost = float(m["boost_db"]) * min(1.0, (peak - m["threshold"]) / max(1e-6, 1 - m["threshold"]) * 3)
+        out.append({"t": round(t, 3), "moment": "camera_move", "sfx": m["sfx"], "db": round(boost, 1)})
+        taken.append(t)
+    return out
 
 
 def mix_voice_sfx(voice_wav: Path, sfx_wav: Path, out_wav: Path) -> None:
@@ -134,13 +190,25 @@ def mix_music(voice_wav: Path, track: Path, total_s: float, out_wav: Path, music
                 "-c:a", "pcm_s16le", str(out_wav)])
 
 
+def _copyable(raw: Path) -> bool:
+    """raw.mp4 is already TikTok-ready video (H.264, yuv420p, the render fps): copy it, don't re-encode."""
+    v = next((s for s in ffmpeg.probe(raw)["streams"] if s.get("codec_type") == "video"), {})
+    return (v.get("codec_name") == "h264" and v.get("pix_fmt") == "yuv420p"
+            and v.get("r_frame_rate") == f"{config.get('render.fps', 30)}/1")
+
+
 def encode(raw: Path, audio_wav: Path, out: Path) -> None:
+    """raw video + the mixed audio (loudness-normalised) → out. The renderer already encoded the video at
+    render.crf, so it's copied; render.reencode (or a raw that isn't H.264 yuv420p) encodes it again."""
+    if not config.get("render.reencode") and _copyable(raw):
+        video = ["-c:v", "copy"]
+    else:
+        video = ["-c:v", "libx264", "-profile:v", "high", "-pix_fmt", "yuv420p", "-crf", str(config.get("render.crf", 19)),
+                 "-preset", str(config.get("render.preset")), "-r", str(config.get("render.fps", 30))]
     ffmpeg.run([
         "-i", str(raw), "-i", str(audio_wav), "-map", "0:v:0", "-map", "1:a:0",
-        "-af", f"{loudnorm_filter(audio_wav)},aresample=48000,apad",
-        "-c:v", "libx264", "-profile:v", "high", "-pix_fmt", "yuv420p", "-crf", str(config.get("render.crf", 19)), "-preset", "medium",
-        "-r", str(config.get("render.fps", 30)), "-c:a", "aac", "-b:a", "192k", "-ar", "48000",
-        "-shortest", "-movflags", "+faststart", str(out),
+        "-af", f"{loudnorm_filter(audio_wav)},aresample=48000,apad", *video,
+        "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-shortest", "-movflags", "+faststart", str(out),
     ])
 
 
@@ -174,16 +242,51 @@ def make_cover(spec: Spec, project_dir: Path, timeline: dict, final: Path) -> st
     return "frame"
 
 
+def loop_seam(spec: Spec, project_dir: Path, raw: Path, total_s: float) -> Path:
+    """raw.mp4 whose last frames turn into its first frame (the style's loop settings), or raw itself when
+    the loop is off or there's no room after the last word. Writes raw_loop.mp4."""
+    lp = config.style(spec.style)["loop"]
+    if not (spec.loop if spec.loop is not None else lp["enabled"]):
+        return raw
+    words_path = project_dir / "words.json"
+    words = json.loads(words_path.read_text()) if words_path.exists() else []
+    last = max((w["endMs"] for w in words), default=0) / 1000
+    seam = min(float(lp["seam_s"]), total_s - last - float(lp["after_voice_s"]))
+    if seam < 0.15:
+        log.warning("loop: only %.2f s after the last word; no seam (raise timeline.tail_ms)", total_s - last)
+        return raw
+    fps = int(config.get("render.fps", 30))
+    first, out = project_dir / "loop_first.png", project_dir / "raw_loop.mp4"
+    ffmpeg.run(["-i", str(raw), "-frames:v", "1", str(first)])
+    norm = f"fps={fps},format=yuv420p,settb=AVTB"
+    ffmpeg.run([
+        "-i", str(raw), "-loop", "1", "-t", f"{seam + 0.1:.3f}", "-i", str(first),
+        "-filter_complex", f"[0:v]{norm}[a];[1:v]{norm}[b];"
+                           # the blend completes 2 frames early, so the last frames are the first frame exactly
+                           f"[a][b]xfade=transition={lp['transition']}:duration={seam - 2 / fps:.3f}:offset={total_s - seam:.3f},"
+                           f"trim=duration={total_s:.3f}[v]",
+        "-map", "[v]", "-an", "-c:v", "libx264", "-profile:v", "high", "-pix_fmt", "yuv420p",
+        "-crf", str(config.get("render.crf", 19)), "-preset", str(config.get("render.preset")), "-r", str(fps),
+        "-movflags", "+faststart", str(out),
+    ])
+    return out
+
+
 def run(spec: Spec, project_dir: Path) -> dict:
     raw, voice_wav = project_dir / "raw.mp4", project_dir / "voice.wav"
     final, nomusic = project_dir / "final.mp4", project_dir / "final_nomusic.mp4"
     timeline = json.loads((project_dir / "timeline.json").read_text())
     total_s = timeline["total_ms"] / 1000
     music_cfg = config.get("music", {})
+    raw = loop_seam(spec, project_dir, raw, total_s)
 
     # Sound effects (cues written by compose); "voice bed" = voice + SFX, no music.
     sfx_path = project_dir / "sfx.json"
     events = json.loads(sfx_path.read_text()) if spec.sfx and sfx_path.exists() else []
+    moves = motion_cues(spec, timeline, raw, events)
+    if moves:
+        log.info("sfx: %d camera move(s): %s", len(moves), ", ".join(f"{e['t']:.1f}s" for e in moves))
+    events = sorted(events + moves, key=lambda e: e["t"])
     sfx_wav = project_dir / "sfx.wav"
     has_sfx = build_sfx(events, total_s, sfx_wav)
     voice_bed = voice_wav

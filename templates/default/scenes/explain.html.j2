@@ -1,2 +1,2 @@
     {% if s.headline %}<div class="safe headline" style="top: 250px; font-size: 84px;">{% include "scenes/_headline.html.j2" %}</div>{% endif %}
-    {% if s.icon %}<div class="iconwrap" style="width:420px;height:420px;top:{{ 600 if s.headline else 460 }}px;margin-left:-210px;">{{ s.icon | safe }}</div>{% endif %}
+    {% if s.icon and not s.quiz %}<div class="iconwrap" style="width:420px;height:420px;top:{{ 600 if s.headline else 460 }}px;margin-left:-210px;">{{ s.icon | safe }}</div>{% endif %}

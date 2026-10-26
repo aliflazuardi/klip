@@ -18,10 +18,12 @@ def run(project_dir: Path, renderer: Renderer | None = None, force: bool = False
     comp = project_dir / "composition"
     comp_hash = json.loads((comp / "compose.json").read_text())["hash"]
     raw, stamp = project_dir / "raw.mp4", project_dir / "render.json"
+    settings = getattr(renderer, "settings", {})
     if not force and raw.exists() and stamp.exists():
-        if json.loads(stamp.read_text()).get("hash") == comp_hash:
+        old = json.loads(stamp.read_text())
+        if old.get("hash") == comp_hash and old.get("settings", settings) == settings:
             log.info("render: composition unchanged, reusing raw.mp4")
             return raw
     renderer.render(comp, raw, fps=config.get("render.fps", 30))
-    stamp.write_text(json.dumps({"hash": comp_hash, "renderer": renderer.name}))
+    stamp.write_text(json.dumps({"hash": comp_hash, "renderer": renderer.name, "settings": settings}))
     return raw

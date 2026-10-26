@@ -122,7 +122,24 @@ def test_mcp_lists_all_tools():
         async with Client(mcp_server.server) as c:
             return {t.name for t in (await c.list_tools()).tools}
     assert asyncio.run(go()) == {"get_spec_schema", "list_voices", "list_templates", "list_styles",
-                                 "validate_spec", "render_spec", "photo_brief", "job_status", "list_jobs"}
+                                 "validate_spec", "render_spec", "photo_brief", "job_status", "list_jobs",
+                                 "get_brand_guide", "preview_spec", "video_styles"}
+
+
+def test_mcp_video_styles():
+    guide = call("video_styles")["guide"]
+    assert "## At a glance" in guide and "Stage" in guide
+
+
+def test_mcp_brand_guide_and_styles(tmp_path, monkeypatch):
+    monkeypatch.setattr(mcp_server, "ROOT", tmp_path)
+    (tmp_path / "brands" / "acme" / "skill").mkdir(parents=True)
+    (tmp_path / "brands" / "acme" / "skill" / "SKILL.md").write_text("# Acme voice")
+    g = call("get_brand_guide", {"style": "acme"})
+    assert g["found"] and g["guide"] == "# Acme voice"
+    missing = call("get_brand_guide", {"style": "nope"})
+    assert not missing["found"] and missing["available"] == ["acme"]
+    assert "has_brand_guide" in call("list_styles")["default"]
 
 
 def test_mcp_schema_and_lists():
@@ -139,6 +156,43 @@ def test_mcp_validate_reports_errors_and_review_info():
     bad = call("validate_spec", {"spec": {**GOOD, "target_duration_s": 15}})
     assert not bad["valid"] and any("outside" in e for e in bad["errors"])
     assert not call("validate_spec", {"spec": json.dumps({"slug": "x"})})["valid"]
+
+
+def test_mcp_preview_spec_saves_scene_files_and_returns_sheets(tmp_path, monkeypatch):
+    from PIL import Image as PILImage
+    from klip import codescene, preview
+    monkeypatch.setattr(mcp_server, "ROOT", tmp_path)
+    monkeypatch.setattr(codescene, "ROOT", tmp_path)
+    sid = GOOD["scenes"][1]["id"]
+    spec = {**GOOD, "target_duration_s": 40, "scenes": [
+        {**sc, "visual": {"type": "code", "code": {"file": f"specs/tidur-siang-ideal/{sid}.html"}}} if sc["id"] == sid else sc
+        for sc in GOOD["scenes"]]}
+    scene = "<div class='a'></div><script>k.tl.from('.a', {opacity: 0, duration: 0.3}, 0);</script>"
+    calls = []
+
+    def fake_run(spec, project_dir, scene_ids, review=True):
+        calls.append((spec.slug, scene_ids, review))
+        sheet = project_dir / "preview" / f"{sid}.jpg"
+        sheet.parent.mkdir(parents=True, exist_ok=True)
+        PILImage.new("RGB", (40, 30), "#123").save(sheet)
+        (project_dir / "timeline.json").write_text(json.dumps({"engine": "edge", "draft": True}))
+        return {"rows": [{"scene": sid, "sheet": str(sheet), "frames": [{"t": 0.1, "label": "start", "png": ""}]}],
+                "review": None, "review_error": None}
+    monkeypatch.setattr(preview, "run", fake_run)
+
+    async def go(args):
+        async with Client(mcp_server.server) as c:
+            return (await c.call_tool("preview_spec", args)).content
+    out = asyncio.run(go({"spec": spec, "scenes": [sid], "scene_files": {f"{sid}.html": scene}}))
+    assert (tmp_path / "specs" / "tidur-siang-ideal" / f"{sid}.html").read_text() == scene
+    summary = json.loads(out[0].text)
+    assert summary["ok"] and summary["voice"] == "draft (edge)" and summary["scenes"][0]["stills"] == ["0.10s start"]
+    assert [c.type for c in out] == ["text", "image"] and out[1].mime_type == "image/jpeg"
+    assert calls == [("tidur-siang-ideal", [sid], False)]
+    # scene files stay inside specs/<slug>/ and must be scene file types
+    bad = asyncio.run(go({"spec": spec, "scene_files": {"../../evil.html": "x", "notes.txt": "x"}}))
+    errs = json.loads(bad[0].text)["errors"]
+    assert len(errs) == 2 and not (tmp_path.parent / "evil.html").exists()
 
 
 def test_mcp_render_spec_rejects_invalid_and_starts_valid(tmp_path, monkeypatch):

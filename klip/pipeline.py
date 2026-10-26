@@ -22,8 +22,11 @@ STAGES = ["voice", "assets", "compose", "render", "post", "qa"]
 
 def words_per_second(voice_name: str, rate: str | None) -> float:
     rate = rate or config.default_rate(voice_name)
-    # klip.yaml voices.base_words_per_second is measured at +0%; scales ~linearly with rate
-    return config.get("voices.base_words_per_second")[voice_name] * (1 + int(rate.rstrip("%")) / 100)
+    # klip.yaml voices.base_words_per_second is measured at +0%; scales ~linearly with rate. The engine
+    # that records the final voice can have its own (voices.base_words_per_second_by_engine).
+    by_engine = (config.get("voices.base_words_per_second_by_engine") or {}).get(config.get("voices.engine"))
+    base = (by_engine or config.get("voices.base_words_per_second"))[voice_name]
+    return base * (1 + int(rate.rstrip("%")) / 100)
 
 
 def resolve(spec_path: Path, voice_override: str | None = None, out_dir: Path | None = None,

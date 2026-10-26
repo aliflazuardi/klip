@@ -395,6 +395,12 @@ def _print_qa(report: dict) -> None:
     console.print(f"[bold]QA {'[green]passed' if report['passed'] else '[red]FAILED'}[/][/bold]")
     for c in report["checks"]:
         console.print(f"  {'[green]✓' if c['ok'] else '[red]✗'}[/] {c['name']}: {c['detail']}")
+    for c in (report.get("pace") or {}).get("vs_targets", []):
+        mark = "[green]✓[/]" if c["ok"] else "[yellow]![/]"
+        console.print(f"  {mark} pace: {c['metric']} {c['value']} (target {c['low']}–{c['high']})")
+    for kind, what in (("dead", "barely moves"), ("busy", "keeps changing everywhere")):
+        for r in (report.get("motion") or {}).get(kind, []):
+            console.print(f"  [yellow]![/] motion: {r['scene']} {what} for {r['dur']:.1f}s from {r['t']:.1f}s")
     if pr := report.get("preview_review"):
         stale = f"; out of date for {', '.join(pr['stale'])} (re-run klip preview)" if pr["stale"] else ""
         console.print(f"  [dim]preview review: flagged {', '.join(pr['flagged']) or 'none'}{stale}[/]")
@@ -411,6 +417,78 @@ def run_stage(stage: str = typer.Argument(..., help="voice | assets | compose | 
         _print_qa(result)
         raise typer.Exit(0 if result["passed"] else 1)
     console.print_json(json.dumps(result, default=str, ensure_ascii=False))
+
+
+@app.command()
+def measure(videos: list[Path] = typer.Argument(..., help="Reference videos (mp4) you'd like to match"),
+            save: bool = typer.Option(False, "--save", help="Save their median ± spread as QA pace targets")) -> None:
+    """Pace of videos: cuts and visual beats per minute, how much the picture moves, dead air."""
+    from rich.table import Table
+
+    from klip import measure as measure_mod
+    rows = []
+    table = Table("video", *measure_mod.METRICS)
+    for v in videos:
+        r = measure_mod.measure(v)
+        rows.append(r)
+        table.add_row(v.parent.name if v.stem.startswith("final") else v.name, *(str(r[k]) for k in measure_mod.METRICS))
+    console.print(table)
+    if save:
+        f = measure_mod.save_targets(rows, [str(v) for v in videos])
+        console.print(f"[green]targets saved:[/] {f} (QA compares every render with them)")
+    console.print("targets now: " + ", ".join(f"{k} {lo}–{hi}" for k, (lo, hi) in measure_mod.targets().items()))
+
+
+@app.command()
+def cover(spec_path: Path, out: Optional[Path] = OutOpt) -> None:
+    """Redo cover.png only (after editing the spec's `cover`); uses the project's fetched assets."""
+    from klip.stages import cover as cover_stage
+    spec, project_dir = _load_or_exit(spec_path, None, out)
+    assets_path = project_dir / "assets.json"
+    png = cover_stage.run(spec, project_dir, json.loads(assets_path.read_text()) if assets_path.exists() else None)
+    console.print(f"[green]cover:[/] {png}")
+
+
+@app.command()
+def ideas(style: str = StyleOpt, count: Optional[int] = typer.Option(None, "--count", "-n", help="Ideas wanted (default: ideas.count)"),
+          signals: Optional[Path] = typer.Option(None, "--from", help="Your own signals, one per line (e.g. pasted from TikTok Creative Center)"),
+          trends: bool = typer.Option(True, "--trends/--no-trends", help="Read today's Google Trends (ideas.geo)"),
+          geo: Optional[str] = typer.Option(None, "--geo", help="Country for Google Trends (default: ideas.geo)"),
+          duration: int = DurationOpt, voice: str = typer.Option("female", "--voice", "-v"),
+          provider: Optional[str] = ProviderOpt,
+          out: Optional[Path] = typer.Option(None, "--out", "-o", help="Batch file (default: specs/ideas-<date>-<style>.yaml)")) -> None:
+    """Today's trending searches (and your own signals) → video ideas for a channel → a batch file to pick from."""
+    from klip import ideas as ideas_mod
+    from klip.engines.llm.base import LLMError
+    from klip.http import HTTPError
+    from klip.stages import script
+    found: list = []
+    if trends:
+        try:
+            found += ideas_mod.google_trends(geo or ideas_mod.cfg("geo"))
+        except (HTTPError, ValueError) as e:
+            console.print(f"[yellow]Google Trends unavailable:[/] {e}")
+    if signals:
+        found += ideas_mod.pasted(signals)
+    console.print(f"{len(found)} signal(s): " + ", ".join(t.title for t in found[:12]) + (" …" if len(found) > 12 else ""))
+    try:
+        with console.status("thinking up ideas…"):
+            rows = ideas_mod.generate(script.get_provider(provider), style, found, count or int(ideas_mod.cfg("count")))
+    except LLMError as e:
+        console.print(f"[red]ideas failed:[/] {e}")
+        raise typer.Exit(1)
+    t = Table(title=f"ideas · {style}", show_lines=True)
+    for col in ("score", "topic", "angle", "trend", "check"):
+        t.add_column(col, overflow="fold")
+    for i in rows:
+        warn = " ⚠" if i.get("sensitivity") in ("medium", "high") else ""
+        t.add_row(f"{i.get('score')}/5{warn}", i["topic"], i.get("angle", ""), i.get("trend", ""), i.get("check", ""))
+    console.print(t)
+    path = out or ideas_mod.default_out(style)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(ideas_mod.batch_yaml(rows, style, duration, voice), encoding="utf-8")
+    console.print(f"[green]✓[/green] {path}")
+    console.print(f"Keep the ones you like, then: uv run klip batch {path} --scripts-only")
 
 
 @app.command()

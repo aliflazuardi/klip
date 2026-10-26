@@ -1,0 +1,5 @@
+{% set q = s.quiz %}
+    <div class="qz" style="top: {{ q.top }}px; --qz-letter: {{ q.letter }}; --qz-right: {{ q.right }}; --qz-wrong: {{ q.wrong }};">
+      <div class="qz-opts">{% for o in q.options %}<div class="qz-opt{{ ' right' if o.right }}" style="height: {{ q.oh }}px; margin-top: {{ 0 if loop.first else q.gap }}px; font-size: {{ q.font }}px;"><i class="qz-l">{{ o.letter }}</i><span class="qz-t">{{ o.text }}</span><em class="qz-mark">{{ (q.check if o.right else q.x) | safe }}</em></div>{% endfor %}</div>
+      {% if q.ring %}<div class="qz-ring"><svg viewBox="0 0 100 100" width="{{ quiz.ring_px }}" height="{{ quiz.ring_px }}"><circle cx="50" cy="50" r="44" class="qz-track"/><circle cx="50" cy="50" r="44" class="qz-arc" pathLength="100" stroke-dasharray="100" stroke-dashoffset="0"/></svg><b class="qz-n">{{ quiz.countdown_s }}</b><b class="qz-q">?</b></div>{% endif %}
+    </div>

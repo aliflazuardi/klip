@@ -1,0 +1,18 @@
+{
+  "slug": "code-world",
+  "voice": "female",
+  "target_duration_s": 14,
+  "look_bible": {"preset": "cinematic", "palette": {"accent": "#FF8A3D"}},
+  "world": {"file": "examples/code-scenes/worlds/journey.html"},
+  "scenes": [
+    {"id": "kebun", "template": "hook", "narration": "Perjalanan sebutir kopi dimulai di kebun, di lereng gunung yang dingin.",
+     "on_screen_text": "1. KEBUN",
+     "visual": {"type": "code", "code": {"file": "examples/code-scenes/worlds/title-only.html"}}},
+    {"id": "pabrik", "template": "explain", "narration": "Lalu bijinya dijemur dan disangrai sampai harum di pabrik.",
+     "on_screen_text": "2. SANGRAI",
+     "visual": {"type": "code", "code": {"file": "examples/code-scenes/worlds/title-only.html"}}},
+    {"id": "cangkir", "template": "explain", "narration": "Dan akhirnya sampai di cangkirmu pagi ini.",
+     "on_screen_text": "3. CANGKIR",
+     "visual": {"type": "code", "code": {"file": "examples/code-scenes/worlds/title-only.html"}}}
+  ]
+}

@@ -6,7 +6,93 @@ All notable changes to Klip are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-26
+
+### Fixed
+
+- `numpy` is now a declared dependency (the post stage imports it); a clean install no longer fails on import.
+
 ### Added
+
+- **Quiz ("tebak dulu").** A `quiz` on a hook/explain scene: the on-screen text is the question, 2–4
+  options pop in on their words, a countdown ring runs from `countdown_at`, and at `reveal_at` the right
+  option lights up (sparks, a ding) while the others are struck out. Ask in the hook and answer near the
+  end with the same options; validate warns when the hook answers itself or a quiz is never answered.
+  Works over stock/photo/solid scenes and on stage scenes (under the props); code scenes get the starter
+  `quiz.html`. Example `examples/quiz.json` (`quiz` in klip.yaml, `sfx.events.quiz_*`).
+- **Bigger mascot casts.** A brand may list more mascots than one video should show (e.g. one guide per
+  topic area) and pick per video with `"mascots"`; `validate` warns when more than `mascot.crowd`
+  (default 2) would appear.
+- **Brand colours on look presets.** A style's `looks` recolours a klip.yaml `code.looks` preset (or adds
+  its own): `"preset": "cinematic"` keeps the film grain, glow and slow eases but takes the brand's
+  palette instead of the preset's warm black.
+- **Mascots in code scenes.** With a mascot cast, `validate` warns when the hook or the scene before the
+  cta is a code scene that doesn't place the mascots (`k.cast` / `k.spotlight` / `k.mascot`); they
+  appear on their own only on stage scenes.
+- **Chat video style.** A stage backdrop `chat` (a group chat with its name and member count) and
+  `bubble` elements: messages land on their words after typing dots, forwarded chain messages are
+  marked, your own replies sit on the right, and the chat scrolls up as it fills. A `stamp` with
+  `target` lands on the bubble it judges. For hoaxes and chain messages; example `examples/chat.json`
+  (`stage.chat`, `stage.backdrop.chat`, `sfx.events.stage_bubble`).
+- **Guided flow.** `/klip` (and the MCP server from Claude Desktop) now walks you through a new video
+  step by step: channel → topic and hook → video style with a recommendation for the topic → what
+  photos you could send → mascots, voice, duration, CTA → a production summary, then the script
+  review. Brand guides say which styles they allow and which details are fixed. Say "langsung aja"
+  to skip to the summary.
+- **Video style catalog** ([docs/VIDEO-STYLES.md](docs/VIDEO-STYLES.md)): stock, stage, stage + data,
+  motion graphic, cinematic 3D, one world and mixed, with what each needs from you and which topics
+  each suits; MCP tool `video_styles`.
+- **Pace targets (`klip measure`).** `klip measure <videos…>` reports cuts and visual beats per minute,
+  average shot length, how much the picture moves and the share of dead air / busy stretches;
+  `--save` turns the median of reference videos you like into targets. QA compares every render with
+  them (`qa.pace`; informational, never fails).
+- **Three new 3D starters**: `three-map-id.html` (a 3D map of Indonesia the camera flies across, places
+  rising as pillars, arcs between them), `three-card.html` (a card with real thickness that spins in and
+  glints) and `three-bars.html` (a 3D bar chart growing on the words). The 3D starters now have their own
+  gallery, `examples/code-gallery-3d.json`.
+- **Depth on stage scenes.** The set now follows the stage camera at a fraction of its moves (parallax),
+  dark sets get a layer of soft bokeh in front of the props that moves faster, photo backdrops go soft
+  once the props are on (depth of field), cut-outs get a soft contact shadow and, on dark sets, an
+  accent rim glow (`stage.depth`).
+- **Kinetic titles and an FX kit.** A stage scene's title now comes in word by word; its keywords
+  (emphasis, or ALL-CAPS in a mixed-case title) slam in when the narration says them, with a light
+  sweep and a shake (on the hook they pulse, since the hook is up at frame 0). Stamps land with a
+  shockwave and sparks. Code scenes get `k.reveal` (letters, words, mask, slam), `k.fx` (sparks,
+  shock, shine, shake) and an odometer `k.count({roll: true})` (`stage.motion.title`, `fx`).
+- **Motion report in QA.** `qa.json` and the render summary now flag stretches where the picture barely
+  moves (dead air) or changes everywhere for too long, per scene (`qa.motion`; informational, never
+  fails a render). The stage camera keeps drifting in under the closing outro badge, which the report
+  caught as 5+ s of stillness at the end.
+- **Props move with weight.** Stage props blur as they fly in and sharpen as they land, wobble once
+  after landing (a decaying jelly skew), puff dust when dropped or stamped, and lean back before they
+  sweep off (`stage.motion.feel`). Code scenes get the same as `k.land(el, at)`, plus `k.spring()`, a
+  deterministic spring ease for any tween.
+- **Transition library.** Cuts between scenes now vary: whip (a fast slide with sideways motion
+  blur), zoom (a dive through the frame), wipe (a brand-colour circle sweeps across) and flash, each
+  with its own sound, never the same twice in a row; the cut out of the hook gets the strongest
+  (`style.transitions`). A scene's `"transition"` picks the cut into it. Stage scenes on one set and
+  scenes inside a world keep their own continuous moves.
+- **Sound on camera moves.** The post stage reads the rendered video and plays a whoosh where a code
+  scene's camera starts a big move (most of the picture changing at once), louder for bigger moves,
+  clear of scene cuts and of whooshes already cued (`sfx.motion`).
+- **Seamless loop.** With `loop` on (style `loop.enabled`, or `"loop": true` in a spec), the last
+  half second, after the last word, turns into the video's first frame (an ffmpeg xfade, `zoomin` by
+  default), so the platform's auto-replay has no jump. Costs one video re-encode in the post stage.
+- **Cold opens for code scenes.** `k.spotlight("napa", {pose})` puts a mascot centre stage in a code
+  scene, big, under a glow and a turning sunburst (settings `code.kit.spotlight`). docs/CODE-SCENES.md
+  shows how a world replays its climax under the hook so a cinematic video opens on its best shot.
+- **Livelier mascots.** Mascots gesture while they speak (a lean on a new sentence or a long word,
+  a nod on emphasised words, listeners nod along) and land with a squash. New spotlight:
+  `"mascot": {"focus": true}` (or a name) slides that mascot to the centre of the frame, big, under
+  a glow and a turning sunburst, while the others step out; picture props move to the right
+  column. Settings under `mascot.focus` and `mascot.lively`.
+- **Hook covers.** `cover.png` now uses a hero layout whenever the video has a subject: a short
+  title up top with the keyword on a tilted accent block, one big subject below (the hook's stage
+  cut-out, a subject lifted from the hook's b-roll, or the brand mascot pulling a face), an arrow
+  pointing at it, the subtitle as a tag and a sunburst behind. New spec fields `cover.layout`,
+  `cover.image`, `cover.mascot`, `cover.who` and `cover.badge`; settings under `cover.hero` in
+  `klip.yaml`. `"layout": "text"` keeps the old title-only cover. `klip cover <spec>` redoes just
+  the cover.
 
 - Gemini duets in one request: a video that alternates two narrators is recorded as a single
   multi-speaker take (`gemini_tts.dialogue`, on by default with `voices.take: whole`), then cut into
@@ -26,6 +112,30 @@ All notable changes to Klip are listed here. The format follows
 - Code scenes: a standard kit in `k` (`stage`, `camera`, `headline`, `cast`, `scrim`, `chip`, `pop`,
   `shake`, `type`, `count`, `draw`) that knows the series pill, the mascots' spots and the look, so a
   new scene starts legible and on-brand (settings in klip.yaml `code.kit`).
+- Code scenes: light. `k.glow(ctx)` (bloom for a 2D canvas, or a CSS glow on an element),
+  `k.bloom(renderer, scene, camera)` (Three.js with bloom) and `k.flare(ctx, x, y)` (lens flare with
+  rays and an anamorphic streak); defaults in klip.yaml `code.kit.glow` / `code.kit.flare`.
+- `look_bible.preset`: start from a named look in klip.yaml `code.looks`. `"cinematic"` is a dark
+  motion-graphics look (warm near-black, hairline strokes, one glowing accent) with the new `film`
+  texture (grain + dark vignette) and `cinematic` motion (slow expo eases).
+- Starter `light-beam.html`: a beam of light strikes a set of hairline rings on the key word and
+  shoots through, with a flare, shockwave, dust and HUD readouts (in the starter gallery).
+- Code scenes: `k.trail(ctx, pos, t)` (a tapered streak behind a moving point) and
+  `k.motionBlur(ctx, draw)` (sub-frame motion blur for a canvas), settings in klip.yaml
+  `code.kit.trail` / `code.kit.motion_blur`; light-beam's exit pulse leaves a trail.
+- Spec `world`: one code layer under a run of consecutive code scenes, so a camera can travel through
+  one place while the scenes change on top (`k.scenes`, `k.sceneAt(t)`, words of the whole run).
+  Starter `examples/code-scenes/worlds/journey.html`, example `examples/code-world.json`.
+- Validate warns when a code look's `bg` is darker than video black (it flattens and gradients band).
+- `klip ideas`: today's trending searches (Google Trends RSS, `ideas.geo`, with news headlines) and your
+  own pasted signals (`--from`) → explainer ideas that fit the channel's brand guide and skip topics
+  already made → a `klip batch` file with each idea's angle, hook, trend, facts to check and
+  sensitivity as comments. Settings in klip.yaml `ideas`.
+- Code scenes follow the music: compose finds the beats of the video's music track (klip/beats.py,
+  pure Python, cached; settings in klip.yaml `code.beats`) and passes them as `k.beats`, `k.bpm` and
+  `k.period`. `k.pulse(t)` (1 on a beat, decaying) and `k.onBeat(fn)` put motion on them. Spec
+  `music.beats: false` turns it off; compose warns when a track's beat is unclear. The light-beam
+  starter breathes on the beat and rings out an echo on every bar.
 - `klip preview` records with a free draft voice (`voices.preview_engine`, edge) unless the final
   engine's takes are already cached, so previews never spend Gemini or ElevenLabs quota.
 - Code scenes: `sfx` cues (`{at, sfx, offset_s}`) put sound effects on a scene's own beats.
@@ -39,13 +149,47 @@ All notable changes to Klip are listed here. The format follows
 - `klip preview` ends with Claude's review of the contact sheets (score per scene, issues with fixes:
   unreadable text, overlaps, safe area, empty frames, off-script, off-style, error boxes), saved to
   `preview/review.json` and carried into `qa.json`. Settings in klip.yaml `code.review`; `--no-review`.
+- MCP tool `get_brand_guide(style)`: returns a brand pack's `skill/SKILL.md` and its mascot cast, so
+  Claude Desktop sessions follow the brand (voice, series, mascots) without a separately installed skill.
+- `list_styles` now lists each brand's mascots (name, voice, side) and whether it has a brand guide.
+- MCP tool `preview_spec`: the `klip preview` contact sheets returned as images (plus the stills'
+  times and labels), so Claude Desktop can look before it renders. `validate_spec`, `preview_spec`
+  and `render_spec` take `scene_files` (code-scene HTML/JS saved to `specs/<slug>/`), which brings
+  director mode to Claude Desktop.
 
 ### Fixed
 
+- **Stamps no longer cover text on a stage.** A stamp may still slap over the prop it judges, but it is
+  now pushed apart from labels and numbers (and other stamps), so "SEMBILAN = DISKON?" stays readable.
+- Duration estimates (validate, the script word budget) now use the speed of the engine that records the
+  final voice: Gemini speaks ~2.3-2.5 words/s, not the Edge calibration's 1.7-2.2, so Gemini videos came
+  out 20-30 % shorter than planned (`voices.base_words_per_second_by_engine`).
+- Mascots' eyes no longer slide down their faces when they blink (a CSS transform-box on the eyes
+  fought GSAP's own SVG origin; it now scales each eye about its centre).
 - `post.txt` no longer repeats hashtags that the caption already contains.
 - Code scenes: a mascot pose set at the scene's very start (`pose(name, 0)`) now shows from frame 0.
 - Code scenes: the mascot walk no longer breaks `klip render` (HyperFrames' strict lint rejects template
   literals in `querySelector`); `klip validate` now flags that pattern in scene files too.
+
+### Changed
+
+- Scene cuts, transitions and camera moves now play a soft, low **swish** instead of the bright
+  "ssst" whoosh (`assets/sfx/swish.wav`, made by `scripts/make_sfx.py`; nothing above ~1.4 kHz). The
+  whoosh stays available for a scene's own cues.
+
+- Cinematic preset: bg lifted to `#16120F` (the old `#0E0C0B` sat below video black) and `film` grain
+  is 2 px, so it survives the encode and dithers dark gradients instead of letting them band.
+- Faster renders (a 59 s video: about 2 min → 1.5 min). HyperFrames encodes at `render.crf` and post
+  copies that video stream into final.mp4 instead of encoding it a second time (post ~33 s → ~14 s;
+  `render.reencode: true` restores the re-encode, now at `render.preset: veryfast`). `render.workers:
+  cores` runs one Chrome per CPU core but one (7 on an 8-core Mac vs 3 from HyperFrames' `auto`), and
+  `render.fast_capture: false` avoids HyperFrames' fast capture, which falls back to one slow worker
+  on Klip's drop-shadows and blend modes. A changed `render.crf` or `quality` now re-renders.
+- MCP instructions: for a named channel/brand, call `get_brand_guide` before writing; never ask the
+  user who the mascots are or which voice they use.
+- Warga Nalar skill: mascot summary at the top (Napa = female, asks; Gulung = male, explains; on by
+  default), per-scene voice rule for duets, 8–9 scenes allowed for duets, and the invalid
+  `bg: "malam"` replaced with `bg: "solid"`.
 
 ## [0.4.0] - 2026-10-21
 
@@ -211,7 +355,8 @@ First public release.
 - `klip.local.yaml` for personal overrides, deep-merged over `klip.yaml`.
 - `klip --version`.
 
-[Unreleased]: https://github.com/aliflazuardi/klip/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/aliflazuardi/klip/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/aliflazuardi/klip/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/aliflazuardi/klip/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/aliflazuardi/klip/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/aliflazuardi/klip/compare/v0.2.0...v0.2.1
