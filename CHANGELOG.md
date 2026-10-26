@@ -8,6 +8,10 @@ All notable changes to Klip are listed here. The format follows
 
 ## [0.5.0] - 2026-10-26
 
+### Fixed
+
+- `numpy` is now a declared dependency (the post stage imports it); a clean install no longer fails on import.
+
 ### Added
 
 - **Quiz ("tebak dulu").** A `quiz` on a hook/explain scene: the on-screen text is the question, 2–4
